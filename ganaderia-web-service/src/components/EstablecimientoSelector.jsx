@@ -1,0 +1,95 @@
+"use client";
+
+import { useSelector, useDispatch } from "react-redux";
+import { setEstablecimientoActual } from "@/store/auth";
+import { useEffect, useState } from "react";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+
+export default function EstablecimientoSelector() {
+  const dispatch = useDispatch();
+  const { userPayload, establecimientoActual } = useSelector(
+    (state) => state.auth
+  );
+  const { obtenerEstablecimientosHook } = useBussinesMicroservicio();
+
+  const [establecimientos, setEstablecimientos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Cargar establecimientos desde la API
+  useEffect(() => {
+    cargarEstablecimientos();
+  }, []);
+
+  const cargarEstablecimientos = async () => {
+    try {
+      setLoading(true);
+      const response = await obtenerEstablecimientosHook();
+
+      if (response?.status === 200) {
+        // Filtrar solo establecimientos activos
+        const establecimientosActivos = response.data.filter(
+          (e) => e.estado === "activo"
+        );
+        setEstablecimientos(establecimientosActivos);
+      }
+    } catch (error) {
+      console.error("Error al cargar establecimientos:", error);
+      setEstablecimientos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Si no es admin, no mostrar selector
+  if (userPayload?.rol !== "admin") {
+    return null;
+  }
+
+  const handleChange = (e) => {
+    const establecimientoId = e.target.value ? parseInt(e.target.value) : null;
+    dispatch(setEstablecimientoActual(establecimientoId));
+  };
+
+  if (loading) {
+    return <div className='text-white text-xs sm:text-sm'>Cargando...</div>;
+  }
+
+  return (
+    <div className='flex items-center gap-1 sm:gap-2'>
+      <svg
+        xmlns='http://www.w3.org/2000/svg'
+        fill='none'
+        viewBox='0 0 24 24'
+        strokeWidth={1.5}
+        stroke='currentColor'
+        className='w-4 h-4 sm:w-5 sm:h-5 text-white'
+      >
+        <path
+          strokeLinecap='round'
+          strokeLinejoin='round'
+          d='M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z'
+        />
+      </svg>
+
+      <select
+        value={establecimientoActual || ""}
+        onChange={handleChange}
+        className='bg-green-500 text-white border border-white rounded px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white'
+      >
+        <option value=''>📊 Todos los Establecimientos</option>
+        {establecimientos.map((est) => (
+          <option key={est.id_establecimiento} value={est.id_establecimiento}>
+            🏢 {est.nombre}
+          </option>
+        ))}
+      </select>
+
+      {/* Contador de establecimientos activos */}
+      {establecimientos.length > 0 && (
+        <span className='hidden sm:inline-block text-white text-xs bg-green-600 px-2 py-1 rounded-full'>
+          {establecimientos.length}
+        </span>
+      )}
+    </div>
+  );
+}
