@@ -7,12 +7,7 @@ import {
 } from 'typeorm';
 import { UserEntity } from './users.entity';
 import { Establecimiento } from '../../establecimientos/entities/establecimiento.entity';
-
-export enum RolEstablecimiento {
-  DUENO = 'dueno', // Puede borrar el campo, gestionar usuarios, ver facturación
-  VETERINARIO = 'veterinario', // Carga tactos, sanidad, ve reportes técnicos
-  OPERARIO = 'operario', // Carga nacimientos, pesos, movimientos. No borra nada.
-}
+import { RolEstablecimiento } from '../../invitaciones/roles.enum';
 
 @Entity('user_establecimientos')
 export class UserEstablecimientoEntity {

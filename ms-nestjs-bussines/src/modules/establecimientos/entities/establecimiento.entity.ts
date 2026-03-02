@@ -7,7 +7,6 @@ import {
   OneToMany,
 } from 'typeorm';
 import { UserEstablecimientoEntity } from '../../users/entity/user-establecimiento.entity';
-// 👇 IMPORTANTE: Importamos la entidad de invitaciones
 import { InvitacionEntity } from '../../invitaciones/invitacion.entity';
 
 @Entity('establecimientos')
@@ -33,21 +32,26 @@ export class Establecimiento {
   @Column({ type: 'varchar', length: 20, default: 'activo' })
   estado: string;
 
+  // 👇 AGREGAR ESTA COLUMNA NUEVA 👇
+  @Column({ type: 'json', nullable: true })
+  configuracion: {
+    umbral_mortalidad?: number;
+    umbral_morbilidad?: number;
+  };
+  // 👆 FIN DE LO NUEVO 👆
+
   @CreateDateColumn()
   fecha_creacion: Date;
 
   @UpdateDateColumn()
   fecha_actualizacion: Date;
 
-  // 👥 Relación con el Equipo (Usuarios que ya entraron)
   @OneToMany(
     () => UserEstablecimientoEntity,
     (userEst) => userEst.establecimiento,
   )
   usuariosAsignados: UserEstablecimientoEntity[];
 
-  // 🎫 NUEVA RELACIÓN: Invitaciones pendientes
-  // (Esto permite borrar las invitaciones si se borra el campo)
   @OneToMany(() => InvitacionEntity, (invitacion) => invitacion.establecimiento)
   invitaciones: InvitacionEntity[];
 }

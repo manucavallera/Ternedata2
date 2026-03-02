@@ -1,4 +1,3 @@
-// ms-nestjs-business/src/modules/auth/roles.guard.ts
 import {
   Injectable,
   CanActivate,
@@ -6,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY, UserRole } from './roles.decorator'; // ✅ Importar desde el decorator
+import { ROLES_KEY, UserRole } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -19,32 +18,51 @@ export class RolesGuard implements CanActivate {
     );
 
     if (!requiredRoles) {
-      return true; // Si no se especifican roles, permitir acceso
+      return true;
     }
 
     const { user } = context.switchToHttp().getRequest();
-
-    // ✅ AGREGAR ESTOS LOGS:
-    console.log('🎭 RolesGuard - Roles requeridos:', requiredRoles);
-    console.log('👤 RolesGuard - Usuario:', user);
-    console.log('🔑 RolesGuard - Rol del usuario:', user?.rol);
-    console.log(
-      '✅ RolesGuard - Tiene permiso?:',
-      requiredRoles.some((role) => user.rol === role),
-    );
 
     if (!user) {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
-    const hasRole = requiredRoles.some((role) => user.rol === role);
+    // --- LOGS DE DEPURACIÓN (Borrar en producción) ---
+    console.log('👮‍♂️ RolesGuard revisando a:', user.username);
+    console.log('📋 Roles requeridos:', requiredRoles);
+    console.log('👤 Rol Global:', user.rol);
+    console.log(
+      '🚜 Granjas con permisos:',
+      user.userEstablecimientos?.length || 0,
+    );
+    // --------------------------------------------------
 
-    if (!hasRole) {
-      throw new ForbiddenException(
-        `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
-      );
+    // 1. CHEQUEO GLOBAL (¿Es Admin del sistema o su rol base coincide?)
+    const hasGlobalRole = requiredRoles.some((role) => user.rol === role);
+    if (hasGlobalRole) {
+      console.log('✅ Acceso concedido por Rol Global');
+      return true;
     }
 
-    return true;
+    // 2. CHEQUEO ESPECÍFICO (¿Es Veterinario en alguna granja?)
+    // 👇 ESTA ES LA PARTE QUE FALTABA EN TU CÓDIGO ACTUAL 👇
+    if (user.userEstablecimientos && Array.isArray(user.userEstablecimientos)) {
+      // Buscamos si en ALGUNA granja tiene el rol que pide el endpoint
+      const hasSpecificRole = user.userEstablecimientos.some((ue) =>
+        requiredRoles.some((reqRole) => ue.rol === reqRole),
+      );
+
+      if (hasSpecificRole) {
+        console.log('✅ Acceso concedido por Rol Específico de Granja');
+        return true;
+      }
+    }
+
+    console.log(
+      '⛔ Acceso denegado. No tienes el rol necesario ni global ni en granjas.',
+    );
+    throw new ForbiddenException(
+      `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
+    );
   }
 }

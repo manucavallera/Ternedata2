@@ -86,4 +86,12 @@ export class UpdateEstablecimientoDto {
   @IsString()
   @IsOptional()
   estado?: string;
+
+  // 👇 AGREGA ESTO AQUÍ AL FINAL (Permite guardar el JSON)
+  @ApiProperty({
+    description: 'Configuración de alertas (JSON)',
+    required: false,
+  })
+  @IsOptional()
+  configuracion?: any;
 }

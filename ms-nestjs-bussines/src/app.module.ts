@@ -15,6 +15,10 @@ import { ResumenSaludModule } from './modules/resumen-salud/resumen-salud.module
 import { EstablecimientosModule } from './modules/establecimientos/establecimientos.module';
 import { RodeosModule } from './modules/rodeos/rodeos.module';
 import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
+import { BotModule } from './modules/bot/bot.module';
+
+// 👇 1. AGREGAR ESTA IMPORTACIÓN
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
@@ -36,8 +40,6 @@ import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
         database: configService.get<string>('database.name'),
         synchronize: true,
         autoLoadEntities: true,
-
-        // 🔑 CLAVE PARA RENDER
         ssl:
           process.env.ENTORNO_ENV === 'produccion'
             ? { rejectUnauthorized: false }
@@ -45,6 +47,25 @@ import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
       }),
     }),
 
+    // 👇 2. AGREGAR ESTE BLOQUE DE CONFIGURACIÓN
+    MailerModule.forRoot({
+      transport: {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'manucavallera44@gmail.com', // Tu correo real
+          pass: 'xyyj pqsn tlwv zmxl', // Tu contraseña de aplicación
+        },
+        // 👇 AGREGA ESTO: Ignorar error de certificado local (Antivirus)
+        tls: {
+          rejectUnauthorized: false,
+        },
+      },
+      defaults: {
+        from: '"Soporte Ternedata" <manucavallera44@gmail.com>',
+      },
+    }),
     UsersModule,
     AuthModule,
     MadresModule,
@@ -56,6 +77,7 @@ import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
     EstablecimientosModule,
     RodeosModule,
     InvitacionesModule,
+    BotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

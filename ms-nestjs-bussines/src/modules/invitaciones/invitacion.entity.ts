@@ -7,12 +7,16 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Establecimiento } from '../../modules/establecimientos/entities/establecimiento.entity';
-import { RolEstablecimiento } from '../../modules/users/entity/user-establecimiento.entity';
+import { RolEstablecimiento } from '../invitaciones/roles.enum';
 
 @Entity('invitaciones')
 export class InvitacionEntity {
   @PrimaryGeneratedColumn()
   id: number;
+
+  // 👇 AGREGA ESTA COLUMNA NUEVA
+  @Column({ nullable: true }) // Es nullable por si generas links genéricos sin email
+  email: string;
 
   @Column({ unique: true })
   token: string;
@@ -20,7 +24,6 @@ export class InvitacionEntity {
   @Column()
   establecimientoId: number;
 
-  // Relación Inversa (Apunta al cambio que hicimos en el Paso 1)
   @ManyToOne(() => Establecimiento, (est) => est.invitaciones, {
     onDelete: 'CASCADE',
   })

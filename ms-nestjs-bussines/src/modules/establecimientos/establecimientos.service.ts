@@ -1,3 +1,4 @@
+// ms-nestjs-business/src/modules/establecimientos/establecimientos.service.ts
 import {
   Injectable,
   HttpException,
@@ -11,54 +12,41 @@ import {
   CreateEstablecimientoDto,
   UpdateEstablecimientoDto,
 } from './dto/establecimiento.dto';
-// 👇 1. Importamos Servicios y Entidades necesarias
 import { UsersService } from '../users/users.service';
-import {
-  UserEstablecimientoEntity,
-  RolEstablecimiento,
-} from '../users/entity/user-establecimiento.entity';
+import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
+import { RolEstablecimiento } from '../invitaciones/roles.enum';
 
 @Injectable()
 export class EstablecimientosService {
   constructor(
     @InjectRepository(Establecimiento)
     private readonly establecimientoRepository: Repository<Establecimiento>,
-    // 👇 2. Inyectamos el repo de la tabla intermedia
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstablecimientoRepository: Repository<UserEstablecimientoEntity>,
-    // 👇 3. Inyectamos UsersService para actualizar el contexto del usuario
     private readonly usersService: UsersService,
   ) {}
 
   // ============================================================
-  // CREAR (Lógica PRO: Crea el campo y te asigna como Dueño)
+  // CREAR
   // ============================================================
   async create(
     createDto: CreateEstablecimientoDto,
     userId: number,
   ): Promise<Establecimiento> {
     try {
-      // A. Crear y guardar el establecimiento físico
       const nuevoEstablecimiento =
         this.establecimientoRepository.create(createDto);
       const guardado =
         await this.establecimientoRepository.save(nuevoEstablecimiento);
 
-      // B. ✨ Crear la relación en la tabla intermedia
-      // Esto dice: "El usuario X es DUEÑO del establecimiento Y"
       if (userId) {
         const relacion = this.userEstablecimientoRepository.create({
           userId: userId,
           establecimientoId: guardado.id_establecimiento,
-          rol: RolEstablecimiento.DUENO, // Le damos permisos totales
+          rol: RolEstablecimiento.DUENO,
         });
 
         await this.userEstablecimientoRepository.save(relacion);
-        console.log(
-          `✅ Usuario ${userId} vinculado como DUEÑO de ${guardado.nombre}`,
-        );
-
-        // C. (UX) Actualizar al usuario para que "entre" a este campo automáticamente
         await this.usersService.assignEstablecimiento(
           userId,
           guardado.id_establecimiento,
@@ -76,39 +64,64 @@ export class EstablecimientosService {
   }
 
   // ============================================================
-  // LISTAR MIS ESTABLECIMIENTOS (Donde tengo permiso)
+  // 🚀 LISTAR (CORREGIDO: Tipos compatibles)
   // ============================================================
-  async findAllMyEstablecimientos(userId: number): Promise<any[]> {
-    // 1. Buscamos en la tabla intermedia
-    const relaciones = await this.userEstablecimientoRepository.find({
+  async findAllMyEstablecimientos(
+    userId: number,
+    establecimientoIdAsignado?: number,
+  ): Promise<any[]> {
+    // 1. Obtener establecimientos donde soy DUEÑO (Tabla intermedia)
+    const relacionesDueño = await this.userEstablecimientoRepository.find({
       where: { userId: userId },
-      relations: ['establecimiento'], // Traemos los datos del campo
+      relations: ['establecimiento'],
       order: { id: 'DESC' },
     });
 
-    // 2. Extraemos los establecimientos y agregamos el rol con el que participo
-    // Retornamos un array limpio para el frontend
-    return relaciones
-      .map((relacion) => {
-        // Si el establecimiento existe (por seguridad)
-        if (relacion.establecimiento) {
-          return {
-            ...relacion.establecimiento,
-            mi_rol_en_campo: relacion.rol, // 👈 Dato útil: ¿Soy Dueño o Veterinario aquí?
-          };
+    // Mapeamos a un array limpio
+    const listaDueño = relacionesDueño
+      .filter((r) => r.establecimiento)
+      .map((r) => ({
+        ...r.establecimiento,
+        mi_rol_en_campo: r.rol, // Aquí sí es un RolEstablecimiento oficial
+      }));
+
+    // 2. Obtener establecimiento donde estoy ASIGNADO (Token)
+    // Definimos el array como 'any[]' para permitir flexibilidad de tipos
+    const listaAsignado: any[] = [];
+
+    if (establecimientoIdAsignado) {
+      // Verificamos si ya está en la lista de dueño para no duplicar
+      const yaEsta = listaDueño.some(
+        (e) => e.id_establecimiento === establecimientoIdAsignado,
+      );
+
+      if (!yaEsta) {
+        const estAsignado = await this.establecimientoRepository.findOne({
+          where: { id_establecimiento: establecimientoIdAsignado },
+        });
+
+        if (estAsignado) {
+          listaAsignado.push({
+            ...estAsignado,
+            // 👇 AQUÍ ESTÁ LA CORRECCIÓN CLAVE: 'as any'
+            // Engañamos a TS para que acepte este string personalizado
+            mi_rol_en_campo: 'colaborador_asignado' as any,
+          });
         }
-      })
-      .filter((e) => e !== undefined); // Filtramos nulos por si acaso
+      }
+    }
+
+    // 3. UNIR AMBAS LISTAS
+    return [...listaDueño, ...listaAsignado];
   }
 
   // ============================================================
-  // MÉTODOS ESTÁNDAR (Admin Global o uso interno)
+  // MÉTODOS ESTÁNDAR
   // ============================================================
 
-  // Obtener TODOS (Cuidado: Esto es para SuperAdmin de la plataforma)
   async findAll(): Promise<Establecimiento[]> {
     return await this.establecimientoRepository.find({
-      where: { estado: 'activo' },
+      where: { estado: 'activo' }, // Solo activos para el SuperAdmin por defecto
       order: { fecha_creacion: 'DESC' },
     });
   }
@@ -142,8 +155,6 @@ export class EstablecimientosService {
 
   async remove(id: number): Promise<void> {
     const establecimiento = await this.findOne(id);
-    // Nota: En un sistema real, aquí deberíamos borrar también las relaciones en userEstablecimientoRepository
-    // o usar "Cascada" en la entidad. Por ahora lo dejamos simple.
     await this.establecimientoRepository.remove(establecimiento);
   }
 

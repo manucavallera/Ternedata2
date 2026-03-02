@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InvitacionesService } from './invitaciones.service';
-import { RolEstablecimiento } from '../users/entity/user-establecimiento.entity';
+import { RolEstablecimiento } from '../invitaciones/roles.enum';
 // Asegúrate que la ruta al Guard sea correcta (a veces está en modules/auth o shared)
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -21,15 +21,20 @@ export class InvitacionesController {
   constructor(private readonly invitacionesService: InvitacionesService) {}
 
   @Post('crear/:establecimientoId')
-  @ApiOperation({ summary: 'Crear link de invitación (Solo Dueño)' })
+  @ApiOperation({ summary: 'Invitar usuario por email' })
   async crear(
     @Param('establecimientoId', ParseIntPipe) id: number,
-    @Body() body: { rol: RolEstablecimiento },
+    // 👇 1. AGREGAMOS "email" AQUÍ PARA RECIBIRLO
+    @Body() body: { email: string; rol: RolEstablecimiento },
     @Req() req: any,
   ) {
-    // Aquí podrías agregar una validación extra:
-    // if (!userIsOwner(req.user.id, id)) throw Forbidden...
-    return await this.invitacionesService.generarLink(id, body.rol);
+    // 👇👇👇 AGREGAR ESTOS LOGS OBLIGATORIAMENTE 👇👇👇
+    console.log('🚀 LLEGÓ LA PETICIÓN AL CONTROLADOR');
+    console.log('🏢 ID Establecimiento:', id);
+    console.log('📦 Datos recibidos (Body):', body);
+    // 👆👆👆
+    // 👇 2. PASAMOS EL EMAIL AL SERVICIO (Asegúrate de actualizar tu servicio también)
+    return await this.invitacionesService.generarLink(id, body.rol, body.email);
   }
 
   @Post('aceptar')

@@ -1,4 +1,3 @@
-// ms-nestjs-business/src/modules/auth/establecimiento.guard.ts
 import {
   Injectable,
   CanActivate,
@@ -10,19 +9,11 @@ import { Reflector } from '@nestjs/core';
 
 export const SKIP_ESTABLECIMIENTO_CHECK = 'skipEstablecimientoCheck';
 
-/**
- * Guard que inyecta el id_establecimiento del usuario autenticado
- * en el request para filtrado automático en los servicios.
- *
- * Se ejecuta DESPUÉS de JwtAuthGuard.
- * Los admins pueden ver todos los establecimientos (opcional).
- */
 @Injectable()
 export class EstablecimientoGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // Verificar si el endpoint tiene decorador para saltar verificación
     const skipCheck = this.reflector.getAllAndOverride<boolean>(
       SKIP_ESTABLECIMIENTO_CHECK,
       [context.getHandler(), context.getClass()],
@@ -35,28 +26,41 @@ export class EstablecimientoGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // ✅ AGREGAR ESTOS LOGS:
-    console.log('🔐 EstablecimientoGuard - Usuario:', user);
-    console.log('🎭 Rol:', user?.rol);
-    console.log('🏢 ID Establecimiento:', user?.id_establecimiento);
-    console.log('✅ Es Admin?:', user?.rol === 'admin');
-    // Validar que existe usuario (debería venir de JwtAuthGuard)
+    // --- LOGS DE CONTROL ---
+    console.log('🔐 EstablecimientoGuard - Usuario:', user?.username);
+    console.log('🏢 ID Principal:', user?.id_establecimiento);
+    console.log('🚜 Granjas Extra:', user?.userEstablecimientos?.length || 0);
+
     if (!user) {
       throw new UnauthorizedException('Usuario no autenticado');
     }
 
-    // Validar que el usuario tiene establecimiento asignado
-    // NOTA: Los admins pueden no tener establecimiento (ven todos)
-    if (user.rol !== 'admin' && !user.id_establecimiento) {
+    // 1. Si es ADMIN GLOBAL, pasa directo
+    if (user.rol === 'admin') {
+      request.id_establecimiento = null; // Admin ve todo
+      request.es_admin = true;
+      return true;
+    }
+
+    // 2. LOGICA INTELIGENTE: Determinar el ID del establecimiento
+    let establecimientoId = user.id_establecimiento;
+
+    // Si no tiene ID principal, pero tiene invitaciones aceptadas, usamos la primera
+    if (!establecimientoId && user.userEstablecimientos?.length > 0) {
+      establecimientoId = user.userEstablecimientos[0].establecimientoId;
+      console.log('🔄 Redirigiendo a granja invitada:', establecimientoId);
+    }
+
+    // 3. Verificación Final
+    if (!establecimientoId) {
       throw new ForbiddenException(
-        'Usuario sin establecimiento asignado. Contacte al administrador.',
+        'Usuario sin establecimiento asignado ni invitaciones activas.',
       );
     }
 
-    // Inyectar id_establecimiento en el request para uso en servicios
-    // Si es admin y no tiene establecimiento, puede ver todos (null)
-    request.id_establecimiento = user.id_establecimiento || null;
-    request.es_admin = user.rol === 'admin';
+    // Inyectamos el ID decidido en el request para que lo usen los servicios (Madres, etc.)
+    request.id_establecimiento = establecimientoId;
+    request.es_admin = false;
 
     return true;
   }
