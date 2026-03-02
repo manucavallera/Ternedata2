@@ -1,8 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEmail, Length, IsNotEmpty, MaxLength, Matches } from 'class-validator';
+// 👇 Agregamos IsOptional a los imports
+import {
+  IsString,
+  IsEmail,
+  Length,
+  IsNotEmpty,
+  MaxLength,
+  Matches,
+  IsOptional,
+} from 'class-validator';
 
 export class RegisterAuthDto {
-
   @ApiProperty({
     description: 'El nombre del usuario',
     minLength: 3,
@@ -19,7 +27,9 @@ export class RegisterAuthDto {
   })
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @IsNotEmpty({ message: 'El correo electrónico no puede estar vacío' })
-  @Length(5, 100, { message: 'El correo electrónico debe tener entre 5 y 100 caracteres' })
+  @Length(5, 100, {
+    message: 'El correo electrónico debe tener entre 5 y 100 caracteres',
+  })
   email: string;
 
   @ApiProperty({
@@ -29,10 +39,23 @@ export class RegisterAuthDto {
     example: '123456789',
   })
   @IsString()
-  @MaxLength(300, { message: 'La contraseña no puede exceder los 300 caracteres' })
+  @MaxLength(300, {
+    message: 'La contraseña no puede exceder los 300 caracteres',
+  })
   @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/, {
-    message: 'La contraseña debe tener al menos 6 caracteres y contener letras y números',
+    message:
+      'La contraseña debe tener al menos 6 caracteres y contener letras y números',
   })
   password: string;
-  
+
+  // 👇 AGREGADO: Campo opcional para recibir el token
+  @ApiProperty({
+    description:
+      'Token de invitación para activar cuenta automáticamente (Opcional)',
+    required: false,
+    example: 'uuid-de-invitacion-1234',
+  })
+  @IsOptional()
+  @IsString()
+  invitationToken?: string;
 }

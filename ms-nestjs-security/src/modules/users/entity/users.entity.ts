@@ -6,6 +6,9 @@ import {
   Index,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  OneToMany, // 👈 1. IMPORTANTE: Agregar OneToMany
+  JoinColumn,
 } from 'typeorm';
 import {
   IsString,
@@ -14,6 +17,10 @@ import {
   IsNotEmpty,
   MaxLength,
 } from 'class-validator';
+
+import { Establecimiento } from '../entity/establecimiento.entity';
+// 👇 2. IMPORTANTE: Importar la entidad intermedia
+import { UserEstablecimientoEntity } from './user-establecimiento.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -52,8 +59,6 @@ export class UserEntity {
   })
   password: string;
 
-  // ===== NUEVOS CAMPOS PARA PANEL ADMIN =====
-
   @Column({
     type: 'varchar',
     length: 20,
@@ -71,9 +76,20 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 20, nullable: true })
   telefono: string;
 
-  // 🆕 NUEVO CAMPO: Relación con establecimiento
   @Column({ type: 'int', nullable: true })
   id_establecimiento: number;
+
+  @ManyToOne(() => Establecimiento, { nullable: true })
+  @JoinColumn({ name: 'id_establecimiento' })
+  establecimiento: Establecimiento;
+
+  // 👇👇👇 3. ESTO ES LO QUE FALTABA (La conexión mágica) 👇👇👇
+  @OneToMany(
+    () => UserEstablecimientoEntity,
+    (userEstablecimiento) => userEstablecimiento.user,
+  )
+  userEstablecimientos: UserEstablecimientoEntity[];
+  // 👆👆👆👆👆👆👆👆👆👆
 
   @Column({ type: 'text', nullable: true })
   permisos_especiales: string;

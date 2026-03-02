@@ -36,23 +36,45 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Obtener todos los usuarios (solo admin)' })
-  async findAll() {
-    return await this.usersService.findAll();
+  @ApiOperation({ summary: 'Obtener usuarios (Filtrado según quién lo pide)' })
+  async findAll(@Request() req) {
+    if (!req.user) {
+      throw new HttpException(
+        'Usuario no identificado',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    return await this.usersService.findAll(req.user);
   }
 
+  // 👇 MODIFICADO: Ahora recibe @Request() para filtrar estadísticas
   @Get('stats')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Obtener estadísticas de usuarios (solo admin)' })
-  async getStats() {
-    return await this.usersService.getStats();
+  @ApiOperation({
+    summary: 'Obtener estadísticas filtradas por establecimiento',
+  })
+  async getStats(@Request() req) {
+    // Le pasamos el usuario al servicio
+    return await this.usersService.getStats(req.user);
   }
 
   @Get('profile/me')
   @ApiOperation({ summary: 'Obtener perfil del usuario actual' })
   async getProfile(@Request() req) {
-    return await this.usersService.findOne(req.user.userId);
+    // 👇 DEBUG: Ver qué llega realmente (míralo en la consola negra del backend)
+    console.log('👤 Profile Request User:', req.user);
+
+    // 🛡️ CORRECCIÓN: Buscamos 'id', 'userId' o 'sub' para ir a lo seguro
+    const idUsuario = req.user.id || req.user.userId || req.user.sub;
+
+    if (!idUsuario) {
+      throw new HttpException(
+        'ID de usuario no encontrado en el token',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return await this.usersService.findOne(idUsuario);
   }
 
   @Get('by-role/:role')
@@ -62,7 +84,6 @@ export class UsersController {
     return await this.usersService.findByRole(role);
   }
 
-  // 🆕 NUEVO ENDPOINT: Obtener usuarios por establecimiento
   @Get('by-establecimiento/:id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({
@@ -130,5 +151,16 @@ export class UsersController {
     @Body('rol') rol: UserRole,
   ) {
     return await this.usersService.changeRole(id, rol);
+  }
+
+  // 👇 AGREGAR ESTO EN users.controller.ts
+  @Post('assign-establishment')
+  async assignEstablecimiento(
+    @Body() body: { userId: number; establecimientoId: number },
+  ) {
+    return this.usersService.assignEstablecimiento(
+      body.userId,
+      body.establecimientoId,
+    );
   }
 }

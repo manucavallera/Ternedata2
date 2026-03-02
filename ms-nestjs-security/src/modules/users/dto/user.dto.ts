@@ -1,3 +1,4 @@
+// ms-nestjs-security/src/modules/users/dto/user.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -70,7 +71,7 @@ export class CreateUserDto {
   })
   @IsInt()
   @IsOptional()
-  id_establecimiento?: number; // ⬅️ NUEVO CAMPO
+  id_establecimiento?: number;
 }
 
 export class UpdateUserDto {
@@ -107,8 +108,13 @@ export class UpdateUserDto {
   @IsOptional()
   telefono?: string;
 
-  @ApiProperty({ required: false })
+  // 👇 CORREGIDO: Ahora permite null explícitamente
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'ID del establecimiento (null para desasignar)',
+  })
   @IsInt()
   @IsOptional()
-  id_establecimiento?: number; // ⬅️ NUEVO CAMPO
+  id_establecimiento?: number | null;
 }

@@ -5,8 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from './roles.decorator';
-import { UserRole } from '../users/entity/users.entity';
+import { ROLES_KEY, UserRole } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -18,31 +17,40 @@ export class RolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    console.log('🔒 Roles requeridos:', requiredRoles); // ⬅️ AGREGAR
-
     if (!requiredRoles) {
       return true;
     }
 
     const { user } = context.switchToHttp().getRequest();
 
-    console.log('👤 Usuario en request:', user); // ⬅️ AGREGAR
-    console.log('🎭 Rol del usuario:', user?.rol); // ⬅️ AGREGAR
-
     if (!user) {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
-    const hasRole = requiredRoles.some((role) => user.rol === role);
+    console.log('👮‍♂️ RolesGuard revisando a:', user.username);
+    console.log('📋 Roles requeridos:', requiredRoles);
+    console.log('👤 Rol Global:', user.rol);
 
-    console.log('✅ Tiene permiso?', hasRole); // ⬅️ AGREGAR
+    // 1. CHEQUEO GLOBAL (¿Es Admin del sistema o su rol base coincide?)
+    const hasGlobalRole = requiredRoles.some((role) => user.rol === role);
+    if (hasGlobalRole) return true;
 
-    if (!hasRole) {
-      throw new ForbiddenException(
-        `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
+    // 2. CHEQUEO ESPECÍFICO (¿Es Veterinario en alguna granja?)
+    // Esto es lo que permite que el Veterinario pase aunque su rol base sea Operario
+    if (user.userEstablecimientos && Array.isArray(user.userEstablecimientos)) {
+      const hasSpecificRole = user.userEstablecimientos.some((ue) =>
+        requiredRoles.some((reqRole) => ue.rol === reqRole),
       );
+
+      if (hasSpecificRole) {
+        console.log('✅ Acceso concedido por Rol Específico de Granja');
+        return true;
+      }
     }
 
-    return true;
+    console.log('⛔ Acceso denegado en RolesGuard');
+    throw new ForbiddenException(
+      `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
+    );
   }
 }

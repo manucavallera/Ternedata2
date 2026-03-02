@@ -1,4 +1,3 @@
-// ms-nestjs-security/src/modules/auth/auth.service.ts
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from 'src/modules/users/entity/users.entity';
@@ -8,17 +7,27 @@ import { hash, compare } from 'bcrypt';
 import { LoginAuthDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UserInterface } from './interface/user.interface';
+import { UserEstablecimientoEntity } from 'src/modules/users/entity/user-establecimiento.entity';
+// 👇 1. IMPORTAMOS NODEMAILER
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
+    @InjectRepository(UserEstablecimientoEntity)
+    private readonly userEstablecimientoRepository: Repository<UserEstablecimientoEntity>,
     private readonly jwtService: JwtService,
   ) {}
 
+  // =================================================================
+  // REGISTER (Sin cambios, sigue igual de bien)
+  // =================================================================
   async register(registerAuthDto: RegisterAuthDto) {
-    const { name, email, password } = registerAuthDto;
+    const { name, email, password, invitationToken } = registerAuthDto;
+
+    console.log(`📨 [SERVICE] Registrando: ${email}`);
 
     if (!email || !name || !password) {
       throw new HttpException(
@@ -27,11 +36,9 @@ export class AuthService {
       );
     }
 
-    // Verificar si el email ya existe
     const existingUser = await this.usersRepository.findOne({
       where: { email },
     });
-
     if (existingUser) {
       throw new HttpException(
         'El email ya está registrado',
@@ -41,88 +48,141 @@ export class AuthService {
 
     const passwordHash = await hash(password, 10);
 
-    // ⬅️ ACTUALIZADO: Usuario inactivo y sin establecimiento por defecto
+    let estadoInicial = 'inactivo';
+    let datosInvitacion = null;
+
+    if (invitationToken) {
+      try {
+        const tokenLimpio = invitationToken.trim().replace(/['"]+/g, '');
+        datosInvitacion = this.jwtService.verify(tokenLimpio);
+        estadoInicial = 'activo';
+        console.log('✅ [SERVICE] Token Válido. Rol:', datosInvitacion.rol);
+      } catch (error) {
+        console.error('❌ [SERVICE] Token Inválido:', error.message);
+      }
+    }
+
     const userObject = {
       name: name,
       email: email,
       password: passwordHash,
-      estado: 'inactivo', // ⬅️ INACTIVO por defecto
-      rol: 'operario', // ⬅️ Rol operario por defecto
-      id_establecimiento: null, // ⬅️ Sin establecimiento
+      estado: estadoInicial,
+      rol: datosInvitacion?.rol || 'operario',
+      id_establecimiento: datosInvitacion?.id_establecimiento || null,
     };
 
-    console.log('📝 Nuevo registro (pendiente de aprobación):', {
-      email: userObject.email,
-      name: userObject.name,
-      estado: userObject.estado,
-    });
+    const newUser = await this.usersRepository.save(userObject);
 
-    return await this.usersRepository.save(userObject);
+    if (datosInvitacion) {
+      try {
+        await this.userEstablecimientoRepository.save({
+          userId: newUser.id,
+          establecimientoId: datosInvitacion.id_establecimiento,
+          rol: datosInvitacion.rol || 'operario',
+        });
+        console.log('🔗 [SERVICE] Vinculado con éxito.');
+      } catch (err) {
+        console.error('❌ Falló vinculación:', err);
+      }
+    }
+    return newUser;
   }
 
+  // =================================================================
+  // LOGIN (Sin cambios)
+  // =================================================================
   async login(loginAuthDto: LoginAuthDto): Promise<UserInterface> {
     const { email, password } = loginAuthDto;
     const user = await this.usersRepository.findOne({
       where: { email: email },
+      relations: ['userEstablecimientos'],
     });
 
-    if (!user) {
+    if (!user)
       throw new HttpException('Usuario no encontrado', HttpStatus.UNAUTHORIZED);
-    }
-
-    // Verificar si el usuario está activo
-    if (user.estado === 'inactivo') {
-      throw new HttpException(
-        'Usuario inactivo. Contacte al administrador.',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    // 🆕 LOG 1: Ver datos del usuario desde la BD
-    console.log('\n' + '='.repeat(60));
-    console.log('👤 [SECURITY] USUARIO DESDE BD:');
-    console.log('='.repeat(60));
-    console.log('ID:', user.id);
-    console.log('Nombre:', user.name);
-    console.log('Email:', user.email);
-    console.log('Rol:', user.rol);
-    console.log('ID Establecimiento:', user.id_establecimiento); // ⬅️ IMPORTANTE
-    console.log('Estado:', user.estado);
-    console.log('='.repeat(60) + '\n');
+    if (user.estado === 'inactivo')
+      throw new HttpException('Usuario inactivo.', HttpStatus.FORBIDDEN);
 
     const passwordValid = await compare(password, user.password);
-
-    if (!passwordValid) {
+    if (!passwordValid)
       throw new HttpException('Contraseña incorrecta', HttpStatus.UNAUTHORIZED);
-    }
 
-    // ⭐ PAYLOAD JWT: Incluir rol e id_establecimiento
     const payload = {
       id: user.id,
       name: user.name,
       rol: user.rol,
-      id_establecimiento: user.id_establecimiento, // 🆕 AGREGADO
+      id_establecimiento: user.id_establecimiento,
+      userEstablecimientos: user.userEstablecimientos || [],
     };
 
-    // 🆕 LOG 2: Ver el payload que se va a firmar
-    console.log('📦 [SECURITY] PAYLOAD JWT:');
-    console.log(JSON.stringify(payload, null, 2));
-    console.log('='.repeat(60) + '\n');
+    const token = this.jwtService.sign(payload, { expiresIn: '30d' });
+    return { user, token };
+  }
 
-    const token = this.jwtService.sign(payload, {
-      expiresIn: '30d', // ⏰ Token válido por 30 días
+  // =================================================================
+  // GENERADOR DE TOKEN + ENVÍO DE EMAIL 📧
+  // =================================================================
+  async crearTokenMagico(
+    emailRecibido: string,
+    rolRecibido: string,
+    idEstablecimiento: number,
+  ) {
+    // 1. Generamos el Token
+    const payload = {
+      email: emailRecibido,
+      id_establecimiento: idEstablecimiento || null,
+      rol: rolRecibido,
+    };
+    const token = this.jwtService.sign(payload);
+
+    // 2. Construimos el Link (Asegúrate que este puerto coincida con tu Frontend)
+    const linkDeRegistro = `http://localhost:3002/auth/register?token=${token}`;
+
+    // 3. 👇 CONFIGURACIÓN DEL CARTERO (NODEMAILER)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'manucavallera44@gmail.com', // Tu email real
+        pass: 'zswe bmll xoxd qftf', // 🔐 Tu contraseña de aplicación
+      },
+      // 👇👇 AGREGA ESTO AQUÍ 👇👇
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
 
-    // 🆕 LOG 3: Token generado
-    console.log('🔑 [SECURITY] TOKEN GENERADO:');
-    console.log(token.substring(0, 50) + '...');
-    console.log('='.repeat(60) + '\n');
-
-    const userToken: UserInterface = {
-      user: user,
-      token: token,
+    // 4. 👇 DISEÑO DEL CORREO
+    const mailOptions = {
+      from: '"Ternedata App 🐮" <manucavallera44@gmail.com>',
+      to: emailRecibido, // Le enviamos el correo al invitado
+      subject: '🎟️ Invitación a Ternedata',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+          <h2 style="color: #4F46E5;">¡Has sido invitado a Ternedata!</h2>
+          <p>Hola,</p>
+          <p>Te han invitado a unirte al equipo como <strong>${rolRecibido.toUpperCase()}</strong>.</p>
+          <p>Haz clic en el botón de abajo para registrarte y activar tu cuenta:</p>
+          <a href="${linkDeRegistro}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
+            Aceptar Invitación
+          </a>
+          <p style="margin-top: 20px; font-size: 12px; color: #888;">Si el botón no funciona, copia este link: <br> ${linkDeRegistro}</p>
+        </div>
+      `,
     };
 
-    return userToken;
+    // 5. 👇 ENVIAR EL CORREO (Disparamos y nos olvidamos)
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Email enviado exitosamente a ${emailRecibido}`);
+    } catch (error) {
+      console.error('❌ Error enviando email:', error);
+      // No lanzamos error para no romper el flujo, pero avisamos en consola
+    }
+
+    // Retornamos el token igual que antes para que el frontend siga funcionando
+    return {
+      instruccion: `Email enviado a ${emailRecibido}`,
+      token_para_copiar: token,
+    };
   }
 }

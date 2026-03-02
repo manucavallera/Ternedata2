@@ -6,23 +6,25 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
-
-
+// 👇 1. IMPORTAR LA ENTIDAD
+import { UserEstablecimientoEntity } from 'src/modules/users/entity/user-establecimiento.entity';
 
 @Module({
-  imports:[
-  ConfigModule,
-  TypeOrmModule.forFeature([UserEntity]),
-  JwtModule.registerAsync({
-    imports:[ConfigModule],
-    inject:[ConfigService],
-    useFactory:async (configService: ConfigService) => ({
-      secret: configService.get<string>('secret'),
-      signOptions: { expiresIn: '5m' },
+  imports: [
+    ConfigModule,
+    // 👇 2. AGREGARLA AQUÍ DENTRO DEL ARRAY (¡Esto es lo que falta!)
+    TypeOrmModule.forFeature([UserEntity, UserEstablecimientoEntity]),
+
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('secret'), // O 'JWT_SECRET' según tu .env
+        signOptions: { expiresIn: '30d' },
+      }),
     }),
-  }),  
   ],
   controllers: [AuthController],
-  providers: [AuthService,JwtStrategy],
+  providers: [AuthService, JwtStrategy],
 })
 export class AuthModule {}
