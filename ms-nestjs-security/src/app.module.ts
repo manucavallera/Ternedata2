@@ -47,10 +47,7 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
           // 👇 MANTENER ESTO PARA QUE NO VUELVA EL ERROR 500
           entities: [UserEntity, UserEstablecimientoEntity, Establecimiento],
 
-          ssl:
-            configService.get<string>('ENTORNO_ENV') === 'produccion'
-              ? { rejectUnauthorized: false }
-              : false,
+          ssl: false,
         };
       },
     }),
