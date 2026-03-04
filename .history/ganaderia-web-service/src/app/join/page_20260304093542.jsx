@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-// 👇 AJUSTADO: Import correcto
 import { equipoService } from "@/api/equipoRepo";
 
-export default function JoinPage() {
+function JoinPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
@@ -20,7 +19,7 @@ export default function JoinPage() {
     const tokenAuth = localStorage.getItem("token");
 
     if (!tokenAuth) {
-      // 🛑 NO LOGUEADO: Guardamos el token para usarlo DESPUÉS del login
+      // 🛑 NO LOGUEADO: Guardamos token pendiente y pedimos login/registro
       localStorage.setItem("pendingInviteToken", token);
       setStatus("login_required");
       return;
@@ -34,14 +33,23 @@ export default function JoinPage() {
     try {
       await equipoService.unirseAlEquipo(t);
       setStatus("exito");
-      localStorage.removeItem("pendingInviteToken"); // Limpiar token usado
+      localStorage.removeItem("pendingInviteToken");
 
-      // Redirigir al dashboard en 2 segundos
+      // Redirigir al dashboard
       setTimeout(() => router.push("/"), 2500);
     } catch (error) {
       console.error(error);
       setStatus("error");
     }
+  };
+
+  // 👇 FUNCIÓN CLAVE: Guarda el token y redirige a la ruta correcta
+  const navegarConBackup = (ruta) => {
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("backupToken", token); // 💾 Guardamos copia de seguridad
+    }
+    // Redirigimos pasando también el token en la URL
+    router.push(`${ruta}?token=${token}`);
   };
 
   return (
@@ -53,7 +61,6 @@ export default function JoinPage() {
             <h2 className='text-xl font-bold text-gray-800'>
               Validando invitación... ⏳
             </h2>
-            <p className='text-gray-500 mt-2'>Un momento por favor</p>
           </>
         )}
 
@@ -64,14 +71,26 @@ export default function JoinPage() {
               Inicia sesión primero
             </h2>
             <p className='text-gray-600 mb-6'>
-              Para unirte al campo, necesitas acceder a tu cuenta o crear una.
+              Para unirte al campo, necesitas acceder a tu cuenta.
             </p>
-            <button
-              onClick={() => router.push("/auth/login")}
-              className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg'
-            >
-              Ir a Login / Registro
-            </button>
+
+            <div className='flex flex-col gap-3'>
+              {/* 👇 AQUÍ ESTÁ LA CLAVE: Debe decir /auth/register */}
+              <button
+                onClick={() => navegarConBackup("/auth/register")}
+                className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg'
+              >
+                📝 Crear Cuenta Nueva
+              </button>
+
+              {/* 👇 AQUÍ TAMBIÉN: Debe decir /auth/login */}
+              <button
+                onClick={() => navegarConBackup("/auth/login")}
+                className='w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-gray-50 transition shadow-sm'
+              >
+                🔑 Ya tengo cuenta
+              </button>
+            </div>
           </>
         )}
 
@@ -81,11 +100,9 @@ export default function JoinPage() {
             <h2 className='text-2xl font-bold text-green-600 mb-2'>
               ¡Bienvenido al Equipo!
             </h2>
-            <p className='text-gray-600'>
-              Te has unido exitosamente al establecimiento.
-            </p>
+            <p className='text-gray-600'>Te has unido exitosamente.</p>
             <p className='text-sm text-gray-400 mt-6 animate-pulse'>
-              Redirigiendo al panel...
+              Entrando al sistema...
             </p>
           </>
         )}
@@ -97,7 +114,7 @@ export default function JoinPage() {
               Link Inválido
             </h2>
             <p className='text-gray-600 mb-6'>
-              La invitación expiró, ya fue usada o ya eres miembro del equipo.
+              La invitación expiró o ya fue usada.
             </p>
             <button
               onClick={() => router.push("/")}
@@ -109,5 +126,20 @@ export default function JoinPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// AGREGÁ ESTO AL FINAL DE TODO
+export default function JoinPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='min-h-screen flex items-center justify-center bg-gray-100'>
+          <div className='animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full'></div>
+        </div>
+      }
+    >
+      <JoinContent />
+    </Suspense>
   );
 }

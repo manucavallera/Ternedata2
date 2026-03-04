@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { equipoService } from "@/api/equipoRepo";
 
-export default function JoinPage() {
+function JoinPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
@@ -16,11 +16,10 @@ export default function JoinPage() {
     }
 
     // 1. Verificar si hay usuario logueado en LocalStorage
-    // Nota: A veces se guarda como 'token' o dentro de 'userSession'. Ajusta si es necesario.
     const tokenAuth = localStorage.getItem("token");
 
     if (!tokenAuth) {
-      // 🛑 NO LOGUEADO: Guardamos token por si acaso, pero PREFERIMOS pasarlo por URL
+      // 🛑 NO LOGUEADO: Guardamos token pendiente y pedimos login/registro
       localStorage.setItem("pendingInviteToken", token);
       setStatus("login_required");
       return;
@@ -44,6 +43,15 @@ export default function JoinPage() {
     }
   };
 
+  // 👇 FUNCIÓN CLAVE: Guarda el token y redirige a la ruta correcta
+  const navegarConBackup = (ruta) => {
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("backupToken", token); // 💾 Guardamos copia de seguridad
+    }
+    // Redirigimos pasando también el token en la URL
+    router.push(`${ruta}?token=${token}`);
+  };
+
   return (
     <div className='min-h-screen flex items-center justify-center bg-gray-100 p-4'>
       <div className='bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-200'>
@@ -63,20 +71,21 @@ export default function JoinPage() {
               Inicia sesión primero
             </h2>
             <p className='text-gray-600 mb-6'>
-              Para unirte al campo, necesitas tener una cuenta.
+              Para unirte al campo, necesitas acceder a tu cuenta.
             </p>
 
-            {/* 👇 AQUÍ ESTÁ EL CAMBIO CLAVE: Botones que conservan el token */}
             <div className='flex flex-col gap-3'>
+              {/* 👇 AQUÍ ESTÁ LA CLAVE: Debe decir /auth/register */}
               <button
-                onClick={() => router.push(`/register?token=${token}`)}
+                onClick={() => navegarConBackup("/auth/register")}
                 className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg'
               >
                 📝 Crear Cuenta Nueva
               </button>
 
+              {/* 👇 AQUÍ TAMBIÉN: Debe decir /auth/login */}
               <button
-                onClick={() => router.push(`/login?token=${token}`)}
+                onClick={() => navegarConBackup("/auth/login")}
                 className='w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-gray-50 transition shadow-sm'
               >
                 🔑 Ya tengo cuenta

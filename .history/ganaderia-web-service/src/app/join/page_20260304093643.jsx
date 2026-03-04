@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { equipoService } from "@/api/equipoRepo";
 
-export default function JoinPage() {
+function JoinContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
@@ -15,11 +15,11 @@ export default function JoinPage() {
       return;
     }
 
-    // 1. Verificar si hay usuario logueado
+    // 1. Verificar si hay usuario logueado en LocalStorage
     const tokenAuth = localStorage.getItem("token");
 
     if (!tokenAuth) {
-      // 🛑 NO LOGUEADO: Guardamos token pendiente y pedimos login
+      // 🛑 NO LOGUEADO: Guardamos token pendiente y pedimos login/registro
       localStorage.setItem("pendingInviteToken", token);
       setStatus("login_required");
       return;
@@ -43,12 +43,12 @@ export default function JoinPage() {
     }
   };
 
-  // 👇 FUNCIÓN CLAVE: Guarda el token antes de viajar
+  // 👇 FUNCIÓN CLAVE: Guarda el token y redirige a la ruta correcta
   const navegarConBackup = (ruta) => {
     if (token && typeof window !== "undefined") {
       localStorage.setItem("backupToken", token); // 💾 Guardamos copia de seguridad
     }
-    // Intentamos ir por URL también por si acaso
+    // Redirigimos pasando también el token en la URL
     router.push(`${ruta}?token=${token}`);
   };
 
@@ -75,7 +75,7 @@ export default function JoinPage() {
             </p>
 
             <div className='flex flex-col gap-3'>
-              {/* 👇 Botón Crear Cuenta (Corregido a /auth/register) */}
+              {/* 👇 AQUÍ ESTÁ LA CLAVE: Debe decir /auth/register */}
               <button
                 onClick={() => navegarConBackup("/auth/register")}
                 className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg'
@@ -83,7 +83,7 @@ export default function JoinPage() {
                 📝 Crear Cuenta Nueva
               </button>
 
-              {/* 👇 Botón Login (Corregido a /auth/login) */}
+              {/* 👇 AQUÍ TAMBIÉN: Debe decir /auth/login */}
               <button
                 onClick={() => navegarConBackup("/auth/login")}
                 className='w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-gray-50 transition shadow-sm'
@@ -126,5 +126,20 @@ export default function JoinPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// AGREGÁ ESTO AL FINAL DE TODO
+export default function JoinPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='min-h-screen flex items-center justify-center bg-gray-100'>
+          <div className='animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full'></div>
+        </div>
+      }
+    >
+      <JoinContent />
+    </Suspense>
   );
 }
