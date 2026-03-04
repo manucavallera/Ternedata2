@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "next/navigation"; // 👈 IMPORTANTE
@@ -15,7 +15,7 @@ import ClientOnly from "@/components/ClientOnly";
 // Servicios API
 import { equipoService } from "@/api/equipoRepo"; // 👈 Asegúrate que esta ruta exista
 
-const Login = () => {
+const LoginContent = () => {
   const dispatch = useDispatch();
 
   const { loginHooks } = useAuthSession();
@@ -34,7 +34,7 @@ const Login = () => {
   const [userAlert, setUserAlert] = useState({ status: false, message: "" });
 
   const { statusRegister, statusSessionUser } = useSelector(
-    (state) => state.register
+    (state) => state.register,
   );
 
   const onSubmit = handleSubmit(async (data) => {
@@ -83,7 +83,7 @@ const Login = () => {
           if (tokenInvitacion) {
             console.log(
               "🎟️ Procesando invitación tras login...",
-              tokenInvitacion
+              tokenInvitacion,
             );
             await equipoService.unirseAlEquipo(tokenInvitacion);
 
@@ -94,7 +94,7 @@ const Login = () => {
         } catch (error) {
           console.error(
             "Error al unir al equipo (pero el login sigue):",
-            error
+            error,
           );
           // No bloqueamos el flujo, solo avisamos por consola
         }
@@ -212,4 +212,10 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}

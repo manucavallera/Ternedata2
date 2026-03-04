@@ -1,16 +1,19 @@
 "use client";
 
-import { useAuthSession } from "@/hooks/auth";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "next/navigation"; // 👈 IMPORTANTE
+
+// Hooks y Contextos propios
+import { useAuthSession } from "@/hooks/auth";
 import { useRouterSession } from "@/utils/routerSession";
 import { setStatusRegister, setStatusSessionUser } from "@/store/register";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
-// 👇 IMPORTAMOS LO NECESARIO PARA UNIRSE
-import { useSearchParams } from "next/navigation";
-import { equipoService } from "@/api/equipoRepo";
+
+// Servicios API
+import { equipoService } from "@/api/equipoRepo"; // 👈 Asegúrate que esta ruta exista
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -18,17 +21,20 @@ const Login = () => {
   const { loginHooks } = useAuthSession();
   const { sessionLogin, isLoading: routerLoading } = useRouterSession();
   const { login, isLoading: authLoading } = useAuthContext();
-  const searchParams = useSearchParams(); // 👈 Para leer URL
+
+  // Hook para leer la URL
+  const searchParams = useSearchParams();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
+
   const [userAlert, setUserAlert] = useState({ status: false, message: "" });
 
   const { statusRegister, statusSessionUser } = useSelector(
-    (state) => state.register
+    (state) => state.register,
   );
 
   const onSubmit = handleSubmit(async (data) => {
@@ -37,93 +43,106 @@ const Login = () => {
       password: data.password,
     };
 
+    // 1. Intentar Login
     const res = await loginHooks(userCredentials);
-
     console.log("📦 Respuesta del login:", res?.data);
 
-    if (res === 401) {
+    if (res === 401 || !res?.data) {
       setUserAlert({
         status: true,
         message: "ERROR: Credenciales incorrectas",
       });
     } else {
-      localStorage.setItem("token", res?.data?.token);
+      // ✅ LOGIN EXITOSO
 
-      const userPayload = {
-        id: res?.data?.user?.id,
-        name: res?.data?.user?.name,
-        email: res?.data?.user?.email,
-        rol: res?.data?.user?.rol,
-        estado: res?.data?.user?.estado,
-        telefono: res?.data?.user?.telefono,
-        id_establecimiento: res?.data?.user?.id_establecimiento,
-        permisos_especiales: res?.data?.user?.permisos_especiales,
-        fecha_creacion: res?.data?.user?.fecha_creacion,
-        fecha_actualizacion: res?.data?.user?.fecha_actualizacion,
-        ultimo_acceso: res?.data?.user?.ultimo_acceso,
-      };
+      // Guardar token y usuario en localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", res.data.token);
 
-      console.log("💾 Guardando userSelected:", userPayload);
-      localStorage.setItem("userSelected", JSON.stringify(userPayload));
+        const userPayload = {
+          id: res.data.user.id,
+          name: res.data.user.name,
+          email: res.data.user.email,
+          rol: res.data.user.rol,
+          estado: res.data.user.estado,
+          telefono: res.data.user.telefono,
+          id_establecimiento: res.data.user.id_establecimiento,
+          // ... otros campos que necesites
+        };
+        localStorage.setItem("userSelected", JSON.stringify(userPayload));
 
-      // 👇👇 AQUÍ ESTÁ LA MAGIA DE LA INVITACIÓN 👇👇
-      // Verificamos si hay token en URL o en Backup
-      let tokenDeInvitacion = searchParams.get("token");
-      if (!tokenDeInvitacion && typeof window !== 'undefined') {
-          tokenDeInvitacion = localStorage.getItem("backupToken");
-      }
-
-      if (tokenDeInvitacion) {
+        // 👇👇 LOGICA DE INVITACIÓN (BACKUP TOKEN) 👇👇
         try {
-            console.log("🚀 Ejecutando unión automática con token:", tokenDeInvitacion);
-            // Intentamos unirnos al equipo usando el token
-            await equipoService.unirseAlEquipo(tokenDeInvitacion);
-            
-            // Limpiamos el backup si funcionó
-            localStorage.removeItem("backupToken");
-            
-            alert("¡Login exitoso y te has unido al equipo correctamente!");
-        } catch (error) {
-            console.error("Error al unirse tras login:", error);
-            // No bloqueamos el login, pero avisamos por consola
-        }
-      }
-      // 👆👆 FIN DE LA MAGIA 👆👆
+          // Buscamos token en URL o en el "bolsillo" (LocalStorage)
+          let tokenInvitacion = searchParams.get("token");
 
+          if (!tokenInvitacion) {
+            tokenInvitacion = localStorage.getItem("backupToken");
+          }
+
+          if (tokenInvitacion) {
+            console.log(
+              "🎟️ Procesando invitación tras login...",
+              tokenInvitacion,
+            );
+            await equipoService.unirseAlEquipo(tokenInvitacion);
+
+            // Si funcionó, limpiamos el backup
+            localStorage.removeItem("backupToken");
+            alert("¡Te has unido al equipo correctamente!");
+          }
+        } catch (error) {
+          console.error(
+            "Error al unir al equipo (pero el login sigue):",
+            error,
+          );
+          // No bloqueamos el flujo, solo avisamos por consola
+        }
+        // 👆👆 FIN LOGICA INVITACIÓN 👆👆
+      }
+
+      // Continuar flujo normal de redirección
       sessionLogin(true);
       dispatch(setStatusSessionUser(true));
-      login(res?.data?.token);
+      login(res.data.token);
     }
   });
 
+  // Efecto para borrar mensaje de registro exitoso
   useEffect(() => {
     if (statusRegister === true) {
       const timer = setTimeout(() => {
         dispatch(setStatusRegister(false));
       }, 2000);
-
       return () => clearTimeout(timer);
     }
   }, [statusRegister, dispatch]);
 
+  // Efecto para verificar sesión inicial
   useEffect(() => {
     if (!authLoading && !routerLoading) {
       sessionLogin();
     }
   }, [authLoading, routerLoading]);
 
-  // ... (RESTO DEL RETURN IGUAL QUE ANTES) ...
   return (
-    <ClientOnly fallback={...}>
-      {/* ... Tu formulario de siempre ... */}
-       {statusSessionUser === false && (
+    <ClientOnly
+      fallback={
+        <div className='flex items-center justify-center min-h-screen bg-gray-100'>
+          <div className='text-center'>
+            <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4'></div>
+            <p className='text-gray-600'>Verificando sesión...</p>
+          </div>
+        </div>
+      }
+    >
+      {statusSessionUser === false && (
         <div className='h-[calc(100vh-7rem)] flex justify-center items-center'>
           <form
             onSubmit={onSubmit}
-            className='w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'
+            className='w-full sm:w-1/2 md:w-1/3 lg:w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'
           >
-             {/* ... Inputs ... */}
-             {statusRegister && (
+            {statusRegister && (
               <p className='bg-green-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2 mb-5'>
                 EL USUARIO SE HA REGISTRADO CORRECTAMENTE
               </p>

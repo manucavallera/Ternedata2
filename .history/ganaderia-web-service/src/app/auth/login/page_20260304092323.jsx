@@ -1,30 +1,40 @@
 "use client";
 
-import { useAuthSession } from "@/hooks/auth";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "next/navigation"; // 👈 IMPORTANTE
+
+// Hooks y Contextos propios
+import { useAuthSession } from "@/hooks/auth";
 import { useRouterSession } from "@/utils/routerSession";
 import { setStatusRegister, setStatusSessionUser } from "@/store/register";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
 
-const Login = () => {
+// Servicios API
+import { equipoService } from "@/api/equipoRepo"; // 👈 Asegúrate que esta ruta exista
+
+const LoginContent = () => {
   const dispatch = useDispatch();
 
   const { loginHooks } = useAuthSession();
   const { sessionLogin, isLoading: routerLoading } = useRouterSession();
   const { login, isLoading: authLoading } = useAuthContext();
 
+  // Hook para leer la URL
+  const searchParams = useSearchParams();
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
+
   const [userAlert, setUserAlert] = useState({ status: false, message: "" });
 
   const { statusRegister, statusSessionUser } = useSelector(
-    (state) => state.register
+    (state) => state.register,
   );
 
   const onSubmit = handleSubmit(async (data) => {
@@ -33,55 +43,82 @@ const Login = () => {
       password: data.password,
     };
 
+    // 1. Intentar Login
     const res = await loginHooks(userCredentials);
-
-    // ✅ DEBUG: Ver qué devuelve el backend
     console.log("📦 Respuesta del login:", res?.data);
 
-    if (res === 401) {
+    if (res === 401 || !res?.data) {
       setUserAlert({
         status: true,
         message: "ERROR: Credenciales incorrectas",
       });
     } else {
-      // ✅ 1. Guardar token
-      localStorage.setItem("token", res?.data?.token);
+      // ✅ LOGIN EXITOSO
 
-      // ✅ 2. CORRECCIÓN: Los datos están en res.data.user
-      const userPayload = {
-        id: res?.data?.user?.id,
-        name: res?.data?.user?.name,
-        email: res?.data?.user?.email,
-        rol: res?.data?.user?.rol,
-        estado: res?.data?.user?.estado,
-        telefono: res?.data?.user?.telefono,
-        id_establecimiento: res?.data?.user?.id_establecimiento,
-        permisos_especiales: res?.data?.user?.permisos_especiales,
-        fecha_creacion: res?.data?.user?.fecha_creacion,
-        fecha_actualizacion: res?.data?.user?.fecha_actualizacion,
-        ultimo_acceso: res?.data?.user?.ultimo_acceso,
-      };
+      // Guardar token y usuario en localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", res.data.token);
 
-      console.log("💾 Guardando userSelected:", userPayload);
-      localStorage.setItem("userSelected", JSON.stringify(userPayload));
+        const userPayload = {
+          id: res.data.user.id,
+          name: res.data.user.name,
+          email: res.data.user.email,
+          rol: res.data.user.rol,
+          estado: res.data.user.estado,
+          telefono: res.data.user.telefono,
+          id_establecimiento: res.data.user.id_establecimiento,
+          // ... otros campos que necesites
+        };
+        localStorage.setItem("userSelected", JSON.stringify(userPayload));
 
-      // ✅ 3. Continuar con el flujo normal
+        // 👇👇 LOGICA DE INVITACIÓN (BACKUP TOKEN) 👇👇
+        try {
+          // Buscamos token en URL o en el "bolsillo" (LocalStorage)
+          let tokenInvitacion = searchParams.get("token");
+
+          if (!tokenInvitacion) {
+            tokenInvitacion = localStorage.getItem("backupToken");
+          }
+
+          if (tokenInvitacion) {
+            console.log(
+              "🎟️ Procesando invitación tras login...",
+              tokenInvitacion,
+            );
+            await equipoService.unirseAlEquipo(tokenInvitacion);
+
+            // Si funcionó, limpiamos el backup
+            localStorage.removeItem("backupToken");
+            alert("¡Te has unido al equipo correctamente!");
+          }
+        } catch (error) {
+          console.error(
+            "Error al unir al equipo (pero el login sigue):",
+            error,
+          );
+          // No bloqueamos el flujo, solo avisamos por consola
+        }
+        // 👆👆 FIN LOGICA INVITACIÓN 👆👆
+      }
+
+      // Continuar flujo normal de redirección
       sessionLogin(true);
       dispatch(setStatusSessionUser(true));
-      login(res?.data?.token);
+      login(res.data.token);
     }
   });
 
+  // Efecto para borrar mensaje de registro exitoso
   useEffect(() => {
     if (statusRegister === true) {
       const timer = setTimeout(() => {
         dispatch(setStatusRegister(false));
       }, 2000);
-
       return () => clearTimeout(timer);
     }
   }, [statusRegister, dispatch]);
 
+  // Efecto para verificar sesión inicial
   useEffect(() => {
     if (!authLoading && !routerLoading) {
       sessionLogin();
@@ -103,7 +140,7 @@ const Login = () => {
         <div className='h-[calc(100vh-7rem)] flex justify-center items-center'>
           <form
             onSubmit={onSubmit}
-            className='w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'
+            className='w-full sm:w-1/2 md:w-1/3 lg:w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'
           >
             {statusRegister && (
               <p className='bg-green-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2 mb-5'>
@@ -175,4 +212,10 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
