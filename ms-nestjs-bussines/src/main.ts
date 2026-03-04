@@ -12,12 +12,14 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // 👉 DOMINIOS PERMITIDOS (CORS)
-  const allowedOrigins = [
+ const allowedOrigins = [
     'http://localhost:3000',
-    'http://localhost:3002', // 👈 ¡AGREGADO! (Tu Frontend)
+    'http://localhost:3002',
     'http://localhost:5173',
     'https://ganaderia-pevs.vercel.app',
-  ];
+    'https://manu-frontendganaderia.gygo4l.easypanel.host',
+    process.env.CORS_ORIGIN_DESARROLLO,
+  ].filter(Boolean);
 
   app.enableCors({
     origin: (origin, callback) => {
