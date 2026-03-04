@@ -7,7 +7,6 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.produccion") });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
   env: {
     NEXT_PUBLIC_PUERTO:
       process.env.NEXT_PUBLIC_ENTORNO === "desarrollo"
@@ -17,3 +16,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
