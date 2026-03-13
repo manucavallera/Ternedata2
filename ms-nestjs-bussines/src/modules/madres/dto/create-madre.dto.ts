@@ -14,10 +14,10 @@ export class CreateMadreDto {
   @IsString()
   nombre: string;
 
-  @ApiProperty({ description: 'RP de la madre', example: 1023 })
-  @IsNotEmpty()
+  @ApiProperty({ description: 'RP de la madre', example: 1023, required: false })
+  @IsOptional()
   @IsNumber()
-  rp_madre: number;
+  rp_madre?: number;
 
   @ApiProperty({
     description: 'Estado de la madre',
@@ -31,20 +31,21 @@ export class CreateMadreDto {
   @ApiProperty({
     description: 'Observaciones sobre la madre',
     example: 'Madre con buena producción de leche',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  observaciones: string;
+  observaciones?: string;
 
   @ApiProperty({
     description: 'Fecha nacimiento de la madre',
     example: '2024-02-27',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  fecha_nacimiento: string;
+  fecha_nacimiento?: string;
 
-  // ⬅️ NUEVO: ID del establecimiento (opcional porque puede venir del JWT)
   @ApiProperty({
     description: 'ID del establecimiento al que pertenece la madre',
     example: 1,
@@ -53,4 +54,13 @@ export class CreateMadreDto {
   @IsOptional()
   @IsInt()
   id_establecimiento?: number;
+
+  @ApiProperty({
+    description: 'ID del rodeo al que pertenece la madre',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  id_rodeo?: number;
 }

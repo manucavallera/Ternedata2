@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 
 const FormularioMadre = ({ setStep }) => {
   const { userPayload } = useSelector((state) => state.auth);
-  const { crearMadreHook, obtenerEstablecimientosHook } =
+  const { crearMadreHook, obtenerEstablecimientosHook, obtenerRodeosHook } =
     useBussinesMicroservicio();
 
   const {
@@ -26,19 +26,40 @@ const FormularioMadre = ({ setStep }) => {
     estado: true,
   });
 
-  // ⬅️ NUEVO: Estado para establecimientos
   const [establecimientos, setEstablecimientos] = useState([]);
   const [loadingEstablecimientos, setLoadingEstablecimientos] = useState(false);
+  const [rodeos, setRodeos] = useState([]);
+  const [loadingRodeos, setLoadingRodeos] = useState(false);
 
-  // ⬅️ NUEVO: Cargar establecimientos si es admin
   useEffect(() => {
-    if (userPayload?.rol === "admin") {
+    if (!userPayload) return;
+    if (userPayload.rol === "admin") {
       cargarEstablecimientos();
-    } else if (userPayload?.id_establecimiento) {
-      // Si no es admin, setear su establecimiento por defecto
+    } else if (userPayload.id_establecimiento) {
       setValue("id_establecimiento", userPayload.id_establecimiento);
     }
+    cargarRodeos();
   }, [userPayload]);
+
+  const cargarRodeos = async () => {
+    try {
+      const tokenRaw = localStorage.getItem("token");
+      if (!tokenRaw) return;
+      setLoadingRodeos(true);
+      const idEst = userPayload?.id_establecimiento;
+      const query = idEst && userPayload?.rol !== "admin"
+        ? `id_establecimiento=${idEst}`
+        : "";
+      const response = await obtenerRodeosHook(query);
+      if (response?.status === 200) {
+        setRodeos(response.data.filter((r) => r.estado === "activo"));
+      }
+    } catch (error) {
+      console.error("Error al cargar rodeos:", error);
+    } finally {
+      setLoadingRodeos(false);
+    }
+  };
 
   const cargarEstablecimientos = async () => {
     try {
@@ -58,11 +79,10 @@ const FormularioMadre = ({ setStep }) => {
   const onSubmit = async (data) => {
     let newMadre = {
       nombre: data.nombre,
-      rp_madre: parseInt(data.rp_madre),
       estado: data.estado,
-      observaciones: data.observaciones,
-      fecha_nacimiento: data.fecha_nacimiento,
-      // ⬅️ NUEVO: Incluir establecimiento
+      ...(data.observaciones && { observaciones: data.observaciones }),
+      ...(data.fecha_nacimiento && { fecha_nacimiento: data.fecha_nacimiento }),
+      ...(data.id_rodeo && { id_rodeo: parseInt(data.id_rodeo) }),
       id_establecimiento:
         userPayload?.rol === "admin"
           ? parseInt(data.id_establecimiento)
@@ -173,7 +193,7 @@ const FormularioMadre = ({ setStep }) => {
                 htmlFor='nombre'
                 className='block text-sm font-medium text-gray-700 mb-1'
               >
-                Nombre de la Madre *
+                Nombre / RP Madre *
               </label>
               <input
                 type='text'
@@ -181,7 +201,7 @@ const FormularioMadre = ({ setStep }) => {
                 {...register("nombre", {
                   required: "Este campo es obligatorio",
                 })}
-                placeholder='Ej: Vaca María'
+                placeholder='Ej: Vaca María o RP 1023'
                 className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   errors.nombre ? "border-red-500" : "border-gray-300"
                 }`}
@@ -189,32 +209,6 @@ const FormularioMadre = ({ setStep }) => {
               {errors.nombre && (
                 <span className='text-red-500 text-sm'>
                   {errors.nombre.message}
-                </span>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor='rp_madre'
-                className='block text-sm font-medium text-gray-700 mb-1'
-              >
-                RP Madre *
-              </label>
-              <input
-                type='number'
-                id='rp_madre'
-                {...register("rp_madre", {
-                  required: "Este campo es obligatorio",
-                  min: { value: 1, message: "Debe ser mayor a 0" },
-                })}
-                placeholder='Número de registro'
-                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.rp_madre ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.rp_madre && (
-                <span className='text-red-500 text-sm'>
-                  {errors.rp_madre.message}
                 </span>
               )}
             </div>
@@ -238,27 +232,40 @@ const FormularioMadre = ({ setStep }) => {
 
             <div>
               <label
+                htmlFor='id_rodeo'
+                className='block text-sm font-medium text-gray-700 mb-1'
+              >
+                Rodeo
+              </label>
+              <select
+                id='id_rodeo'
+                {...register("id_rodeo")}
+                className='w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                disabled={loadingRodeos}
+              >
+                <option value=''>Sin rodeo asignado</option>
+                {rodeos.map((r) => (
+                  <option key={r.id_rodeo} value={r.id_rodeo}>
+                    {r.nombre}{r.tipo ? ` (${r.tipo})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
                 htmlFor='fecha_nacimiento'
                 className='block text-sm font-medium text-gray-700 mb-1'
               >
-                Fecha de Nacimiento *
+                Fecha de Nacimiento
               </label>
               <input
                 type='date'
                 id='fecha_nacimiento'
-                {...register("fecha_nacimiento", {
-                  required: "Este campo es obligatorio",
-                })}
+                {...register("fecha_nacimiento")}
                 max={new Date().toISOString().split("T")[0]}
-                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.fecha_nacimiento ? "border-red-500" : "border-gray-300"
-                }`}
+                className='w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
               />
-              {errors.fecha_nacimiento && (
-                <span className='text-red-500 text-sm'>
-                  {errors.fecha_nacimiento.message}
-                </span>
-              )}
             </div>
 
             <div>
@@ -266,24 +273,15 @@ const FormularioMadre = ({ setStep }) => {
                 htmlFor='observaciones'
                 className='block text-sm font-medium text-gray-700 mb-1'
               >
-                Observaciones *
+                Observaciones
               </label>
               <textarea
                 id='observaciones'
-                {...register("observaciones", {
-                  required: "Este campo es obligatorio",
-                })}
+                {...register("observaciones")}
                 placeholder='Observaciones sobre la madre (salud, comportamiento, etc.)'
-                rows={2} className="text-sm"
-                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.observaciones ? "border-red-500" : "border-gray-300"
-                }`}
+                rows={2}
+                className='w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm'
               />
-              {errors.observaciones && (
-                <span className='text-red-500 text-sm'>
-                  {errors.observaciones.message}
-                </span>
-              )}
             </div>
 
             <div className='pt-4'>

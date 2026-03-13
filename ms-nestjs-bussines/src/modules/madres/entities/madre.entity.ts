@@ -1,10 +1,13 @@
 // ms-nestjs-business/src/modules/madres/entities/madre.entity.ts
 import { EventoEntity } from 'src/modules/eventos/entities/evento.entity';
 import { TerneroEntity } from 'src/modules/terneros/entities/ternero.entity';
+import { Rodeos } from 'src/modules/rodeos/entities/rodeos.entity';
 import {
   Column,
   Entity,
   ManyToMany,
+  ManyToOne,
+  JoinColumn,
   OneToMany,
   PrimaryGeneratedColumn,
   CreateDateColumn,
@@ -19,20 +22,27 @@ export class MadreEntity {
   @Column({ nullable: false, type: 'varchar' })
   nombre: string;
 
-  @Column({ nullable: false, type: 'integer' }) // ✅ O 'varchar' según tu BD
-  rp_madre: number; // ✅ O string según tu BD
+  @Column({ nullable: true, type: 'integer' })
+  rp_madre: number;
 
   @Column({ type: 'enum', enum: ['Seca', 'En Tambo'] })
   estado: string;
 
-  @Column({ nullable: false, type: 'varchar' })
+  @Column({ nullable: true, type: 'varchar' })
   observaciones: string;
 
-  @Column({ type: 'date', nullable: false })
+  @Column({ type: 'date', nullable: true })
   fecha_nacimiento: Date;
 
   @Column({ type: 'int', nullable: true })
   id_establecimiento: number;
+
+  @Column({ type: 'int', nullable: true })
+  id_rodeo: number;
+
+  @ManyToOne(() => Rodeos, { nullable: true, eager: false })
+  @JoinColumn({ name: 'id_rodeo' })
+  rodeo: Rodeos;
 
   //@CreateDateColumn()
   //creado_en: Date;
