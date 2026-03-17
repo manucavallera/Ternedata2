@@ -48,43 +48,18 @@ export class AuthService {
 
     const passwordHash = await hash(password, 10);
 
-    let estadoInicial = 'inactivo';
-    let datosInvitacion = null;
-
-    if (invitationToken) {
-      try {
-        const tokenLimpio = invitationToken.trim().replace(/['"]+/g, '');
-        datosInvitacion = this.jwtService.verify(tokenLimpio);
-        estadoInicial = 'activo';
-        console.log('✅ [SERVICE] Token Válido. Rol:', datosInvitacion.rol);
-      } catch (error) {
-        console.error('❌ [SERVICE] Token Inválido:', error.message);
-      }
-    }
-
+    // Users always register as active.
+    // The invitation token (UUID) is processed by the business service after login.
     const userObject = {
       name: name,
       email: email,
       password: passwordHash,
-      estado: estadoInicial,
-      rol: datosInvitacion?.rol || 'operario',
-      id_establecimiento: datosInvitacion?.id_establecimiento || null,
+      estado: 'activo',
+      rol: 'operario',
+      id_establecimiento: null,
     };
 
     const newUser = await this.usersRepository.save(userObject);
-
-    if (datosInvitacion) {
-      try {
-        await this.userEstablecimientoRepository.save({
-          userId: newUser.id,
-          establecimientoId: datosInvitacion.id_establecimiento,
-          rol: datosInvitacion.rol || 'operario',
-        });
-        console.log('🔗 [SERVICE] Vinculado con éxito.');
-      } catch (err) {
-        console.error('❌ Falló vinculación:', err);
-      }
-    }
     return newUser;
   }
 

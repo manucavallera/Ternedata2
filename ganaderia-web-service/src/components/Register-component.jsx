@@ -95,13 +95,14 @@ const Registercomponent = () => {
         };
         setuserAlert(dataAlert);
 
-        // Limpiamos el token usado
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("backupToken");
-        }
-
         setTimeout(() => {
-          window.location.href = "/auth/login";
+          // Si había token de invitación, lo pasamos al login en la URL
+          // para que se procese automáticamente después del login
+          if (tokenParaEnviar) {
+            window.location.href = `/auth/login?token=${tokenParaEnviar}`;
+          } else {
+            window.location.href = "/auth/login";
+          }
         }, 3000);
       }
     } else {
