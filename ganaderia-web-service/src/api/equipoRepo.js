@@ -1,57 +1,59 @@
-import businessApi from "@/api/bussines-api"; // Asegúrate de que la ruta importe tu archivo business-api.js
+import businessApi from "@/api/bussines-api";
 
 export const equipoService = {
-  // 1. Obtener la lista de miembros (Para pintar la tabla)
+  // Obtener la lista de miembros
   getEquipo: async (establecimientoId) => {
-    try {
-      const { data } = await businessApi.get(
-        `/establecimientos/${establecimientoId}/equipo`
-      );
-      return data;
-    } catch (error) {
-      console.error("Error obteniendo equipo:", error);
-      throw error;
-    }
+    const { data } = await businessApi.get(
+      `/establecimientos/${establecimientoId}/equipo`
+    );
+    return data;
   },
 
-  // 2. Generar Link de Invitación (Para el botón del Dueño)
+  // Invitar con email (envía email directo)
+  invitarConEmail: async (establecimientoId, email, rol) => {
+    const { data } = await businessApi.post(
+      `/invitaciones/crear/${establecimientoId}`,
+      { email, rol }
+    );
+    return data; // { link, token, emailEnviado }
+  },
+
+  // Generar link sin email (para copiar)
   generarLink: async (establecimientoId, rol) => {
-    try {
-      // rol debe ser 'veterinario' u 'operario'
-      const { data } = await businessApi.post(
-        `/invitaciones/crear/${establecimientoId}`,
-        { rol }
-      );
-      return data; // Retorna { link: '...', token: '...' }
-    } catch (error) {
-      console.error("Error generando invitación:", error);
-      throw error;
-    }
+    const { data } = await businessApi.post(
+      `/invitaciones/crear/${establecimientoId}`,
+      { rol }
+    );
+    return data;
   },
 
-  // 3. Eliminar a un miembro (Botón de borrar)
+  // Invitaciones pendientes
+  getPendientes: async (establecimientoId) => {
+    const { data } = await businessApi.get(
+      `/invitaciones/pendientes/${establecimientoId}`
+    );
+    return data;
+  },
+
+  // Revocar invitación
+  revocarInvitacion: async (invitacionId) => {
+    const { data } = await businessApi.delete(
+      `/invitaciones/revocar/${invitacionId}`
+    );
+    return data;
+  },
+
+  // Eliminar miembro del equipo
   eliminarMiembro: async (establecimientoId, userId) => {
-    try {
-      const { data } = await businessApi.delete(
-        `/establecimientos/${establecimientoId}/equipo/${userId}`
-      );
-      return data;
-    } catch (error) {
-      console.error("Error eliminando miembro:", error);
-      throw error;
-    }
+    const { data } = await businessApi.delete(
+      `/establecimientos/${establecimientoId}/equipo/${userId}`
+    );
+    return data;
   },
 
-  // 4. Aceptar Invitación (Para la pantalla /join)
+  // Aceptar invitación (para la pantalla /join)
   unirseAlEquipo: async (token) => {
-    try {
-      const { data } = await businessApi.post(`/invitaciones/aceptar`, {
-        token,
-      });
-      return data;
-    } catch (error) {
-      // Es útil devolver el error para mostrar si el token expiró
-      throw error.response ? error.response.data : error;
-    }
+    const { data } = await businessApi.post(`/invitaciones/aceptar`, { token });
+    return data;
   },
 };

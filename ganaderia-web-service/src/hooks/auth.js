@@ -44,5 +44,23 @@ export const useAuthSession = () => {
         }
     };
 
-    return { loginHooks, registroHooks };
+    const forgotPasswordHook = async (email) => {
+        try {
+            const { data } = await securityApi.post(`/auth/forgot-password`, { email });
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, status: error.response?.status };
+        }
+    };
+
+    const resetPasswordHook = async (token, newPassword) => {
+        try {
+            const { data } = await securityApi.post(`/auth/reset-password`, { token, newPassword });
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, status: error.response?.status, message: error.response?.data?.message };
+        }
+    };
+
+    return { loginHooks, registroHooks, forgotPasswordHook, resetPasswordHook };
 };

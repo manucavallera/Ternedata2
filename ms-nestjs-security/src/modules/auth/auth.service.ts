@@ -127,7 +127,6 @@ export class AuthService {
     rolRecibido: string,
     idEstablecimiento: number,
   ) {
-    // 1. Generamos el Token
     const payload = {
       email: emailRecibido,
       id_establecimiento: idEstablecimiento || null,
@@ -135,26 +134,20 @@ export class AuthService {
     };
     const token = this.jwtService.sign(payload);
 
-    // 2. Construimos el Link (Asegúrate que este puerto coincida con tu Frontend)
-    const linkDeRegistro = `http://localhost:3002/auth/register?token=${token}`;
+    const linkDeRegistro = `${process.env.FRONTEND_URL}/auth/register?token=${token}`;
 
-    // 3. 👇 CONFIGURACIÓN DEL CARTERO (NODEMAILER)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'manucavallera44@gmail.com', // Tu email real
-        pass: 'zswe bmll xoxd qftf', // 🔐 Tu contraseña de aplicación
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
       },
-      // 👇👇 AGREGA ESTO AQUÍ 👇👇
-      tls: {
-        rejectUnauthorized: false,
-      },
+      tls: { rejectUnauthorized: false },
     });
 
-    // 4. 👇 DISEÑO DEL CORREO
     const mailOptions = {
-      from: '"Ternedata App 🐮" <manucavallera44@gmail.com>',
-      to: emailRecibido, // Le enviamos el correo al invitado
+      from: `"Ternedata App 🐮" <${process.env.MAIL_USER}>`,
+      to: emailRecibido,
       subject: '🎟️ Invitación a Ternedata',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
@@ -170,19 +163,98 @@ export class AuthService {
       `,
     };
 
-    // 5. 👇 ENVIAR EL CORREO (Disparamos y nos olvidamos)
     try {
       await transporter.sendMail(mailOptions);
       console.log(`📧 Email enviado exitosamente a ${emailRecibido}`);
     } catch (error) {
       console.error('❌ Error enviando email:', error);
-      // No lanzamos error para no romper el flujo, pero avisamos en consola
     }
 
-    // Retornamos el token igual que antes para que el frontend siga funcionando
     return {
       instruccion: `Email enviado a ${emailRecibido}`,
       token_para_copiar: token,
     };
+  }
+
+  // =================================================================
+  // FORGOT PASSWORD - Enviar email de recuperación
+  // =================================================================
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+
+    // No revelamos si el usuario existe o no
+    if (!user) {
+      return { message: 'Si el email existe, recibirás un correo en breve.' };
+    }
+
+    const payload = { id: user.id, email: user.email, type: 'reset' };
+    const token = this.jwtService.sign(payload, { expiresIn: '1h' });
+    const link = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"Ternedata App 🐮" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: '🔐 Recuperar contraseña - Ternedata',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #4F46E5;">Recuperar contraseña</h2>
+            <p>Hola <strong>${user.name}</strong>,</p>
+            <p>Recibimos una solicitud para resetear tu contraseña. Haz clic en el botón:</p>
+            <a href="${link}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
+              Resetear contraseña
+            </a>
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">Este link expira en 1 hora. Si no solicitaste esto, ignorá este email.</p>
+          </div>
+        `,
+      });
+    } catch (error) {
+      console.error('❌ Error enviando email de reset:', error);
+    }
+
+    return { message: 'Si el email existe, recibirás un correo en breve.' };
+  }
+
+  // =================================================================
+  // RESET PASSWORD - Cambiar contraseña con token
+  // =================================================================
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    try {
+      const payload = this.jwtService.verify(token) as any;
+
+      if (payload.type !== 'reset') {
+        throw new HttpException('Token inválido', HttpStatus.BAD_REQUEST);
+      }
+
+      const user = await this.usersRepository.findOne({
+        where: { id: payload.id },
+      });
+      if (!user) {
+        throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const passwordHash = await hash(newPassword, 10);
+      await this.usersRepository.update(user.id, { password: passwordHash });
+
+      return { message: 'Contraseña actualizada correctamente.' };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Token inválido o expirado',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

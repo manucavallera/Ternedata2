@@ -193,6 +193,15 @@ const LoginContent = () => {
               <p className='text-red-500 text-xs'>{errors.password.message}</p>
             )}
 
+            <div className='text-right mb-2'>
+              <a
+                href='/auth/forgot-password'
+                className='text-xs text-indigo-500 hover:text-indigo-700'
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
+
             <button
               className='w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500'
               type='submit'

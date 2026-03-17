@@ -167,4 +167,38 @@ export class EstablecimientosService {
 
     return { total, activos, inactivos };
   }
+
+  // ============================================================
+  // EQUIPO
+  // ============================================================
+  async getEquipo(establecimientoId: number): Promise<any[]> {
+    const miembros = await this.userEstablecimientoRepository.find({
+      where: { establecimientoId },
+      relations: ['user'],
+    });
+
+    return miembros.map((m) => ({
+      userId: m.userId,
+      nombre: m.user?.name || 'Sin nombre',
+      email: m.user?.email || '',
+      rol: m.rol,
+    }));
+  }
+
+  async eliminarMiembro(
+    establecimientoId: number,
+    userId: number,
+  ): Promise<void> {
+    const relacion = await this.userEstablecimientoRepository.findOne({
+      where: { establecimientoId, userId },
+    });
+
+    if (!relacion) {
+      throw new NotFoundException(
+        'El usuario no es miembro de este establecimiento',
+      );
+    }
+
+    await this.userEstablecimientoRepository.remove(relacion);
+  }
 }

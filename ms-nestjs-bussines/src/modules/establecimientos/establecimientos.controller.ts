@@ -105,6 +105,22 @@ export class EstablecimientosController {
     return await this.establecimientosService.update(id, updateDto);
   }
 
+  @Get(':id/equipo')
+  @ApiOperation({ summary: 'Obtener miembros del equipo del establecimiento' })
+  async getEquipo(@Param('id', ParseIntPipe) id: number) {
+    return await this.establecimientosService.getEquipo(id);
+  }
+
+  @Delete(':id/equipo/:userId')
+  @ApiOperation({ summary: 'Eliminar miembro del equipo' })
+  async eliminarMiembro(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    await this.establecimientosService.eliminarMiembro(id, userId);
+    return { message: 'Miembro eliminado correctamente' };
+  }
+
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   async remove(@Param('id', ParseIntPipe) id: number) {

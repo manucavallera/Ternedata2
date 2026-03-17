@@ -80,6 +80,22 @@ export class InvitacionesService {
     };
   }
 
+  async getPendientes(establecimientoId: number): Promise<InvitacionEntity[]> {
+    return this.invitacionRepo.find({
+      where: { establecimientoId, usado: false },
+      order: { fecha_creacion: 'DESC' },
+    });
+  }
+
+  async revocar(id: number): Promise<{ message: string }> {
+    const invitacion = await this.invitacionRepo.findOne({ where: { id } });
+    if (!invitacion) {
+      throw new HttpException('Invitación no encontrada', HttpStatus.NOT_FOUND);
+    }
+    await this.invitacionRepo.remove(invitacion);
+    return { message: 'Invitación revocada' };
+  }
+
   async aceptarLink(token: string, userId: number) {
     // 1. Validar Link
     const invitacion = await this.invitacionRepo.findOne({

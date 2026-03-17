@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -44,5 +46,19 @@ export class InvitacionesController {
       body.token,
       req.user.userId,
     );
+  }
+
+  @Get('pendientes/:establecimientoId')
+  @ApiOperation({ summary: 'Ver invitaciones pendientes de un establecimiento' })
+  async pendientes(
+    @Param('establecimientoId', ParseIntPipe) id: number,
+  ) {
+    return await this.invitacionesService.getPendientes(id);
+  }
+
+  @Delete('revocar/:id')
+  @ApiOperation({ summary: 'Revocar (eliminar) una invitación pendiente' })
+  async revocar(@Param('id', ParseIntPipe) id: number) {
+    return await this.invitacionesService.revocar(id);
   }
 }
