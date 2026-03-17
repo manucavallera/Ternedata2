@@ -44,23 +44,21 @@ import { MailerModule } from '@nestjs-modules/mailer';
       }),
     }),
 
-    // 👇 2. AGREGAR ESTE BLOQUE DE CONFIGURACIÓN
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
         port: 465,
         secure: true,
         auth: {
-          user: 'manucavallera44@gmail.com', // Tu correo real
-          pass: 'xyyj pqsn tlwv zmxl', // Tu contraseña de aplicación
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
         },
-        // 👇 AGREGA ESTO: Ignorar error de certificado local (Antivirus)
         tls: {
           rejectUnauthorized: false,
         },
       },
       defaults: {
-        from: '"Soporte Ternedata" <manucavallera44@gmail.com>',
+        from: `"Soporte Ternedata" <${process.env.MAIL_USER}>`,
       },
     }),
     UsersModule,

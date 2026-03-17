@@ -37,8 +37,7 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
           port: configService.get<number>('database.port'),
           username: configService.get<string>('database.username'),
 
-          // 👇 LA SOLUCIÓN: Si falla la config, usa la contraseña "quemada"
-          password: dbPassword || 'Manuelo12*',
+          password: dbPassword,
 
           database: configService.get<string>('database.name'),
           synchronize: false,

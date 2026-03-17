@@ -62,7 +62,7 @@ export class InvitacionesService {
             <p>Has sido invitado a colaborar en Ternedata.</p>
             <p>Tu rol será: <b>${rol}</b></p>
             <p>Haz clic aquí para aceptar:</p>
-            <a href="http://localhost:3002/join?token=${token}">Aceptar Invitación</a>
+            <a href="${process.env.FRONTEND_URL}/join?token=${token}">Aceptar Invitación</a>
           `,
         });
         console.log('✅ NODEMAILER: Email enviado con éxito');
@@ -74,7 +74,7 @@ export class InvitacionesService {
     }
 
     return {
-      link: `http://localhost:3002/join?token=${token}`, // Ajustado al puerto frontend 3002
+      link: `${process.env.FRONTEND_URL}/join?token=${token}`,
       token: token,
       emailEnviado: email || null,
     };
