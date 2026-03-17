@@ -30,35 +30,27 @@ const Registercomponent = () => {
 
   const [userAlert, setuserAlert] = useState({ status: false, message: "" });
 
-  // 👇 2. EL EFECTO TRAMPA (Blindado)
   useEffect(() => {
-    // A. Intentamos leer de la URL actual
     const tokenUrl = searchParams.get("token");
-
-    // B. Intentamos leer del localStorage (por si hubo recarga)
     const tokenStorage =
       typeof window !== "undefined"
         ? localStorage.getItem("backupToken")
         : null;
-
-    // C. Decidimos cuál usar (Prioridad: URL > Storage)
     const tokenFinal = tokenUrl || tokenStorage;
 
     if (tokenFinal) {
-      console.log("🔒 Token capturado y asegurado:", tokenFinal);
-
-      // 1. Lo guardamos en el estado local
       setTokenCapturado(tokenFinal);
-
-      // 2. Lo inyectamos en el formulario VISUAL (cajita amarilla)
       setValue("invitationToken", tokenFinal);
-
-      // 3. Lo guardamos en el navegador por seguridad
       if (typeof window !== "undefined") {
         localStorage.setItem("backupToken", tokenFinal);
       }
     }
-    // NOTA: Solo se ejecuta si encuentra un token, nunca lo borra si no lo encuentra.
+
+    // Pre-llenar email si viene en la URL (desde la invitación)
+    const emailUrl = searchParams.get("email");
+    if (emailUrl) {
+      setValue("email", emailUrl);
+    }
   }, [searchParams, setValue]);
 
   const onSubmit = handleSubmit(async (data) => {

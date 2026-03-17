@@ -6,6 +6,7 @@ import { equipoService } from "@/api/equipoRepo";
 function JoinContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const email = searchParams.get("email");
   const router = useRouter();
   const [status, setStatus] = useState("cargando"); // cargando, exito, error, login_required, ya_miembro
 
@@ -51,10 +52,10 @@ function JoinContent() {
   // 👇 FUNCIÓN CLAVE: Guarda el token y redirige a la ruta correcta
   const navegarConBackup = (ruta) => {
     if (token && typeof window !== "undefined") {
-      localStorage.setItem("backupToken", token); // 💾 Guardamos copia de seguridad
+      localStorage.setItem("backupToken", token);
     }
-    // Redirigimos pasando también el token en la URL
-    router.push(`${ruta}?token=${token}`);
+    const emailParam = email ? `&email=${encodeURIComponent(email)}` : '';
+    router.push(`${ruta}?token=${token}${emailParam}`);
   };
 
   return (

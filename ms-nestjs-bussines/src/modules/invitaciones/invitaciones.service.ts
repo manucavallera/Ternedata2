@@ -62,7 +62,7 @@ export class InvitacionesService {
             <p>Has sido invitado a colaborar en Ternedata.</p>
             <p>Tu rol será: <b>${rol}</b></p>
             <p>Haz clic aquí para aceptar:</p>
-            <a href="${process.env.FRONTEND_URL}/join?token=${token}">Aceptar Invitación</a>
+            <a href="${process.env.FRONTEND_URL}/join?token=${token}&email=${encodeURIComponent(email)}">Aceptar Invitación</a>
           `,
         });
         console.log('✅ NODEMAILER: Email enviado con éxito');
@@ -73,8 +73,9 @@ export class InvitacionesService {
       console.log('⚠️ SE SALTÓ EL ENVÍO (no hay email)');
     }
 
+    const emailParam = email ? `&email=${encodeURIComponent(email)}` : '';
     return {
-      link: `${process.env.FRONTEND_URL}/join?token=${token}`,
+      link: `${process.env.FRONTEND_URL}/join?token=${token}${emailParam}`,
       token: token,
       emailEnviado: email || null,
     };
