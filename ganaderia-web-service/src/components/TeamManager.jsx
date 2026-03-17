@@ -109,12 +109,22 @@ export const TeamManager = ({ establecimientoId }) => {
           <h3 className="text-xl font-bold text-gray-800">Equipo de Trabajo 🚜</h3>
           <p className="text-sm text-gray-500">Gestiona quién puede acceder a este campo.</p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm"
-        >
-          ✉️ Invitar persona
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={cargarTodo}
+            disabled={loading}
+            className="flex items-center gap-1 border border-gray-300 text-gray-600 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+            title="Actualizar lista"
+          >
+            🔄
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm"
+          >
+            ✉️ Invitar persona
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

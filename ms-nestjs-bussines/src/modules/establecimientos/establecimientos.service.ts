@@ -178,22 +178,16 @@ export class EstablecimientosService {
       relations: ['user'],
     });
 
-    console.log(`🔍 getEquipo(${establecimientoId}) - user_establecimientos:`, miembros.length, miembros.map(m => ({ userId: m.userId, email: m.user?.email })));
-
-    const resultado: any[] = miembros
-      .filter((m) => m.user)
-      .map((m) => ({
-        userId: m.userId,
-        nombre: m.user.name,
-        email: m.user.email,
-        rol: m.user.rol || m.rol,
-      }));
+    const resultado: any[] = miembros.map((m) => ({
+      userId: m.userId,
+      nombre: m.user?.name || `Usuario #${m.userId}`,
+      email: m.user?.email || null,
+      rol: m.user?.rol || m.rol,
+    }));
 
     // Fuente 2: usuarios con id_establecimiento directo
     const usuariosDirectos =
       await this.usersService.findByEstablecimiento(establecimientoId);
-
-    console.log(`🔍 getEquipo(${establecimientoId}) - usuarios directos:`, usuariosDirectos.length, usuariosDirectos.map(u => ({ id: u.id, email: u.email })));
 
     const idsYaIncluidos = new Set(resultado.map((r) => r.userId));
 
@@ -207,8 +201,6 @@ export class EstablecimientosService {
         });
       }
     }
-
-    console.log(`✅ getEquipo(${establecimientoId}) - resultado final:`, resultado.length, resultado.map(r => r.email));
 
     return resultado;
   }
