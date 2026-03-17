@@ -83,7 +83,9 @@ export class MadresService {
   async findAll(
     idEstablecimiento: number | null,
     esAdmin: boolean,
-    idEstablecimientoQuery?: number | null, // ⬅️ NUEVO PARÁMETRO
+    idEstablecimientoQuery?: number | null,
+    sinRodeo?: boolean,
+    idRodeo?: number | null,
   ): Promise<MadreEntity[]> {
     try {
       console.log(
@@ -128,6 +130,16 @@ export class MadresService {
         } else {
           console.warn('⚠️ Usuario no-admin sin establecimiento asignado');
         }
+      }
+
+      // Filtro: madres sin rodeo asignado
+      if (sinRodeo) {
+        query.andWhere('madre.id_rodeo IS NULL');
+      }
+
+      // Filtro: madres de un rodeo específico
+      if (idRodeo) {
+        query.andWhere('madre.id_rodeo = :idRodeo', { idRodeo });
       }
 
       const madres = await query.getMany();

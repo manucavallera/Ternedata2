@@ -157,4 +157,36 @@ export class RodeosController {
       req.es_admin,
     );
   }
+
+  // ========== ASIGNAR MADRES A UN RODEO ==========
+  @Post(':id/asignar-madres')
+  @Roles('admin', 'veterinario')
+  async asignarMadres(
+    @Param('id', ParseIntPipe) idRodeo: number,
+    @Body() body: { ids_madres: number[] },
+    @Req() req: any,
+  ) {
+    return this.rodeosService.asignarMadres(
+      idRodeo,
+      body.ids_madres,
+      req.id_establecimiento,
+      req.es_admin,
+    );
+  }
+
+  // ========== DESASIGNAR MADRES DE UN RODEO ==========
+  @Post(':id/desasignar-madres')
+  @Roles('admin', 'veterinario')
+  async desasignarMadres(
+    @Param('id', ParseIntPipe) idRodeo: number,
+    @Body() body: { ids_madres: number[] },
+    @Req() req: any,
+  ) {
+    return this.rodeosService.desasignarMadres(
+      idRodeo,
+      body.ids_madres,
+      req.id_establecimiento,
+      req.es_admin,
+    );
+  }
 }

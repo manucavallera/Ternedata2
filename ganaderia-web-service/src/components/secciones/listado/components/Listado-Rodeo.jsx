@@ -37,9 +37,12 @@ const ListadoRodeo = () => {
     toggleEstadoRodeoHook,
     obtenerEstadisticasRodeoHook,
     obtenerEstablecimientosHook,
-    obtenerTerneroHook, // ← nuevo
-    asignarTernerosRodeoHook, // ← nuevo
-    desasignarTernerosRodeoHook, // ← nuevo
+    obtenerTerneroHook,
+    asignarTernerosRodeoHook,
+    desasignarTernerosRodeoHook,
+    obtenerMadreHook,
+    asignarMadresRodeoHook,
+    desasignarMadresRodeoHook,
   } = useBussinesMicroservicio();
 
   const [rodeos, setRodeos] = useState([]);
@@ -51,12 +54,16 @@ const ListadoRodeo = () => {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [statsData, setStatsData] = useState(null);
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
-  // Asignación de terneros a rodeo
+  // Asignación de animales a rodeo
   const [showAsignarModal, setShowAsignarModal] = useState(false);
   const [rodeoParaAsignar, setRodeoParaAsignar] = useState(null);
+  const [tabAsignar, setTabAsignar] = useState("terneros"); // "terneros" | "madres"
   const [ternerosDisponibles, setTernerosDisponibles] = useState([]);
   const [ternerosDelRodeo, setTernerosDelRodeo] = useState([]);
   const [ternerosSeleccionados, setTernerosSeleccionados] = useState([]);
+  const [madresDisponibles, setMadresDisponibles] = useState([]);
+  const [madresDelRodeo, setMadresDelRodeo] = useState([]);
+  const [madresSeleccionadas, setMadresSeleccionadas] = useState([]);
   const [loadingTerneros, setLoadingTerneros] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -228,27 +235,24 @@ const ListadoRodeo = () => {
   const abrirModalAsignar = async (rodeo) => {
     setShowAsignarModal(true);
     setRodeoParaAsignar(rodeo);
+    setTabAsignar("terneros");
     setTernerosSeleccionados([]);
+    setMadresSeleccionadas([]);
     await cargarTernerosData(rodeo);
+    await cargarMadresData(rodeo);
   };
+
+  const buildQpBase = () =>
+    userPayload?.rol === "admin" && establecimientoActual
+      ? `id_establecimiento=${establecimientoActual}`
+      : `id_establecimiento=${userPayload?.id_establecimiento}`;
 
   const cargarTernerosData = async (rodeo) => {
     setLoadingTerneros(true);
     try {
-      // 🧩 Build de query multi-tenancy
-      const qpBase =
-        userPayload?.rol === "admin" && establecimientoActual
-          ? `id_establecimiento=${establecimientoActual}`
-          : `id_establecimiento=${userPayload?.id_establecimiento}`;
-
-      // 1️⃣ Terneros disponibles (sin rodeo asignado)
-      const qDisponibles = `${qpBase}&sin_rodeo=true&estado=Vivo`;
-      const respDisp = await obtenerTerneroHook(qDisponibles);
-
-      // 2️⃣ Terneros asignados a este rodeo
-      const qAsignados = `${qpBase}&id_rodeo=${rodeo.id_rodeo}&estado=Vivo`;
-      const respAsig = await obtenerTerneroHook(qAsignados);
-
+      const qpBase = buildQpBase();
+      const respDisp = await obtenerTerneroHook(`${qpBase}&sin_rodeo=true&estado=Vivo`);
+      const respAsig = await obtenerTerneroHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&estado=Vivo`);
       setTernerosDisponibles(respDisp?.data || []);
       setTernerosDelRodeo(respAsig?.data || []);
     } catch (e) {
@@ -256,6 +260,19 @@ const ListadoRodeo = () => {
       showAlert("Error al cargar terneros", "error");
     } finally {
       setLoadingTerneros(false);
+    }
+  };
+
+  const cargarMadresData = async (rodeo) => {
+    try {
+      const qpBase = buildQpBase();
+      const respDisp = await obtenerMadreHook(`${qpBase}&sin_rodeo=true`);
+      const respAsig = await obtenerMadreHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}`);
+      setMadresDisponibles(respDisp?.data || []);
+      setMadresDelRodeo(respAsig?.data || []);
+    } catch (e) {
+      console.error("Error al cargar madres:", e);
+      showAlert("Error al cargar madres", "error");
     }
   };
 
@@ -267,73 +284,103 @@ const ListadoRodeo = () => {
     );
   };
 
-  // ✅ Asignar seleccionados → rodeo actual
+  const toggleSeleccionMadre = (id_madre) => {
+    setMadresSeleccionadas((prev) =>
+      prev.includes(id_madre)
+        ? prev.filter((id) => id !== id_madre)
+        : [...prev, id_madre]
+    );
+  };
+
+  // Asignar terneros
   const handleAsignarTerneros = async () => {
     if (!rodeoParaAsignar || ternerosSeleccionados.length === 0) return;
-
     setLoadingTerneros(true);
-
     try {
-      const payload = { ids_terneros: ternerosSeleccionados };
-      const resp = await asignarTernerosRodeoHook(
-        rodeoParaAsignar.id_rodeo,
-        payload
-      );
-
+      const resp = await asignarTernerosRodeoHook(rodeoParaAsignar.id_rodeo, {
+        ids_terneros: ternerosSeleccionados,
+      });
       if (resp?.status === 200 || resp?.status === 201) {
         showAlert("Terneros asignados correctamente", "success");
-
-        // 🔄 Refrescar datos del modal y cards
         await cargarTernerosData(rodeoParaAsignar);
         await cargarRodeos();
-
-        // 🔁 Reset selección
         setTernerosSeleccionados([]);
       } else {
-        showAlert(
-          resp?.data?.message || "No se pudieron asignar terneros",
-          "error"
-        );
+        showAlert(resp?.data?.message || "No se pudieron asignar terneros", "error");
       }
     } catch (e) {
       console.error("Error al asignar terneros:", e);
       showAlert("Error al asignar terneros", "error");
     } finally {
-      // Pequeño delay para que el DOM se actualice suavemente
       setTimeout(() => setLoadingTerneros(false), 300);
     }
   };
 
-  // ✅ Desasignar seleccionados → quedan sin rodeo
+  // Desasignar terneros
   const handleDesasignarTerneros = async () => {
     if (!rodeoParaAsignar || ternerosSeleccionados.length === 0) return;
-
     setLoadingTerneros(true);
-
     try {
-      const payload = { ids_terneros: ternerosSeleccionados };
-      const resp = await desasignarTernerosRodeoHook(
-        rodeoParaAsignar.id_rodeo,
-        payload
-      );
-
+      const resp = await desasignarTernerosRodeoHook(rodeoParaAsignar.id_rodeo, {
+        ids_terneros: ternerosSeleccionados,
+      });
       if (resp?.status === 200 || resp?.status === 201) {
         showAlert("Terneros desasignados correctamente", "success");
-
-        // 🔄 Refrescar datos del modal y cards
         await cargarTernerosData(rodeoParaAsignar);
         await cargarRodeos();
-
         setTernerosSeleccionados([]);
       } else {
-        showAlert(
-          resp?.data?.message || "No se pudieron desasignar terneros",
-          "error"
-        );
+        showAlert(resp?.data?.message || "No se pudieron desasignar terneros", "error");
       }
     } catch (e) {
       console.error("Error al desasignar terneros:", e);
       showAlert("Error al desasignar terneros", "error");
+    } finally {
+      setTimeout(() => setLoadingTerneros(false), 300);
+    }
+  };
+
+  // Asignar madres
+  const handleAsignarMadres = async () => {
+    if (!rodeoParaAsignar || madresSeleccionadas.length === 0) return;
+    setLoadingTerneros(true);
+    try {
+      const resp = await asignarMadresRodeoHook(rodeoParaAsignar.id_rodeo, {
+        ids_madres: madresSeleccionadas,
+      });
+      if (resp?.status === 200 || resp?.status === 201) {
+        showAlert("Madres asignadas correctamente", "success");
+        await cargarMadresData(rodeoParaAsignar);
+        setMadresSeleccionadas([]);
+      } else {
+        showAlert(resp?.data?.message || "No se pudieron asignar madres", "error");
+      }
+    } catch (e) {
+      console.error("Error al asignar madres:", e);
+      showAlert("Error al asignar madres", "error");
+    } finally {
+      setTimeout(() => setLoadingTerneros(false), 300);
+    }
+  };
+
+  // Desasignar madres
+  const handleDesasignarMadres = async () => {
+    if (!rodeoParaAsignar || madresSeleccionadas.length === 0) return;
+    setLoadingTerneros(true);
+    try {
+      const resp = await desasignarMadresRodeoHook(rodeoParaAsignar.id_rodeo, {
+        ids_madres: madresSeleccionadas,
+      });
+      if (resp?.status === 200 || resp?.status === 201) {
+        showAlert("Madres desasignadas correctamente", "success");
+        await cargarMadresData(rodeoParaAsignar);
+        setMadresSeleccionadas([]);
+      } else {
+        showAlert(resp?.data?.message || "No se pudieron desasignar madres", "error");
+      }
+    } catch (e) {
+      console.error("Error al desasignar madres:", e);
+      showAlert("Error al desasignar madres", "error");
     } finally {
       setTimeout(() => setLoadingTerneros(false), 300);
     }
@@ -728,7 +775,7 @@ const ListadoRodeo = () => {
           <div className='bg-white rounded-lg p-4 sm:p-6 w-full max-w-4xl mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto'>
             <div className='flex items-start justify-between mb-4'>
               <h3 className='text-lg sm:text-xl md:text-2xl font-bold break-words'>
-                🧩 Asignar Terneros — {rodeoParaAsignar?.nombre}
+                🧩 Asignar Animales — {rodeoParaAsignar?.nombre}
               </h3>
               <button
                 onClick={() => setShowAsignarModal(false)}
@@ -739,25 +786,45 @@ const ListadoRodeo = () => {
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className='flex gap-2 mb-4 border-b'>
+              <button
+                onClick={() => { setTabAsignar("terneros"); setTernerosSeleccionados([]); }}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  tabAsignar === "terneros"
+                    ? "border-emerald-600 text-emerald-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                🐮 Terneros
+              </button>
+              <button
+                onClick={() => { setTabAsignar("madres"); setMadresSeleccionadas([]); }}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  tabAsignar === "madres"
+                    ? "border-blue-600 text-blue-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                🐄 Madres
+              </button>
+            </div>
+
             {loadingTerneros ? (
               <div className='text-center py-8'>
                 <div className='inline-block animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent' />
-                <p className='mt-3 text-gray-600'>Cargando terneros…</p>
+                <p className='mt-3 text-gray-600'>Cargando…</p>
               </div>
-            ) : (
+            ) : tabAsignar === "terneros" ? (
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'>
-                {/* DISPONIBLES */}
+                {/* TERNEROS DISPONIBLES */}
                 <div className='border rounded-lg p-4'>
                   <div className='flex items-center justify-between mb-3'>
                     <h4 className='font-semibold text-emerald-700'>
                       Disponibles ({ternerosDisponibles.length})
                     </h4>
                     <button
-                      onClick={() =>
-                        setTernerosSeleccionados(
-                          ternerosDisponibles.map((t) => t.id_ternero)
-                        )
-                      }
+                      onClick={() => setTernerosSeleccionados(ternerosDisponibles.map((t) => t.id_ternero))}
                       className='text-sm text-emerald-600 hover:underline'
                     >
                       Seleccionar todos
@@ -765,48 +832,32 @@ const ListadoRodeo = () => {
                   </div>
                   <div className='max-h-64 overflow-auto space-y-2'>
                     {ternerosDisponibles.length === 0 ? (
-                      <p className='text-sm text-gray-500'>
-                        No hay terneros disponibles.
-                      </p>
+                      <p className='text-sm text-gray-500'>No hay terneros disponibles.</p>
                     ) : (
                       ternerosDisponibles.map((t) => (
-                        <label
-                          key={`disp-${t.id_ternero}`}
-                          className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'
-                        >
+                        <label key={`disp-${t.id_ternero}`} className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'>
                           <input
                             type='checkbox'
-                            checked={ternerosSeleccionados.includes(
-                              t.id_ternero
-                            )}
+                            checked={ternerosSeleccionados.includes(t.id_ternero)}
                             onChange={() => toggleSeleccion(t.id_ternero)}
                           />
                           <div className='text-sm'>
-                            <div className='font-medium text-gray-800'>
-                              #{t.id_ternero} — {t.nombre || "Ternero"}
-                            </div>
-                            <div className='text-gray-500'>
-                              {t.estado} · Peso: {t.peso_nacer || "-"} kg
-                            </div>
+                            <div className='font-medium text-gray-800'>#{t.id_ternero} — {t.nombre || "Ternero"}</div>
+                            <div className='text-gray-500'>{t.estado} · Peso: {t.peso_nacer || "-"} kg</div>
                           </div>
                         </label>
                       ))
                     )}
                   </div>
                 </div>
-
-                {/* EN EL RODEO */}
+                {/* TERNEROS EN EL RODEO */}
                 <div className='border rounded-lg p-4'>
                   <div className='flex items-center justify-between mb-3'>
                     <h4 className='font-semibold text-blue-700'>
                       En este rodeo ({ternerosDelRodeo.length})
                     </h4>
                     <button
-                      onClick={() =>
-                        setTernerosSeleccionados(
-                          ternerosDelRodeo.map((t) => t.id_ternero)
-                        )
-                      }
+                      onClick={() => setTernerosSeleccionados(ternerosDelRodeo.map((t) => t.id_ternero))}
                       className='text-sm text-blue-600 hover:underline'
                     >
                       Seleccionar todos
@@ -814,29 +865,91 @@ const ListadoRodeo = () => {
                   </div>
                   <div className='max-h-64 overflow-auto space-y-2'>
                     {ternerosDelRodeo.length === 0 ? (
-                      <p className='text-sm text-gray-500'>
-                        No hay terneros en este rodeo.
-                      </p>
+                      <p className='text-sm text-gray-500'>No hay terneros en este rodeo.</p>
                     ) : (
                       ternerosDelRodeo.map((t) => (
-                        <label
-                          key={`rodeo-${t.id_ternero}`}
-                          className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'
-                        >
+                        <label key={`rodeo-${t.id_ternero}`} className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'>
                           <input
                             type='checkbox'
-                            checked={ternerosSeleccionados.includes(
-                              t.id_ternero
-                            )}
+                            checked={ternerosSeleccionados.includes(t.id_ternero)}
                             onChange={() => toggleSeleccion(t.id_ternero)}
                           />
                           <div className='text-sm'>
+                            <div className='font-medium text-gray-800'>#{t.id_ternero} — {t.nombre || "Ternero"}</div>
+                            <div className='text-gray-500'>{t.estado} · Peso: {t.peso_nacer || "-"} kg</div>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'>
+                {/* MADRES DISPONIBLES */}
+                <div className='border rounded-lg p-4'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <h4 className='font-semibold text-emerald-700'>
+                      Disponibles ({madresDisponibles.length})
+                    </h4>
+                    <button
+                      onClick={() => setMadresSeleccionadas(madresDisponibles.map((m) => m.id_madre))}
+                      className='text-sm text-emerald-600 hover:underline'
+                    >
+                      Seleccionar todas
+                    </button>
+                  </div>
+                  <div className='max-h-64 overflow-auto space-y-2'>
+                    {madresDisponibles.length === 0 ? (
+                      <p className='text-sm text-gray-500'>No hay madres disponibles.</p>
+                    ) : (
+                      madresDisponibles.map((m) => (
+                        <label key={`mdisp-${m.id_madre}`} className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'>
+                          <input
+                            type='checkbox'
+                            checked={madresSeleccionadas.includes(m.id_madre)}
+                            onChange={() => toggleSeleccionMadre(m.id_madre)}
+                          />
+                          <div className='text-sm'>
                             <div className='font-medium text-gray-800'>
-                              #{t.id_ternero} — {t.nombre || "Ternero"}
+                              {m.nombre}{m.rp_madre ? ` — RP ${m.rp_madre}` : ""}
                             </div>
-                            <div className='text-gray-500'>
-                              {t.estado} · Peso: {t.peso_nacer || "-"} kg
+                            <div className='text-gray-500'>{m.estado}</div>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+                {/* MADRES EN EL RODEO */}
+                <div className='border rounded-lg p-4'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <h4 className='font-semibold text-blue-700'>
+                      En este rodeo ({madresDelRodeo.length})
+                    </h4>
+                    <button
+                      onClick={() => setMadresSeleccionadas(madresDelRodeo.map((m) => m.id_madre))}
+                      className='text-sm text-blue-600 hover:underline'
+                    >
+                      Seleccionar todas
+                    </button>
+                  </div>
+                  <div className='max-h-64 overflow-auto space-y-2'>
+                    {madresDelRodeo.length === 0 ? (
+                      <p className='text-sm text-gray-500'>No hay madres en este rodeo.</p>
+                    ) : (
+                      madresDelRodeo.map((m) => (
+                        <label key={`mrodeo-${m.id_madre}`} className='flex items-center gap-3 p-2 rounded hover:bg-gray-50'>
+                          <input
+                            type='checkbox'
+                            checked={madresSeleccionadas.includes(m.id_madre)}
+                            onChange={() => toggleSeleccionMadre(m.id_madre)}
+                          />
+                          <div className='text-sm'>
+                            <div className='font-medium text-gray-800'>
+                              {m.nombre}{m.rp_madre ? ` — RP ${m.rp_madre}` : ""}
                             </div>
+                            <div className='text-gray-500'>{m.estado}</div>
                           </div>
                         </label>
                       ))
@@ -848,25 +961,41 @@ const ListadoRodeo = () => {
 
             {/* Acciones */}
             <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6'>
-              {/* Asignar → los seleccionados de la columna izquierda */}
-              <button
-                onClick={handleAsignarTerneros}
-                className='flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg disabled:opacity-60'
-                disabled={loadingTerneros || ternerosSeleccionados.length === 0}
-              >
-                ➕ Asignar al rodeo
-              </button>
-
-              {/* Desasignar → los seleccionados de la columna derecha */}
-              <button
-                onClick={handleDesasignarTerneros}
-                className='flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg disabled:opacity-60'
-                disabled={loadingTerneros || ternerosSeleccionados.length === 0}
-              >
-                ↩️ Sacar del rodeo
-              </button>
-
-              {/* Cerrar */}
+              {tabAsignar === "terneros" ? (
+                <>
+                  <button
+                    onClick={handleAsignarTerneros}
+                    className='flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg disabled:opacity-60'
+                    disabled={loadingTerneros || ternerosSeleccionados.length === 0}
+                  >
+                    ➕ Asignar al rodeo
+                  </button>
+                  <button
+                    onClick={handleDesasignarTerneros}
+                    className='flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg disabled:opacity-60'
+                    disabled={loadingTerneros || ternerosSeleccionados.length === 0}
+                  >
+                    ↩️ Sacar del rodeo
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleAsignarMadres}
+                    className='flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg disabled:opacity-60'
+                    disabled={loadingTerneros || madresSeleccionadas.length === 0}
+                  >
+                    ➕ Asignar al rodeo
+                  </button>
+                  <button
+                    onClick={handleDesasignarMadres}
+                    className='flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg disabled:opacity-60'
+                    disabled={loadingTerneros || madresSeleccionadas.length === 0}
+                  >
+                    ↩️ Sacar del rodeo
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setShowAsignarModal(false)}
                 className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg'

@@ -690,6 +690,45 @@ export const useBussinesMicroservicio = () => {
       };
     }
   };
+
+  const asignarMadresRodeoHook = async (idRodeo, data) => {
+    try {
+      const { data: responseData, config, headers, status, statusText, request } =
+        await businessApi.post(`/rodeos/${idRodeo}/asignar-madres`, data);
+      return { data: responseData, config, headers, status, statusText, request };
+    } catch (error) {
+      console.error("❌ Error en asignarMadresRodeoHook:", error?.response?.status);
+      if (error?.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return {
+        status: error?.response?.status || 500,
+        data: error?.response?.data || { message: error.message },
+        error: true,
+      };
+    }
+  };
+
+  const desasignarMadresRodeoHook = async (idRodeo, data) => {
+    try {
+      const { data: responseData, config, headers, status, statusText, request } =
+        await businessApi.post(`/rodeos/${idRodeo}/desasignar-madres`, data);
+      return { data: responseData, config, headers, status, statusText, request };
+    } catch (error) {
+      console.error("❌ Error en desasignarMadresRodeoHook:", error?.response?.status);
+      if (error?.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return {
+        status: error?.response?.status || 500,
+        data: error?.response?.data || { message: error.message },
+        error: true,
+      };
+    }
+  };
+
   return {
     //seccion MADRES
     crearMadreHook,
@@ -737,7 +776,9 @@ export const useBussinesMicroservicio = () => {
     actualizarRodeoHook,
     toggleEstadoRodeoHook,
     obtenerEstadisticasRodeoHook,
-    asignarTernerosRodeoHook, // ✅ AGREGAR
-    desasignarTernerosRodeoHook, // ✅ AGREGAR
+    asignarTernerosRodeoHook,
+    desasignarTernerosRodeoHook,
+    asignarMadresRodeoHook,
+    desasignarMadresRodeoHook,
   };
 };

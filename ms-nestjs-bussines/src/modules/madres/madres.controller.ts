@@ -68,10 +68,15 @@ export class MadresController {
   async findAll(
     @Req() req: any,
     @Query('id_establecimiento') idEstablecimientoQuery?: string,
+    @Query('sin_rodeo') sinRodeoQuery?: string,
+    @Query('id_rodeo') idRodeoQuery?: string,
   ) {
     const establecimientoFiltro = idEstablecimientoQuery
       ? parseInt(idEstablecimientoQuery, 10)
       : null;
+
+    const sinRodeo = sinRodeoQuery === 'true';
+    const idRodeo = idRodeoQuery ? parseInt(idRodeoQuery, 10) : null;
 
     console.log(
       '🔍 Controller Madres - ID del usuario:',
@@ -85,6 +90,8 @@ export class MadresController {
       req.id_establecimiento,
       req.es_admin,
       establecimientoFiltro,
+      sinRodeo,
+      idRodeo,
     );
   }
 

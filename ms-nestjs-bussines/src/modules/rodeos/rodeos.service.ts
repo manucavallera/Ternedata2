@@ -328,4 +328,67 @@ export class RodeosService {
 
     return { message: 'Terneros desasignados correctamente', ids_terneros };
   }
+
+  // ========== ASIGNAR MADRES A UN RODEO ==========
+  async asignarMadres(
+    id_rodeo: number,
+    ids_madres: number[],
+    idEstablecimiento: number | null,
+    esAdmin: boolean,
+  ) {
+    if (!ids_madres?.length) {
+      throw new BadRequestException('No se enviaron madres para asignar');
+    }
+
+    if (!esAdmin && !idEstablecimiento) {
+      throw new ForbiddenException('Usuario sin establecimiento asignado');
+    }
+
+    const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
+    const params = [id_rodeo, ...ids_madres];
+
+    await this.rodeosRepository.query(
+      `
+    UPDATE madres
+    SET id_rodeo = $1
+    WHERE id_madre IN (${placeholders})
+    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    `,
+      esAdmin ? params : [...params, idEstablecimiento],
+    );
+
+    return { message: 'Madres asignadas correctamente', ids_madres };
+  }
+
+  // ========== DESASIGNAR MADRES DE UN RODEO ==========
+  async desasignarMadres(
+    id_rodeo: number,
+    ids_madres: number[],
+    idEstablecimiento: number | null,
+    esAdmin: boolean,
+  ) {
+    if (!ids_madres?.length) {
+      throw new BadRequestException('No se enviaron madres para desasignar');
+    }
+
+    if (!esAdmin && !idEstablecimiento) {
+      throw new ForbiddenException('Usuario sin establecimiento asignado');
+    }
+
+    const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
+    const params = [id_rodeo, ...ids_madres];
+
+    await this.rodeosRepository.query(
+      `
+    UPDATE madres
+    SET id_rodeo = NULL
+    WHERE id_rodeo = $1
+    AND id_madre IN (${placeholders})
+    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    `,
+      esAdmin ? params : [...params, idEstablecimiento],
+    );
+
+    return { message: 'Madres desasignadas correctamente', ids_madres };
+  }
 }
