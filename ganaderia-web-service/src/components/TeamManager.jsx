@@ -1,282 +1,320 @@
-import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { equipoService } from "@/api/equipoRepo";
+
+const ROL_COLORS = {
+  dueno: "bg-purple-100 text-purple-800",
+  veterinario: "bg-green-100 text-green-800",
+  operario: "bg-blue-100 text-blue-800",
+};
 
 export const TeamManager = ({ establecimientoId }) => {
-  const [team, setTeam] = useState([]);
+  const [miembros, setMiembros] = useState([]);
+  const [pendientes, setPendientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("equipo"); // "equipo" | "pendientes"
 
-  // Estados para el Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inviteData, setInviteData] = useState({ email: "", role: "operario" });
-
-  // Estados para la Invitación (Generación de Link)
-  const [loading, setLoading] = useState(false);
-  const [loadingList, setLoadingList] = useState(false);
-  const [generatedLink, setGeneratedLink] = useState(""); // 👈 Nuevo: Guarda el link generado
-  const [copied, setCopied] = useState(false); // 👈 Nuevo: Efecto visual de copiado
-
-  // Asegúrate de que apunte al puerto 3001 (Backend de Usuarios/Auth)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-  const getToken = () => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("token");
-  };
-
-  // ✅ 1. CARGAR EQUIPO (Sin cambios)
-  const cargarEquipo = useCallback(async () => {
-    if (!establecimientoId) return;
-
-    setLoadingList(true);
-    try {
-      const response = await axios.get(`${API_URL}/users`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-
-      // Filtrar por establecimiento
-      const equipoDelCampo = response.data.filter(
-        (u) => u.id_establecimiento == establecimientoId,
-      );
-
-      setTeam(equipoDelCampo);
-    } catch (error) {
-      console.error("Error cargando equipo:", error);
-    } finally {
-      setLoadingList(false);
-    }
-  }, [establecimientoId, API_URL]);
+  // Modal de invitación
+  const [modalOpen, setModalOpen] = useState(false);
+  const [invEmail, setInvEmail] = useState("");
+  const [invRol, setInvRol] = useState("operario");
+  const [invLoading, setInvLoading] = useState(false);
+  const [invResult, setInvResult] = useState(null); // { link, emailEnviado }
 
   useEffect(() => {
-    cargarEquipo();
-  }, [cargarEquipo]);
+    if (establecimientoId) {
+      cargarTodo();
+    }
+  }, [establecimientoId]);
 
-  // ✅ 2. NUEVA LÓGICA: GENERAR LINK EN PANTALLA
-  const handleGenerateLink = async (e) => {
-    e.preventDefault();
+  const cargarTodo = async () => {
     setLoading(true);
-    setGeneratedLink("");
-
     try {
-      console.log(
-        `🧬 Generando token para: ${inviteData.email} con Rol: ${inviteData.role}`,
-      );
-
-      // 👇👇👇 AQUÍ ESTÁ EL CAMBIO QUE FALTA 👇👇👇
-      const response = await axios.get(
-        `${API_URL}/auth/generar-token?email=${encodeURIComponent(inviteData.email)}&rol=${inviteData.role}&idEstablecimiento=${establecimientoId}`,
-      );
-
-      const token = response.data.token_para_copiar;
-
-      const origin = window.location.origin;
-      const magicLink = `${origin}/register?token=${token}`;
-
-      setGeneratedLink(magicLink);
+      const [equipo, invPendientes] = await Promise.all([
+        equipoService.getEquipo(establecimientoId),
+        equipoService.getPendientes(establecimientoId),
+      ]);
+      setMiembros(equipo);
+      setPendientes(invPendientes);
     } catch (error) {
-      console.error("Error al generar invitación:", error);
-      alert("❌ Error: No se pudo conectar con el servidor de autenticación.");
+      console.error("Error cargando equipo:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleEliminar = async (userId, nombre) => {
+    if (!confirm(`¿Seguro que querés sacar a ${nombre} del equipo?`)) return;
+    try {
+      await equipoService.eliminarMiembro(establecimientoId, userId);
+      setMiembros((prev) => prev.filter((m) => m.userId !== userId));
+    } catch (error) {
+      alert("No se pudo eliminar al usuario.");
+    }
   };
 
-  // Resetear modal al cerrar
+  const handleRevocar = async (invId) => {
+    if (!confirm("¿Revocar esta invitación?")) return;
+    try {
+      await equipoService.revocarInvitacion(invId);
+      setPendientes((prev) => prev.filter((i) => i.id !== invId));
+    } catch (error) {
+      alert("No se pudo revocar la invitación.");
+    }
+  };
+
+  const handleInvitar = async (e) => {
+    e.preventDefault();
+    setInvLoading(true);
+    setInvResult(null);
+    try {
+      const data = await equipoService.invitarConEmail(
+        establecimientoId,
+        invEmail || undefined,
+        invRol
+      );
+      setInvResult(data);
+      // Refrescar pendientes
+      const nuevasPendientes = await equipoService.getPendientes(establecimientoId);
+      setPendientes(nuevasPendientes);
+    } catch (error) {
+      alert("Error generando la invitación.");
+    } finally {
+      setInvLoading(false);
+    }
+  };
+
+  const copiarLink = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      alert("Link copiado al portapapeles.");
+    } catch {
+      alert(`Link: ${link}`);
+    }
+  };
+
   const cerrarModal = () => {
-    setIsModalOpen(false);
-    setGeneratedLink("");
-    setInviteData({ email: "", role: "operario" });
-    setCopied(false);
+    setModalOpen(false);
+    setInvEmail("");
+    setInvRol("operario");
+    setInvResult(null);
   };
 
-  const getRolBadge = (rol) => {
-    const r = rol?.toLowerCase() || "operario";
-    if (r.includes("admin")) return "bg-purple-100 text-purple-800";
-    if (r.includes("veterinario")) return "bg-blue-100 text-blue-800";
-    return "bg-green-100 text-green-800";
-  };
+  const expirado = (fecha) => new Date() > new Date(fecha);
 
   return (
-    <div className='bg-white shadow rounded-lg p-6 border border-gray-200'>
-      <div className='flex justify-between items-center mb-6'>
+    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
+      {/* Cabecera */}
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className='text-xl font-bold text-gray-800'>
-            Equipo del Establecimiento
-          </h2>
-          <p className='text-sm text-gray-500'>
-            Personas con acceso al ID: {establecimientoId}
-          </p>
+          <h3 className="text-xl font-bold text-gray-800">Equipo de Trabajo 🚜</h3>
+          <p className="text-sm text-gray-500">Gestiona quién puede acceder a este campo.</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className='bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 shadow-sm'
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm"
         >
-          <span>🔗</span> Generar Invitación
+          ✉️ Invitar persona
         </button>
       </div>
 
-      {/* Tabla de Miembros */}
-      <div className='overflow-x-auto'>
-        {loadingList ? (
-          <div className='text-center py-4 text-gray-500'>
-            Cargando equipo...
-          </div>
-        ) : (
-          <table className='min-w-full divide-y divide-gray-200'>
-            <thead className='bg-gray-50'>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 mb-4">
+        <button
+          onClick={() => setTab("equipo")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            tab === "equipo"
+              ? "bg-white border border-b-white border-gray-200 text-indigo-700 -mb-px"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Equipo ({miembros.length})
+        </button>
+        <button
+          onClick={() => setTab("pendientes")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            tab === "pendientes"
+              ? "bg-white border border-b-white border-gray-200 text-indigo-700 -mb-px"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Pendientes {pendientes.length > 0 && <span className="ml-1 bg-yellow-400 text-yellow-900 text-xs rounded-full px-1.5">{pendientes.length}</span>}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-400">Cargando...</div>
+      ) : tab === "equipo" ? (
+        /* TABLA EQUIPO */
+        <div className="overflow-hidden rounded-lg border border-gray-200">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-gray-600 text-sm font-semibold">
               <tr>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Nombre
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Email
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Rol
-                </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Acciones
-                </th>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Rol</th>
+                <th className="p-3 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody className='bg-white divide-y divide-gray-200'>
-              {team.map((member) => (
-                <tr key={member.id}>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
-                    {member.name}
+            <tbody className="divide-y divide-gray-100">
+              {miembros.map((m) => (
+                <tr key={m.userId} className="hover:bg-gray-50">
+                  <td className="p-3">
+                    <div className="font-medium text-gray-900">{m.nombre}</div>
+                    <div className="text-xs text-gray-500">{m.email}</div>
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                    {member.email}
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <span
-                      className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${getRolBadge(member.rol)}`}
-                    >
-                      {member.rol}
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${ROL_COLORS[m.rol] || "bg-gray-100 text-gray-700"}`}>
+                      {m.rol?.toUpperCase()}
                     </span>
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
-                    <button className='text-red-600 hover:text-red-900 ml-4 font-semibold'>
-                      Eliminar
+                  <td className="p-3 text-right">
+                    {m.rol !== "dueno" && (
+                      <button
+                        onClick={() => handleEliminar(m.userId, m.nombre)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded transition-colors text-sm"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {miembros.length === 0 && (
+                <tr>
+                  <td colSpan="3" className="p-6 text-center text-gray-400 italic">
+                    Nadie en el equipo todavía. ¡Invitá a alguien!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* TABLA PENDIENTES */
+        <div className="overflow-hidden rounded-lg border border-gray-200">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-gray-600 text-sm font-semibold">
+              <tr>
+                <th className="p-3">Email</th>
+                <th className="p-3">Rol</th>
+                <th className="p-3">Expira</th>
+                <th className="p-3 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pendientes.map((inv) => (
+                <tr key={inv.id} className={`hover:bg-gray-50 ${expirado(inv.expiracion) ? "opacity-50" : ""}`}>
+                  <td className="p-3 text-sm text-gray-700">{inv.email || <span className="text-gray-400 italic">Sin email</span>}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${ROL_COLORS[inv.rol] || "bg-gray-100 text-gray-700"}`}>
+                      {inv.rol?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs text-gray-500">
+                    {expirado(inv.expiracion) ? (
+                      <span className="text-red-500 font-medium">Expirada</span>
+                    ) : (
+                      new Date(inv.expiracion).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+                    )}
+                  </td>
+                  <td className="p-3 text-right">
+                    <button
+                      onClick={() => handleRevocar(inv.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded transition-colors text-sm"
+                    >
+                      Revocar
                     </button>
                   </td>
                 </tr>
               ))}
+              {pendientes.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="p-6 text-center text-gray-400 italic">
+                    No hay invitaciones pendientes.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        )}
+        </div>
+      )}
 
-        {team.length === 0 && !loadingList && (
-          <div className='text-center py-12 bg-gray-50 rounded-lg mt-4 border border-dashed border-gray-300'>
-            <p className='text-gray-500 text-lg'>
-              No hay miembros en este equipo aún.
+      {/* MODAL INVITACIÓN */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h4 className="text-lg font-bold text-gray-800 mb-1">Invitar persona</h4>
+            <p className="text-sm text-gray-500 mb-4">
+              Ingresá el email para enviar la invitación por correo, o dejalo vacío para copiar el link.
             </p>
-          </div>
-        )}
-      </div>
 
-      {/* MODAL DE INVITACIÓN MEJORADO */}
-      {isModalOpen && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm'>
-          <div className='bg-white rounded-lg p-6 max-w-md w-full shadow-2xl'>
-            <h3 className='text-lg font-bold mb-4 text-gray-900 border-b pb-2'>
-              {generatedLink
-                ? "🎉 ¡Invitación Lista!"
-                : "Invitar Nuevo Miembro"}
-            </h3>
-
-            {!generatedLink ? (
-              // 📝 PARTE 1: FORMULARIO
-              <form onSubmit={handleGenerateLink}>
-                <div className='mb-4'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Email del Usuario
+            {!invResult ? (
+              <form onSubmit={handleInvitar} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email <span className="text-gray-400 font-normal">(opcional)</span>
                   </label>
                   <input
-                    type='email'
-                    required
-                    placeholder='ejemplo@ternedata.com'
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none'
-                    value={inviteData.email}
-                    onChange={(e) =>
-                      setInviteData({ ...inviteData, email: e.target.value })
-                    }
+                    type="email"
+                    value={invEmail}
+                    onChange={(e) => setInvEmail(e.target.value)}
+                    placeholder="persona@ejemplo.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                  <p className='text-xs text-gray-500 mt-1'>
-                    Generaremos un link único para este correo.
-                  </p>
                 </div>
-
-                <div className='mb-6'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Rol Asignado
-                  </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                   <select
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white'
-                    value={inviteData.role}
-                    onChange={(e) =>
-                      setInviteData({ ...inviteData, role: e.target.value })
-                    }
+                    value={invRol}
+                    onChange={(e) => setInvRol(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value='operario'>👷 Operario</option>
-                    <option value='veterinario'>🩺 Veterinario</option>
-                    <option value='admin'>👑 Administrador</option>
+                    <option value="operario">👷 Operario</option>
+                    <option value="veterinario">🩺 Veterinario</option>
                   </select>
                 </div>
-
-                <div className='flex justify-end gap-3 pt-2'>
+                <div className="flex gap-3 pt-2">
                   <button
-                    type='button'
+                    type="button"
                     onClick={cerrarModal}
-                    className='px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium'
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
-                    type='submit'
-                    disabled={loading}
-                    className='px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium shadow-md flex items-center gap-2'
+                    type="submit"
+                    disabled={invLoading}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-60"
                   >
-                    {loading ? "Generando..." : "Generar Link"}
+                    {invLoading ? "Generando..." : invEmail ? "Enviar invitación" : "Generar link"}
                   </button>
                 </div>
               </form>
             ) : (
-              // 🔗 PARTE 2: MOSTRAR LINK (RESULTADO)
-              <div className='animate-fade-in-up'>
-                <p className='text-sm text-gray-600 mb-2'>
-                  Copia este enlace y envíalo por <b>WhatsApp</b> o <b>Email</b>
-                  :
-                </p>
-
-                <div className='flex items-center bg-gray-100 border border-gray-300 rounded-lg p-2 mb-4'>
-                  <input
-                    readOnly
-                    value={generatedLink}
-                    className='flex-grow bg-transparent text-gray-600 text-xs sm:text-sm outline-none px-1 font-mono break-all'
-                  />
+              <div className="space-y-4">
+                {invResult.emailEnviado ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+                    ✅ Email enviado a <strong>{invResult.emailEnviado}</strong>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+                    No se ingresó email. Copiá el link y envialo manualmente:
+                  </div>
+                )}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 break-all">
+                  {invResult.link}
                 </div>
-
-                <button
-                  onClick={copyToClipboard}
-                  className={`w-full py-2 mb-4 rounded-lg font-bold text-white transition-all transform active:scale-95 ${
-                    copied ? "bg-green-500" : "bg-gray-800 hover:bg-black"
-                  }`}
-                >
-                  {copied ? "✅ ¡Copiado al portapapeles!" : "📋 Copiar Link"}
-                </button>
-
-                <div className='flex justify-center pt-2'>
+                <div className="flex gap-3">
                   <button
-                    type='button'
-                    onClick={cerrarModal}
-                    className='text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline'
+                    onClick={() => copiarLink(invResult.link)}
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors"
                   >
-                    Cerrar y generar otro
+                    📋 Copiar link
+                  </button>
+                  <button
+                    onClick={cerrarModal}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+                  >
+                    Listo
                   </button>
                 </div>
               </div>
