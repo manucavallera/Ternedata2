@@ -72,6 +72,7 @@ export class MadresController {
     @Query('id_rodeo') idRodeoQuery?: string,
     @Query('page') pageQuery?: string,
     @Query('limit') limitQuery?: string,
+    @Query('search') searchQuery?: string,
   ) {
     const establecimientoFiltro = idEstablecimientoQuery
       ? parseInt(idEstablecimientoQuery, 10)
@@ -81,6 +82,7 @@ export class MadresController {
     const idRodeo = idRodeoQuery ? parseInt(idRodeoQuery, 10) : null;
     const page = pageQuery ? parseInt(pageQuery, 10) : 1;
     const limit = limitQuery ? parseInt(limitQuery, 10) : 20;
+    const search = searchQuery || null;
 
     return this.madresService.findAll(
       req.id_establecimiento,
@@ -90,6 +92,7 @@ export class MadresController {
       idRodeo,
       page,
       limit,
+      search,
     );
   }
 

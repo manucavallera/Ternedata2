@@ -88,6 +88,7 @@ export class MadresService {
     idRodeo?: number | null,
     page: number = 1,
     limit: number = 20,
+    search?: string | null,
   ): Promise<any> {
     try {
       console.log(
@@ -142,6 +143,14 @@ export class MadresService {
       // Filtro: madres de un rodeo específico
       if (idRodeo) {
         query.andWhere('madre.id_rodeo = :idRodeo', { idRodeo });
+      }
+
+      // Filtro: búsqueda por nombre o RP
+      if (search) {
+        query.andWhere(
+          '(LOWER(madre.nombre) LIKE LOWER(:search) OR LOWER(madre.rp_madre) LIKE LOWER(:search))',
+          { search: `%${search}%` },
+        );
       }
 
       const [madres, total] = await query

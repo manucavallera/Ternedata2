@@ -44,6 +44,26 @@ export const useAuthSession = () => {
         }
     };
 
+    const getProfileHook = async () => {
+        try {
+            const { data } = await securityApi.get(`/users/profile/me`);
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, status: error.response?.status };
+        }
+    };
+
+    const updateProfileHook = async (userId, updateData) => {
+        try {
+            const { data } = await securityApi.put(`/users/${userId}`, updateData);
+            // Actualizar el store con los nuevos datos
+            dispatch(setUserData(data));
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || 'Error al actualizar' };
+        }
+    };
+
     const forgotPasswordHook = async (email) => {
         try {
             const { data } = await securityApi.post(`/auth/forgot-password`, { email });
@@ -62,5 +82,5 @@ export const useAuthSession = () => {
         }
     };
 
-    return { loginHooks, registroHooks, forgotPasswordHook, resetPasswordHook };
+    return { loginHooks, registroHooks, forgotPasswordHook, resetPasswordHook, getProfileHook, updateProfileHook };
 };

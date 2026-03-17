@@ -145,7 +145,7 @@ export class TernerosController {
     @Req() req: any,
     @Query() query: any,
   ) {
-    const { id_establecimiento, sin_rodeo, id_rodeo, estado, page, limit } = query;
+    const { id_establecimiento, sin_rodeo, id_rodeo, estado, page, limit, search } = query;
 
     return this.ternerosService.findAll(
       req.id_establecimiento,
@@ -156,6 +156,7 @@ export class TernerosController {
       estado || null,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
+      search || null,
     );
   }
 

@@ -14,6 +14,11 @@ const ListadoMadre = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  // Filtros
+  const [searchInput, setSearchInput] = useState("");
+  const [searchActivo, setSearchActivo] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+
   // Estados para modal y alertas (mantener igual)
   const [modalEliminar, setModalEliminar] = useState({
     isOpen: false,
@@ -26,15 +31,20 @@ const ListadoMadre = () => {
     setTimeout(() => setAlert({ show: false, message: "", type: "" }), 5000);
   };
 
-  const cargarMadresList = async (paginaActual = 1) => {
+  const cargarMadresList = async (paginaActual = 1, searchOverride, estadoOverride) => {
     try {
       setLoading(true);
+
+      const searchVal = searchOverride !== undefined ? searchOverride : searchActivo;
+      const estadoVal = estadoOverride !== undefined ? estadoOverride : filtroEstado;
 
       let queryParams = "";
       if (userPayload?.rol === "admin" && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
       queryParams += `page=${paginaActual}&limit=20`;
+      if (searchVal) queryParams += `&search=${encodeURIComponent(searchVal)}`;
+      if (estadoVal) queryParams += `&estado=${encodeURIComponent(estadoVal)}`;
 
       const resMadres = await obtenerMadreHook(queryParams);
       const respuesta = resMadres?.data;
@@ -49,6 +59,23 @@ const ListadoMadre = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBuscar = () => {
+    setSearchActivo(searchInput);
+    cargarMadresList(1, searchInput, filtroEstado);
+  };
+
+  const handleLimpiarFiltros = () => {
+    setSearchInput("");
+    setSearchActivo("");
+    setFiltroEstado("");
+    cargarMadresList(1, "", "");
+  };
+
+  const handleEstadoChange = (nuevoEstado) => {
+    setFiltroEstado(nuevoEstado);
+    cargarMadresList(1, searchActivo, nuevoEstado);
   };
 
   // ✅ NUEVO: Función para abrir modal de eliminar
@@ -136,6 +163,41 @@ const ListadoMadre = () => {
             {alert.type === "error" ? "❌" : "✅"} {alert.message}
           </div>
         )}
+
+        {/* Barra de búsqueda y filtros */}
+        <div className='mb-4 flex flex-wrap gap-2 items-center'>
+          <input
+            type='text'
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+            placeholder='Buscar por nombre o RP...'
+            className='flex-1 min-w-[180px] px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-200 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+          />
+          <select
+            value={filtroEstado}
+            onChange={(e) => handleEstadoChange(e.target.value)}
+            className='px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+          >
+            <option value=''>Todos los estados</option>
+            <option value='Seca'>Seca</option>
+            <option value='En Tambo'>En Tambo</option>
+          </select>
+          <button
+            onClick={handleBuscar}
+            className='px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors'
+          >
+            🔍 Buscar
+          </button>
+          {(searchActivo || filtroEstado) && (
+            <button
+              onClick={handleLimpiarFiltros}
+              className='px-3 py-2 bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-lg text-sm transition-colors'
+            >
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
 
         {/* Contador de resultados - Responsive */}
         <div className='mb-3 sm:mb-4 text-xs sm:text-sm text-slate-400'>

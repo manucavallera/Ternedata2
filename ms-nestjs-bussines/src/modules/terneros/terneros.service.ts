@@ -157,6 +157,7 @@ export class TernerosService {
     estado?: string | null,
     page: number = 1,
     limit: number = 20,
+    search?: string | null,
   ): Promise<any> {
     try {
       console.log(
@@ -207,6 +208,14 @@ export class TernerosService {
 
       if (estado) {
         query.andWhere('ternero.estado = :estado', { estado });
+      }
+
+      // Búsqueda por RP
+      if (search) {
+        query.andWhere(
+          '(LOWER(ternero.rp_ternero) LIKE LOWER(:search) OR LOWER(madre.rp_madre) LIKE LOWER(:search))',
+          { search: `%${search}%` },
+        );
       }
 
       const [terneroList, total] = await query
