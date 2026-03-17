@@ -7,7 +7,7 @@ function JoinContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
-  const [status, setStatus] = useState("cargando"); // cargando, exito, error, login_required
+  const [status, setStatus] = useState("cargando"); // cargando, exito, error, login_required, ya_miembro
 
   useEffect(() => {
     if (!token) {
@@ -39,7 +39,12 @@ function JoinContent() {
       setTimeout(() => router.push("/"), 2500);
     } catch (error) {
       console.error(error);
-      setStatus("error");
+      // 409 = ya eres miembro con esta cuenta (el token sigue válido para otro usuario)
+      if (error?.response?.status === 409) {
+        setStatus("ya_miembro");
+      } else {
+        setStatus("error");
+      }
     }
   };
 
@@ -104,6 +109,38 @@ function JoinContent() {
             <p className='text-sm text-gray-400 mt-6 animate-pulse'>
               Entrando al sistema...
             </p>
+          </>
+        )}
+
+        {status === "ya_miembro" && (
+          <>
+            <div className='text-5xl mb-4'>⚠️</div>
+            <h2 className='text-2xl font-bold text-yellow-600 mb-2'>
+              Cuenta incorrecta
+            </h2>
+            <p className='text-gray-600 mb-2'>
+              Tu cuenta actual ya es parte de este equipo, o la invitación es para otra cuenta.
+            </p>
+            <p className='text-gray-500 text-sm mb-6'>
+              Cerrá sesión e ingresá con el email al que llegó la invitación. El link sigue siendo válido.
+            </p>
+            <div className='flex flex-col gap-3'>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  router.push(`/auth/login?token=${token}`);
+                }}
+                className='w-full bg-yellow-500 text-white py-3 rounded-lg font-bold hover:bg-yellow-600 transition'
+              >
+                Cerrar sesión y reintentar
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className='text-blue-600 font-semibold hover:underline text-sm'
+              >
+                Volver al Inicio
+              </button>
+            </div>
           </>
         )}
 
