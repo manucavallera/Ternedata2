@@ -16,4 +16,5 @@ RUN cp -r public .next/standalone/public || true
 
 EXPOSE 3002
 ENV PORT=3002
+ENV HOSTNAME=0.0.0.0
 CMD ["node", ".next/standalone/server.js"]
