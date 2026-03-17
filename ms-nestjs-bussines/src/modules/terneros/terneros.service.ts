@@ -155,7 +155,9 @@ export class TernerosService {
     sinRodeo?: boolean,
     idRodeo?: number | null,
     estado?: string | null,
-  ): Promise<TerneroEntity[]> {
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<any> {
     try {
       console.log(
         '🔍 Service findAll - ID Usuario:',
@@ -207,14 +209,15 @@ export class TernerosService {
         query.andWhere('ternero.estado = :estado', { estado });
       }
 
-      const terneroList = await query
+      const [terneroList, total] = await query
         .orderBy('ternero.id_ternero', 'DESC')
-        .getMany();
+        .skip((page - 1) * limit)
+        .take(limit)
+        .getManyAndCount();
 
-      console.log(`✅ Encontrados ${terneroList.length} terneros`);
+      console.log(`✅ Encontrados ${total} terneros (página ${page})`);
 
-      // 🔢 Calcula indicadores individuales
-      return terneroList.map((ternero) => {
+      const data = terneroList.map((ternero) => {
         try {
           ternero.calcularIndicadoresCrecimiento();
         } catch (error) {
@@ -228,6 +231,14 @@ export class TernerosService {
         }
         return ternero;
       });
+
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
     } catch (error) {
       console.error('Error en findAll:', error);
       throw new HttpException(

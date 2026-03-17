@@ -10,6 +10,9 @@ const ListadoMadre = () => {
 
   const [madres, setMadres] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   // Estados para modal y alertas (mantener igual)
   const [modalEliminar, setModalEliminar] = useState({
@@ -23,28 +26,22 @@ const ListadoMadre = () => {
     setTimeout(() => setAlert({ show: false, message: "", type: "" }), 5000);
   };
 
-  const cargarMadresList = async () => {
+  const cargarMadresList = async (paginaActual = 1) => {
     try {
       setLoading(true);
 
-      // ⬅️ NUEVA LÓGICA DE FILTRADO
       let queryParams = "";
-
-      // Si es admin y seleccionó un establecimiento, filtrar por ese
       if (userPayload?.rol === "admin" && establecimientoActual) {
-        queryParams = `id_establecimiento=${establecimientoActual}`;
-        console.log(
-          "🔍 Admin filtrando madres por establecimiento:",
-          establecimientoActual
-        );
-      } else if (userPayload?.rol === "admin" && !establecimientoActual) {
-        console.log("🔍 Admin viendo TODAS las madres");
-      } else {
-        console.log("🔍 Usuario no-admin, backend filtra automáticamente");
+        queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
+      queryParams += `page=${paginaActual}&limit=20`;
 
       const resMadres = await obtenerMadreHook(queryParams);
-      setMadres(resMadres?.data || []);
+      const respuesta = resMadres?.data;
+      setMadres(respuesta?.data || []);
+      setTotal(respuesta?.total || 0);
+      setTotalPages(respuesta?.totalPages || 1);
+      setPage(paginaActual);
     } catch (error) {
       console.error("Error al cargar madres:", error);
       setMadres([]);
@@ -142,7 +139,7 @@ const ListadoMadre = () => {
 
         {/* Contador de resultados - Responsive */}
         <div className='mb-3 sm:mb-4 text-xs sm:text-sm text-slate-400'>
-          {loading ? "Cargando..." : `${madres.length} madre(s) encontrada(s)`}
+          {loading ? "Cargando..." : `${total} madre(s) encontrada(s) — página ${page} de ${totalPages}`}
         </div>
 
         {/* Tabla Responsive - Scroll horizontal en mobile */}
@@ -479,6 +476,51 @@ const ListadoMadre = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className='flex items-center justify-center gap-2 mt-6'>
+            <button
+              onClick={() => cargarMadresList(page - 1)}
+              disabled={page <= 1 || loading}
+              className='px-3 py-1 rounded bg-slate-700 text-slate-200 disabled:opacity-40 hover:bg-slate-600 transition-colors text-sm'
+            >
+              ← Anterior
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className='text-slate-400 px-1'>…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => cargarMadresList(item)}
+                    disabled={loading}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      item === page
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => cargarMadresList(page + 1)}
+              disabled={page >= totalPages || loading}
+              className='px-3 py-1 rounded bg-slate-700 text-slate-200 disabled:opacity-40 hover:bg-slate-600 transition-colors text-sm'
+            >
+              Siguiente →
+            </button>
           </div>
         )}
       </div>

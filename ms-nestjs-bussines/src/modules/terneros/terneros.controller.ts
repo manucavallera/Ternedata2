@@ -143,9 +143,9 @@ export class TernerosController {
   })
   async findAll(
     @Req() req: any,
-    @Query() query: any, // ✅ capturamos todos los query params
+    @Query() query: any,
   ) {
-    const { id_establecimiento, sin_rodeo, id_rodeo, estado } = query;
+    const { id_establecimiento, sin_rodeo, id_rodeo, estado, page, limit } = query;
 
     return this.ternerosService.findAll(
       req.id_establecimiento,
@@ -154,6 +154,8 @@ export class TernerosController {
       sin_rodeo === 'true',
       id_rodeo ? parseInt(id_rodeo, 10) : null,
       estado || null,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
     );
   }
 

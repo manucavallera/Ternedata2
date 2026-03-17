@@ -16,6 +16,9 @@ const ListadoTernero = () => {
 
   const [terneros, setTerneros] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   // Estado para el modal de peso diario mejorado
   const [modalPesoDiario, setModalPesoDiario] = useState({
@@ -77,21 +80,22 @@ const ListadoTernero = () => {
     setTimeout(() => setAlert({ show: false, message: "", type: "" }), 5000);
   };
 
-  const cargarTerneroLista = async () => {
+  const cargarTerneroLista = async (paginaActual = 1) => {
     try {
       setLoading(true);
 
-      // 🆕 AGREGAR LÓGICA DE FILTRADO
       let queryParams = "";
-
-      // Si es Admin Y seleccionó un establecimiento específico
       if (userPayload?.rol === "admin" && establecimientoActual) {
-        queryParams = `id_establecimiento=${establecimientoActual}`;
+        queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
-      // Si NO es admin, el backend filtra automáticamente
+      queryParams += `page=${paginaActual}&limit=20`;
 
-      const resTerneros = await obtenerTerneroHook(queryParams); // 🆕 PASAR queryParams
-      setTerneros(resTerneros?.data || []);
+      const resTerneros = await obtenerTerneroHook(queryParams);
+      const respuesta = resTerneros?.data;
+      setTerneros(respuesta?.data || []);
+      setTotal(respuesta?.total || 0);
+      setTotalPages(respuesta?.totalPages || 1);
+      setPage(paginaActual);
     } catch (error) {
       console.error("Error al cargar terneros:", error);
       setTerneros([]);
@@ -102,7 +106,7 @@ const ListadoTernero = () => {
   };
 
   useEffect(() => {
-    cargarTerneroLista();
+    cargarTerneroLista(1);
   }, [establecimientoActual]);
 
   // 🆕 NUEVO: Abrir modal de peso diario mejorado
@@ -476,11 +480,11 @@ const ListadoTernero = () => {
           </div>
         )}
 
-        {/* Contador de resultados - Responsive */}
+        {/* Contador de resultados */}
         <div className='mb-3 sm:mb-4 text-xs sm:text-sm text-slate-400'>
           {loading
             ? "Cargando..."
-            : `${terneros.length} ternero(s) encontrado(s)`}
+            : `${total} ternero(s) encontrado(s) — página ${page} de ${totalPages}`}
         </div>
 
         {/* Tabla Responsive - Scroll horizontal en mobile */}
@@ -1385,6 +1389,51 @@ const ListadoTernero = () => {
             </div>
           </div>
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className='flex items-center justify-center gap-2 mt-6'>
+            <button
+              onClick={() => cargarTerneroLista(page - 1)}
+              disabled={page <= 1 || loading}
+              className='px-3 py-1 rounded bg-slate-700 text-slate-200 disabled:opacity-40 hover:bg-slate-600 transition-colors text-sm'
+            >
+              ← Anterior
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className='text-slate-400 px-1'>…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => cargarTerneroLista(item)}
+                    disabled={loading}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
+                      item === page
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => cargarTerneroLista(page + 1)}
+              disabled={page >= totalPages || loading}
+              className='px-3 py-1 rounded bg-slate-700 text-slate-200 disabled:opacity-40 hover:bg-slate-600 transition-colors text-sm'
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

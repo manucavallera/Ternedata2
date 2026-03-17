@@ -251,10 +251,10 @@ const ListadoRodeo = () => {
     setLoadingTerneros(true);
     try {
       const qpBase = buildQpBase();
-      const respDisp = await obtenerTerneroHook(`${qpBase}&sin_rodeo=true&estado=Vivo`);
-      const respAsig = await obtenerTerneroHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&estado=Vivo`);
-      setTernerosDisponibles(respDisp?.data || []);
-      setTernerosDelRodeo(respAsig?.data || []);
+      const respDisp = await obtenerTerneroHook(`${qpBase}&sin_rodeo=true&estado=Vivo&limit=500`);
+      const respAsig = await obtenerTerneroHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&estado=Vivo&limit=500`);
+      setTernerosDisponibles(respDisp?.data?.data || []);
+      setTernerosDelRodeo(respAsig?.data?.data || []);
     } catch (e) {
       console.error("Error al cargar terneros:", e);
       showAlert("Error al cargar terneros", "error");
@@ -266,10 +266,10 @@ const ListadoRodeo = () => {
   const cargarMadresData = async (rodeo) => {
     try {
       const qpBase = buildQpBase();
-      const respDisp = await obtenerMadreHook(`${qpBase}&sin_rodeo=true`);
-      const respAsig = await obtenerMadreHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}`);
-      setMadresDisponibles(respDisp?.data || []);
-      setMadresDelRodeo(respAsig?.data || []);
+      const respDisp = await obtenerMadreHook(`${qpBase}&sin_rodeo=true&limit=500`);
+      const respAsig = await obtenerMadreHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&limit=500`);
+      setMadresDisponibles(respDisp?.data?.data || []);
+      setMadresDelRodeo(respAsig?.data?.data || []);
     } catch (e) {
       console.error("Error al cargar madres:", e);
       showAlert("Error al cargar madres", "error");

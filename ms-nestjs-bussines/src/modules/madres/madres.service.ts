@@ -86,7 +86,9 @@ export class MadresService {
     idEstablecimientoQuery?: number | null,
     sinRodeo?: boolean,
     idRodeo?: number | null,
-  ): Promise<MadreEntity[]> {
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<any> {
     try {
       console.log(
         '🔍 Service Madres findAll - ID Usuario:',
@@ -142,10 +144,21 @@ export class MadresService {
         query.andWhere('madre.id_rodeo = :idRodeo', { idRodeo });
       }
 
-      const madres = await query.getMany();
-      console.log(`✅ Encontradas ${madres.length} madres`);
+      const [madres, total] = await query
+        .orderBy('madre.id_madre', 'DESC')
+        .skip((page - 1) * limit)
+        .take(limit)
+        .getManyAndCount();
 
-      return madres;
+      console.log(`✅ Encontradas ${total} madres (página ${page})`);
+
+      return {
+        data: madres,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
     } catch (error) {
       console.error('Error en findAll madres:', error);
       throw new HttpException(
