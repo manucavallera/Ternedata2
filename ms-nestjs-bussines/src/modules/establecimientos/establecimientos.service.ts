@@ -181,7 +181,7 @@ export class EstablecimientosService {
       userId: m.userId,
       nombre: m.user?.name || 'Sin nombre',
       email: m.user?.email || '',
-      rol: m.rol,
+      rol: m.user?.rol || m.rol,
     }));
   }
 
