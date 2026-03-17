@@ -206,6 +206,13 @@ export class UsersService {
     });
   }
 
+  async findByEstablecimiento(establecimientoId: number): Promise<UserEntity[]> {
+    return this.usersRepository.find({
+      where: { id_establecimiento: establecimientoId },
+      select: ['id', 'name', 'email', 'rol', 'estado'],
+    });
+  }
+
   // Buscar usuarios (para panel admin)
   async search(query: string): Promise<UserEntity[]> {
     return this.usersRepository

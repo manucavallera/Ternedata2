@@ -172,17 +172,39 @@ export class EstablecimientosService {
   // EQUIPO
   // ============================================================
   async getEquipo(establecimientoId: number): Promise<any[]> {
+    // Fuente 1: tabla user_establecimientos
     const miembros = await this.userEstablecimientoRepository.find({
       where: { establecimientoId },
       relations: ['user'],
     });
 
-    return miembros.map((m) => ({
-      userId: m.userId,
-      nombre: m.user?.name || 'Sin nombre',
-      email: m.user?.email || '',
-      rol: m.user?.rol || m.rol,
-    }));
+    const resultado: any[] = miembros
+      .filter((m) => m.user)
+      .map((m) => ({
+        userId: m.userId,
+        nombre: m.user.name,
+        email: m.user.email,
+        rol: m.user.rol || m.rol,
+      }));
+
+    // Fuente 2: usuarios con id_establecimiento directo (no en tabla intermedia)
+    const usuariosDirectos =
+      await this.usersService.findByEstablecimiento(establecimientoId);
+
+    const idsYaIncluidos = new Set(resultado.map((r) => r.userId));
+
+    for (const u of usuariosDirectos) {
+      if (!idsYaIncluidos.has(u.id)) {
+        resultado.push({
+          userId: u.id,
+          nombre: u.name,
+          email: u.email,
+          rol: u.rol,
+        });
+      }
+    }
+
+    return resultado;
   }
 
   async eliminarMiembro(
