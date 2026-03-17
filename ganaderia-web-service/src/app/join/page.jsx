@@ -128,7 +128,7 @@ function JoinContent() {
               <button
                 onClick={() => {
                   localStorage.clear();
-                  router.push(`/auth/login?token=${token}`);
+                  setStatus("login_required");
                 }}
                 className='w-full bg-yellow-500 text-white py-3 rounded-lg font-bold hover:bg-yellow-600 transition'
               >
