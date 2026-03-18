@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "next/navigation"; // 👈 IMPORTANTE
+import { useSearchParams, useRouter } from "next/navigation";
 
 // Hooks y Contextos propios
 import { useAuthSession } from "@/hooks/auth";
@@ -12,8 +12,6 @@ import { setStatusRegister, setStatusSessionUser } from "@/store/register";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
 
-// Servicios API
-import { equipoService } from "@/api/equipoRepo"; // 👈 Asegúrate que esta ruta exista
 
 const LoginContent = () => {
   const dispatch = useDispatch();
@@ -22,8 +20,8 @@ const LoginContent = () => {
   const { sessionLogin, isLoading: routerLoading } = useRouterSession();
   const { login, isLoading: authLoading } = useAuthContext();
 
-  // Hook para leer la URL
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const {
     register,
@@ -71,40 +69,21 @@ const LoginContent = () => {
         };
         localStorage.setItem("userSelected", JSON.stringify(userPayload));
 
-        // 👇👇 LOGICA DE INVITACIÓN (BACKUP TOKEN) 👇👇
-        try {
-          // Buscamos token en URL o en el "bolsillo" (LocalStorage)
-          let tokenInvitacion = searchParams.get("token");
-
-          if (!tokenInvitacion) {
-            tokenInvitacion = localStorage.getItem("backupToken");
-          }
-
-          if (tokenInvitacion) {
-            console.log(
-              "🎟️ Procesando invitación tras login...",
-              tokenInvitacion,
-            );
-            await equipoService.unirseAlEquipo(tokenInvitacion);
-
-            // Si funcionó, limpiamos el backup
-            localStorage.removeItem("backupToken");
-            alert("¡Te has unido al equipo correctamente!");
-          }
-        } catch (error) {
-          console.error(
-            "Error al unir al equipo (pero el login sigue):",
-            error,
-          );
-          // No bloqueamos el flujo, solo avisamos por consola
-        }
-        // 👆👆 FIN LOGICA INVITACIÓN 👆👆
+        // Si hay token de invitación, dejamos que el join page lo procese
+        const tokenInvitacion = searchParams.get("token") || localStorage.getItem("backupToken");
       }
 
-      // Continuar flujo normal de redirección
-      sessionLogin(true);
-      dispatch(setStatusSessionUser(true));
       login(res.data.token);
+      dispatch(setStatusSessionUser(true));
+
+      // Si hay token de invitación, redirigir al join page para que lo procese
+      const tokenInvitacion = searchParams.get("token") || localStorage.getItem("backupToken");
+      if (tokenInvitacion) {
+        localStorage.removeItem("backupToken");
+        router.push(`/join?token=${tokenInvitacion}`);
+      } else {
+        sessionLogin(true);
+      }
     }
   });
 
