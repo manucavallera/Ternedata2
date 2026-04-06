@@ -12,7 +12,7 @@ export const useAuthSession = () => {
             const { data, config, headers, status, statusText, request } = await securityApi.post(`/auth/register`, objectUsuario);
             return { data, config, headers, status, statusText, request };
         } catch (error) {
-            return error.response.status;
+            return error?.response?.status ?? 0;
         }
     };
 

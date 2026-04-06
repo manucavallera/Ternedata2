@@ -48,6 +48,12 @@ export class InvitacionesController {
     );
   }
 
+  @Post('aceptar-automatico')
+  @ApiOperation({ summary: 'Acepta todas las invitaciones pendientes para el email del usuario logueado' })
+  async aceptarAutomatico(@Req() req: any) {
+    return await this.invitacionesService.aceptarPorEmail(req.user.userId);
+  }
+
   @Get('pendientes/:establecimientoId')
   @ApiOperation({ summary: 'Ver invitaciones pendientes de un establecimiento' })
   async pendientes(

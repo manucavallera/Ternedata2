@@ -182,12 +182,11 @@ export class TernerosService {
 
       // 🧩 Multi-tenancy
       if (esAdmin) {
-        if (idEstablecimientoQuery) {
+        const filterId = idEstablecimientoQuery || idEstablecimiento;
+        if (filterId) {
           query.where('ternero.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento: idEstablecimientoQuery,
+            idEstablecimiento: filterId,
           });
-        } else {
-          console.log('✅ Admin viendo todos los establecimientos');
         }
       } else if (idEstablecimiento) {
         query.where('ternero.id_establecimiento = :idEstablecimiento', {

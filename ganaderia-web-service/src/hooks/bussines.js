@@ -15,9 +15,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/madres/crear-madre`, objectMadre);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -31,9 +33,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -44,9 +48,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/terneros/crear-ternero`, objectTernero);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -61,9 +67,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -74,8 +82,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/terneros/peso-diario/${id_ternero}`, pesoData);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -87,8 +97,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(`/terneros/historial-completo/${id_ternero}`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -100,9 +112,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/eventos/crear-evento`, objectEvento);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -116,9 +130,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -132,9 +148,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -148,9 +166,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -166,8 +186,10 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -184,9 +206,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -199,9 +223,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -213,9 +239,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -230,9 +258,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -246,9 +276,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -260,9 +292,11 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -305,9 +339,11 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
-      return error.response.status;
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return error.response?.status || error;
     }
   };
 
@@ -320,8 +356,10 @@ export const useBussinesMicroservicio = () => {
         );
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -339,8 +377,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(url);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -352,8 +392,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(`/users`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -364,8 +406,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(`/users/stats`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -376,8 +420,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/users`, userData);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -388,8 +434,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.put(`/users/${id}`, userData);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -400,8 +448,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.delete(`/users/${id}`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -412,8 +462,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.put(`/users/${id}/toggle-status`, {});
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -425,8 +477,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.get(`/establecimientos`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -437,8 +491,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.post(`/establecimientos`, dataEstablecimiento);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -449,8 +505,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.put(`/establecimientos/${id}`, dataEstablecimiento);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -461,8 +519,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.delete(`/establecimientos/${id}`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -473,8 +533,10 @@ export const useBussinesMicroservicio = () => {
         await businessApi.patch(`/establecimientos/${id}/toggle-estado`);
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };
@@ -488,8 +550,10 @@ export const useBussinesMicroservicio = () => {
         });
       return { data, config, headers, status, statusText, request };
     } catch (error) {
-      sessionLogOutMethod(dispatch);
-      logAuthMethod(dispatch, router);
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
       return error.response?.status || error;
     }
   };

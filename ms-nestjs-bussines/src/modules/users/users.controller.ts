@@ -122,6 +122,11 @@ export class UsersController {
       );
     }
 
+    // Solo admins pueden cambiar el establecimiento asignado
+    if (req.user.rol !== UserRole.ADMIN && updateUserDto['id_establecimiento'] !== undefined) {
+      delete updateUserDto['id_establecimiento'];
+    }
+
     return await this.usersService.update(id, updateUserDto);
   }
 }

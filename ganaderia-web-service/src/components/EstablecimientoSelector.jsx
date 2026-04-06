@@ -15,10 +15,10 @@ export default function EstablecimientoSelector() {
   const [establecimientos, setEstablecimientos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Cargar establecimientos desde la API
+  // Recargar cuando el usuario obtiene un establecimiento (ej: después de crear uno nuevo)
   useEffect(() => {
     cargarEstablecimientos();
-  }, []);
+  }, [userPayload?.id_establecimiento]);
 
   const cargarEstablecimientos = async () => {
     try {

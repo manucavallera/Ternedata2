@@ -16,6 +16,7 @@ import { EstablecimientosModule } from './modules/establecimientos/establecimien
 import { RodeosModule } from './modules/rodeos/rodeos.module';
 import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
 import { BotModule } from './modules/bot/bot.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
 
 // 👇 1. AGREGAR ESTA IMPORTACIÓN
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -73,6 +74,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     RodeosModule,
     InvitacionesModule,
     BotModule,
+    AlertsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

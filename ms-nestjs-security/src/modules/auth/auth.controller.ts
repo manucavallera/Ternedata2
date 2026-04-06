@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterAuthDto } from './dto/register.dto';
 import { LoginAuthDto } from './dto/login.dto';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -33,6 +34,13 @@ export class AuthController {
     const idFinal = idEstablecimiento ? parseInt(idEstablecimiento) : null;
 
     return this.AuthService.crearTokenMagico(emailFinal, rolFinal, idFinal);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/refresh')
+  @ApiOperation({ summary: 'Obtener un JWT fresco con datos actualizados' })
+  async refreshToken(@Request() req: any) {
+    return this.AuthService.refreshToken(req.user.id);
   }
 
   @Post('/forgot-password')

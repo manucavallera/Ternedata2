@@ -11,7 +11,8 @@ import { setSeccionStatus } from "@/store/seccion";
 import Image from "next/image";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { equipoService } from "@/api/equipoRepo";
+import businessApi from "@/api/bussines-api";
 import { format } from "date-fns";
 
 function Navbar() {
@@ -21,31 +22,30 @@ function Navbar() {
   );
   const router = useRouter();
   const pathname = usePathname();
-  const { obtenerUsuariosHook } = useBussinesMicroservicio();
 
   const [statusSession, setStatusSession] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [usuariosPendientes, setUsuariosPendientes] = useState(0);
   const [currentTime, setCurrentTime] = useState("");
+  const [nombreEstablecimiento, setNombreEstablecimiento] = useState(null);
 
-  const cargarUsuariosPendientes = useCallback(async () => {
+  const cargarInvitacionesPendientes = useCallback(async () => {
     if (userPayload?.rol !== "admin") return;
+    const estId = userPayload?.id_establecimiento;
+    if (!estId) return;
 
     try {
-      const response = await obtenerUsuariosHook();
-
-      const pendientes =
-        response?.data?.filter(
-          (u) => u.estado === "inactivo" && !u.id_establecimiento
-        ).length || 0;
-
-      setUsuariosPendientes(pendientes);
-    } catch (error) {
-      console.error("Error al cargar usuarios pendientes:", error);
+      const pendientes = await equipoService.getPendientes(estId);
+      const ahora = new Date();
+      const activas = (pendientes || []).filter(
+        (inv) => new Date(inv.expiracion) > ahora
+      ).length;
+      setUsuariosPendientes(activas);
+    } catch {
       setUsuariosPendientes(0);
     }
-  }, [userPayload?.rol, obtenerUsuariosHook]);
+  }, [userPayload?.rol, userPayload?.id_establecimiento]);
 
   const actualizarHora = () => {
     const now = new Date();
@@ -63,18 +63,31 @@ function Navbar() {
   }, [authPayload, status, userPayload]);
 
   useEffect(() => {
-    if (userPayload?.rol === "admin") {
-      cargarUsuariosPendientes();
-      const interval = setInterval(cargarUsuariosPendientes, 30000);
+    if (userPayload?.rol === "admin" && userPayload?.id_establecimiento) {
+      cargarInvitacionesPendientes();
+      const interval = setInterval(cargarInvitacionesPendientes, 30000);
       return () => clearInterval(interval);
     }
-  }, [userPayload?.rol]);
+  }, [userPayload?.rol, userPayload?.id_establecimiento]);
 
   useEffect(() => {
     actualizarHora();
     const interval = setInterval(actualizarHora, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (userPayload?.rol === "operario" && userPayload?.id_establecimiento) {
+      businessApi.get("/establecimientos")
+        .then((res) => {
+          const est = res.data?.find(
+            (e) => e.id_establecimiento === userPayload.id_establecimiento
+          );
+          if (est) setNombreEstablecimiento(est.nombre);
+        })
+        .catch(() => {});
+    }
+  }, [userPayload?.rol, userPayload?.id_establecimiento]);
 
   const onclickIngreso = () => {
     // Si no estamos en /admin/dashboard, navegar primero
@@ -285,6 +298,14 @@ function Navbar() {
                 <EstablecimientoSelector />
               </li>
 
+              {userPayload?.rol === "operario" && nombreEstablecimiento && (
+                <li>
+                  <div className='bg-green-600 text-white border border-white rounded px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold flex items-center gap-1'>
+                    🏢 {nombreEstablecimiento}
+                  </div>
+                </li>
+              )}
+
               {userPayload?.rol === "admin" && (
                 <li>
                   <Link
@@ -475,6 +496,12 @@ function Navbar() {
             <div className='px-3 py-2'>
               <EstablecimientoBadge />
             </div>
+
+            {userPayload?.rol === "operario" && nombreEstablecimiento && (
+              <div className='px-3 py-2 flex items-center gap-2 text-sm font-semibold'>
+                🏢 {nombreEstablecimiento}
+              </div>
+            )}
 
             {userPayload?.rol === "admin" && (
               <Link

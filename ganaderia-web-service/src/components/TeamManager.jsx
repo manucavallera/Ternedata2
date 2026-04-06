@@ -140,7 +140,14 @@ export const TeamManager = ({ establecimientoId }) => {
           Equipo ({miembros.length})
         </button>
         <button
-          onClick={() => setTab("pendientes")}
+          onClick={async () => {
+            setTab("pendientes");
+            // Refrescar al abrir el tab para no mostrar datos viejos
+            try {
+              const inv = await equipoService.getPendientes(establecimientoId);
+              setPendientes(inv);
+            } catch {}
+          }}
           className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
             tab === "pendientes"
               ? "bg-white border border-b-white border-gray-200 text-indigo-700 -mb-px"

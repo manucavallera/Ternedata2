@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 // Hooks y Contextos propios
 import { useAuthSession } from "@/hooks/auth";
@@ -11,17 +11,18 @@ import { useRouterSession } from "@/utils/routerSession";
 import { setStatusRegister, setStatusSessionUser } from "@/store/register";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
+import businessApi from "@/api/bussines-api";
+import securityApi from "@/api/security-api";
 
 
 const LoginContent = () => {
   const dispatch = useDispatch();
 
+  const router = useRouter();
   const { loginHooks } = useAuthSession();
   const { sessionLogin, isLoading: routerLoading } = useRouterSession();
   const { login, isLoading: authLoading } = useAuthContext();
 
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
   const {
     register,
@@ -68,19 +69,43 @@ const LoginContent = () => {
           // ... otros campos que necesites
         };
         localStorage.setItem("userSelected", JSON.stringify(userPayload));
-
-        // Si hay token de invitación, dejamos que el join page lo procese
-        const tokenInvitacion = searchParams.get("token") || localStorage.getItem("backupToken");
       }
 
       login(res.data.token);
       dispatch(setStatusSessionUser(true));
 
-      // Si hay token de invitación, redirigir al join page para que lo procese
-      const tokenInvitacion = searchParams.get("token") || localStorage.getItem("backupToken");
-      if (tokenInvitacion) {
-        localStorage.removeItem("backupToken");
-        router.push(`/join?token=${tokenInvitacion}`);
+      // Guardar pendingToken antes de limpiar (puede ser invitación sin email)
+      const pendingToken = localStorage.getItem("pendingInviteToken") || localStorage.getItem("backupToken");
+      localStorage.removeItem("backupToken");
+      localStorage.removeItem("pendingInviteToken");
+
+      // Intentar aceptar invitaciones pendientes por email
+      try {
+        const result = await businessApi.post("/invitaciones/aceptar-automatico");
+        if (result?.data?.aceptadas > 0) {
+          // Hubo invitaciones procesadas → refrescar JWT con id_establecimiento actualizado
+          const { data } = await securityApi.post("/auth/refresh");
+          if (data?.token) {
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("userSelected", JSON.stringify({
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              rol: data.user.rol,
+              estado: data.user.estado,
+              telefono: data.user.telefono,
+              id_establecimiento: data.user.id_establecimiento,
+            }));
+            login(data.token);
+          }
+        }
+      } catch (err) {
+        // Si falla (sin invitaciones o error), continuar normalmente
+      }
+
+      // Si había un token de invitación pendiente, procesarlo en /join
+      if (pendingToken) {
+        router.push(`/join?token=${pendingToken}`);
       } else {
         sessionLogin(true);
       }

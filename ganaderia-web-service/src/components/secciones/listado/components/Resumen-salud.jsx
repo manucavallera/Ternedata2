@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
-import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
+import { useSelector } from "react-redux";
+import businessApi from "@/api/bussines-api";
 
 const ResumenSalud = () => {
   const { obtenerResumenSaludHook } = useBussinesMicroservicio();
@@ -37,6 +38,16 @@ const ResumenSalud = () => {
 
       if (resultado?.status === 200) {
         setResumen(resultado.data);
+
+        // Verificar umbrales y enviar alerta si corresponde (fire & forget)
+        const idEst = userPayload?.id_establecimiento;
+        if (idEst && resultado.data) {
+          businessApi.post("/alerts/check", {
+            establecimientoId: idEst,
+            mortalidad: resultado.data.porcentajeMortalidad,
+            morbilidad: resultado.data.porcentajeMorbilidad,
+          }).catch(() => {}); // No bloquear si falla
+        }
       } else {
         setError("Error al cargar el resumen de salud");
       }

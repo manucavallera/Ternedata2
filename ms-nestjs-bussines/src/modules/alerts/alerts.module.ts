@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlertsController } from './alerts.controller';
 import { AlertsService } from './alerts.service';
 import { AlertsConfigEntity } from './entity/alerts-config.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AlertsConfigEntity])],
+  imports: [TypeOrmModule.forFeature([AlertsConfigEntity]), UsersModule],
   controllers: [AlertsController],
   providers: [AlertsService],
-  exports: [AlertsService], // 👈 Exportamos para usarlo cuando registremos muertes
+  exports: [AlertsService],
 })
 export class AlertsModule {}

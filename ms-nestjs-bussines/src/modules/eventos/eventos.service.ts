@@ -198,18 +198,11 @@ export class EventosService {
 
       // Lógica de filtrado
       if (esAdmin) {
-        // Si es admin Y tiene query param, filtrar por ese establecimiento
-        if (idEstablecimientoQuery) {
-          console.log(
-            '✅ Admin filtrando eventos por establecimiento:',
-            idEstablecimientoQuery,
-          );
+        const filterId = idEstablecimientoQuery || idEstablecimiento;
+        if (filterId) {
           queryBuilder.where('evento.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento: idEstablecimientoQuery,
+            idEstablecimiento: filterId,
           });
-        } else {
-          console.log('✅ Admin viendo TODOS los eventos (sin filtro)');
-          // No agregar ningún where - devuelve todo
         }
       } else {
         // Si NO es admin, SIEMPRE filtrar por su establecimiento

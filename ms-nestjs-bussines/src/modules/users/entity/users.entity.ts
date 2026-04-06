@@ -59,19 +59,11 @@ export class UserEntity {
 
   // ===== NUEVOS CAMPOS PARA PANEL ADMIN =====
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.OPERARIO,
-  })
-  rol: UserRole;
+  @Column({ type: 'varchar', length: 20, default: 'operario' })
+  rol: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserStatus,
-    default: UserStatus.ACTIVO,
-  })
-  estado: UserStatus;
+  @Column({ type: 'varchar', length: 20, default: 'activo' })
+  estado: string;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   telefono: string;

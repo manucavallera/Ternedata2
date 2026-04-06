@@ -224,14 +224,17 @@ export class UsersService {
       .getMany();
   }
 
+  // Obtener usuario con todos los campos incluyendo id_establecimiento
+  async findOneRaw(id: number): Promise<UserEntity | null> {
+    return this.usersRepository.findOne({ where: { id } });
+  }
+
   // ACTUALIZAR CONTEXTO (Guardar cuál es el campo activo del usuario)
   // ============================================================
   async assignEstablecimiento(
     userId: number,
-    establecimientoId: number,
+    establecimientoId: number | null,
   ): Promise<void> {
-    // Solo actualizamos el campo "id_establecimiento" en la tabla users
-    // Esto sirve para que el Frontend sepa qué campo mostrar por defecto
     await this.usersRepository.update(userId, {
       id_establecimiento: establecimientoId,
     });

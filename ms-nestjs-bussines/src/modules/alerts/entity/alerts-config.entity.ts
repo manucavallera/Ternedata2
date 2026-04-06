@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn } from 'typeorm';
 
 @Entity('alerts_config')
 export class AlertsConfigEntity {
@@ -20,4 +20,7 @@ export class AlertsConfigEntity {
 
   @Column({ default: true })
   emailEnabled: boolean;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  lastAlertSent: Date | null;
 }

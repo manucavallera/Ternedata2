@@ -209,16 +209,22 @@ export class EstablecimientosService {
     establecimientoId: number,
     userId: number,
   ): Promise<void> {
+    // Eliminar fila de user_establecimientos si existe
     const relacion = await this.userEstablecimientoRepository.findOne({
       where: { establecimientoId, userId },
     });
-
-    if (!relacion) {
-      throw new NotFoundException(
-        'El usuario no es miembro de este establecimiento',
-      );
+    if (relacion) {
+      await this.userEstablecimientoRepository.remove(relacion);
     }
 
-    await this.userEstablecimientoRepository.remove(relacion);
+    // Limpiar id_establecimiento del usuario si apuntaba a este establecimiento
+    const user = await this.usersService.findOneRaw(userId);
+    if (user && user.id_establecimiento === establecimientoId) {
+      await this.usersService.assignEstablecimiento(userId, null);
+    }
+
+    if (!relacion && (!user || user.id_establecimiento !== establecimientoId)) {
+      throw new NotFoundException('El usuario no es miembro de este establecimiento');
+    }
   }
 }

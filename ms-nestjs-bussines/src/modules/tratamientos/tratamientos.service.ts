@@ -232,21 +232,12 @@ export class TratamientosService {
 
       // Lógica de filtrado por establecimiento
       if (esAdmin) {
-        // Si es admin Y tiene query param, filtrar por ese establecimiento
-        if (idEstablecimientoQuery) {
-          console.log(
-            '✅ Admin filtrando tratamientos por establecimiento:',
-            idEstablecimientoQuery,
-          );
+        const filterId = idEstablecimientoQuery || idEstablecimiento;
+        if (filterId) {
           queryBuilder.andWhere(
             'tratamiento.id_establecimiento = :idEstablecimiento',
-            { idEstablecimiento: idEstablecimientoQuery },
+            { idEstablecimiento: filterId },
           );
-        } else {
-          console.log(
-            '✅ Admin viendo TODOS los tratamientos (sin filtro de establecimiento)',
-          );
-          // No agregar ningún where de establecimiento - devuelve todo
         }
       } else {
         // Si NO es admin, SIEMPRE filtrar por su establecimiento

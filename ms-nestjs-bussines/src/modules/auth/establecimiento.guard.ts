@@ -35,9 +35,9 @@ export class EstablecimientoGuard implements CanActivate {
       throw new UnauthorizedException('Usuario no autenticado');
     }
 
-    // 1. Si es ADMIN GLOBAL, pasa directo
+    // 1. Si es ADMIN, pasa con su establecimiento (no null)
     if (user.rol === 'admin') {
-      request.id_establecimiento = null; // Admin ve todo
+      request.id_establecimiento = user.id_establecimiento || null;
       request.es_admin = true;
       return true;
     }

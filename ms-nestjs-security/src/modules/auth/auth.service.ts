@@ -48,14 +48,16 @@ export class AuthService {
 
     const passwordHash = await hash(password, 10);
 
-    // Users always register as active.
-    // The invitation token (UUID) is processed by the business service after login.
+    // Sin invitación → admin (crea su propio establecimiento)
+    // Con invitación → operario (será asignado al establecimiento del admin)
+    const rol = invitationToken ? 'operario' : 'admin';
+
     const userObject = {
       name: name,
       email: email,
       password: passwordHash,
       estado: 'activo',
-      rol: 'operario',
+      rol,
       id_establecimiento: null,
     };
 
@@ -197,6 +199,34 @@ export class AuthService {
     }
 
     return { message: 'Si el email existe, recibirás un correo en breve.' };
+  }
+
+  // =================================================================
+  // REFRESH TOKEN - Genera un nuevo JWT con datos frescos de DB
+  // =================================================================
+  async refreshToken(userId: number): Promise<UserInterface> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['userEstablecimientos'],
+    });
+
+    if (!user) {
+      throw new HttpException('Usuario no encontrado', HttpStatus.UNAUTHORIZED);
+    }
+    if (user.estado === 'inactivo') {
+      throw new HttpException('Usuario inactivo.', HttpStatus.FORBIDDEN);
+    }
+
+    const payload = {
+      id: user.id,
+      name: user.name,
+      rol: user.rol,
+      id_establecimiento: user.id_establecimiento,
+      userEstablecimientos: user.userEstablecimientos || [],
+    };
+
+    const token = this.jwtService.sign(payload, { expiresIn: '30d' });
+    return { user, token };
   }
 
   // =================================================================

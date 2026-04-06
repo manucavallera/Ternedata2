@@ -69,17 +69,20 @@ const Registercomponent = () => {
 
       const res = await registroHooks(newUser);
 
-      if (res === 500) {
+      if (typeof res === "number") {
+        const msg =
+          res === 0
+            ? "ERROR DE CONEXIÓN. Verificá que el servidor esté corriendo."
+            : "ERROR, USUARIO REGISTRADO O DATOS INCORRECTOS";
         const dataAlert = {
           status: true,
-          message: "ERROR, USUARIO REGISTRADO O DATOS INCORRECTOS",
+          message: msg,
         };
-        sessionRegister(false);
         setuserAlert(dataAlert);
       } else {
         const mensajeExito = tokenParaEnviar
           ? "✅ ¡REGISTRO Y ACTIVACIÓN EXITOSA! Redirigiendo..."
-          : "✅ REGISTRO EXITOSO. Tu cuenta será revisada por un administrador.";
+          : "✅ REGISTRO EXITOSO. Redirigiendo al login...";
 
         const dataAlert = {
           status: true,
@@ -98,7 +101,6 @@ const Registercomponent = () => {
         }, 3000);
       }
     } else {
-      sessionRegister(false);
       const dataAlert = {
         status: true,
         message: "LAS CONTRASEÑAS NO COINCIDEN",

@@ -31,10 +31,6 @@ export class UserEstablecimientoEntity {
   establecimiento: Establecimiento;
 
   // 🛡️ El Rol ESPECÍFICO para este campo
-  @Column({
-    type: 'enum',
-    enum: RolEstablecimiento,
-    default: RolEstablecimiento.OPERARIO,
-  })
-  rol: RolEstablecimiento;
+  @Column({ type: 'varchar', length: 30, nullable: true, default: 'operario' })
+  rol: string;
 }

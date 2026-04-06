@@ -28,10 +28,9 @@ export class RodeosService {
 
     // Lógica multi-tenancy
     if (esAdmin) {
-      if (idEstablecimientoQuery) {
-        query.where('rodeo.id_establecimiento = :id', {
-          id: idEstablecimientoQuery,
-        });
+      const filterId = idEstablecimientoQuery || idEstablecimiento;
+      if (filterId) {
+        query.where('rodeo.id_establecimiento = :id', { id: filterId });
       }
     } else {
       if (!idEstablecimiento) {

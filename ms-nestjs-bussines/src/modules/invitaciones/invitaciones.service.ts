@@ -97,6 +97,42 @@ export class InvitacionesService {
     return { message: 'Invitación revocada' };
   }
 
+  // Acepta automáticamente todas las invitaciones pendientes para el email del usuario
+  async aceptarPorEmail(userId: number): Promise<{ aceptadas: number }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.email) return { aceptadas: 0 };
+
+    const invitaciones = await this.invitacionRepo.find({
+      where: { email: user.email, usado: false },
+    });
+
+    let aceptadas = 0;
+    for (const inv of invitaciones) {
+      if (new Date() > inv.expiracion) continue;
+
+      const existe = await this.userEstablecimientoRepo.findOne({
+        where: { userId, establecimientoId: inv.establecimientoId },
+      });
+
+      if (existe) {
+        await this.invitacionRepo.update(inv.id, { usado: true });
+        aceptadas++;
+        continue;
+      }
+
+      await this.userEstablecimientoRepo.save({
+        userId,
+        establecimientoId: inv.establecimientoId,
+        rol: inv.rol,
+      });
+      await this.invitacionRepo.update(inv.id, { usado: true });
+      await this.usersService.assignEstablecimiento(userId, inv.establecimientoId);
+      aceptadas++;
+    }
+
+    return { aceptadas };
+  }
+
   async aceptarLink(token: string, userId: number) {
     // 1. Validar Link
     const invitacion = await this.invitacionRepo.findOne({
@@ -116,11 +152,14 @@ export class InvitacionesService {
       where: { userId, establecimientoId: invitacion.establecimientoId },
     });
 
-    if (existe)
+    if (existe) {
+      // Marcar la invitación como usada aunque el usuario ya sea miembro
+      await this.invitacionRepo.update(invitacion.id, { usado: true });
       throw new HttpException(
         'Ya eres parte de este equipo',
         HttpStatus.CONFLICT,
       );
+    }
 
     // 3. Crear Relación
     await this.userEstablecimientoRepo.save({
