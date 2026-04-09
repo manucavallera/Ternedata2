@@ -49,19 +49,22 @@ export class TernerosService {
         );
       }
 
-      // Buscar la madre (validando mismo establecimiento)
-      const madre = await this.madreRepository.findOne({
-        where: {
-          id_madre: createTerneroDto.id_madre,
-          id_establecimiento: createTerneroDto.id_establecimiento,
-        },
-      });
+      // Buscar la madre (solo si se proporcionó id_madre)
+      let madre: MadreEntity | null = null;
+      if (createTerneroDto.id_madre) {
+        madre = await this.madreRepository.findOne({
+          where: {
+            id_madre: createTerneroDto.id_madre,
+            id_establecimiento: createTerneroDto.id_establecimiento,
+          },
+        });
 
-      if (!madre) {
-        throw new HttpException(
-          `No se encontró la madre con ID ${createTerneroDto.id_madre} en este establecimiento`,
-          HttpStatus.NOT_FOUND,
-        );
+        if (!madre) {
+          throw new HttpException(
+            `No se encontró la madre con ID ${createTerneroDto.id_madre} en este establecimiento`,
+            HttpStatus.NOT_FOUND,
+          );
+        }
       }
 
       const nuevoTernero = this.terneroRepository.create();
