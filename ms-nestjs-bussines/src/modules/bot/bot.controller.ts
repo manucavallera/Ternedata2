@@ -246,10 +246,10 @@ export class BotController {
     const { accion, phone } = body;
 
     if (!accion) {
-      throw new HttpException(
-        { error: 'Falta el campo "accion"', recibido: body },
-        HttpStatus.BAD_REQUEST,
-      );
+      return {
+        success: false,
+        mensaje: `❌ Falta el campo "accion". Body recibido: ${JSON.stringify(body)}`,
+      };
     }
 
     // ── Autenticación por teléfono ──
@@ -621,20 +621,21 @@ export class BotController {
           );
       }
     } catch (error) {
-      console.error('❌ Error en bot:', error.message);
+      const errorMsg =
+        error?.response?.message ||
+        error?.response?.error ||
+        error?.message ||
+        'Error desconocido';
 
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      console.error('❌ Error en bot:', errorMsg, error);
 
-      throw new HttpException(
-        {
-          success: false,
-          error: error.message,
-          accion,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      // Devolvemos 200 con success:false para que n8n pueda reenviar
+      // el mensaje de error real al usuario por WhatsApp
+      return {
+        success: false,
+        accion,
+        mensaje: `❌ Error al procesar "${accion}": ${errorMsg}`,
+      };
     }
   }
 
