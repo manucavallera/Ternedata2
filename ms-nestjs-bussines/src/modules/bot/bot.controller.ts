@@ -297,7 +297,7 @@ export class BotController {
     summary: 'Consulta si el usuario necesita seleccionar establecimiento',
     description: 'n8n llama esto antes de la IA para saber si el usuario está en flujo de selección.',
   })
-  async estado(@Query('phone') phone: string) {
+  async estado(@Query('phone') phone: string, @Query('text') text?: string) {
     if (!phone) {
       return { requiere_seleccion: false, mensaje: null };
     }
@@ -305,6 +305,21 @@ export class BotController {
     const user = await this.buscarUsuarioPorTelefono(phone);
     if (!user) {
       return { requiere_seleccion: false, usuario_no_encontrado: true };
+    }
+
+    // Detectar comando "cambiar_establecimiento" antes de ir a Claude
+    const textNorm = (text || '').toLowerCase().trim().replace(/[_\s-]/g, '_');
+    if (textNorm === 'cambiar_establecimiento' || textNorm === 'cambiar establecimiento') {
+      await this.userRepo.update(user.id, { bot_establecimiento_id: null });
+      const establecimientos = await this.obtenerEstablecimientosDeUsuario(user.id);
+      if (establecimientos.length > 1) {
+        const lista = this.formatearListaEstablecimientos(establecimientos);
+        return {
+          requiere_seleccion: true,
+          establecimientos,
+          mensaje: `🔄 ¿En qué establecimiento querés trabajar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
+        };
+      }
     }
 
     const establecimientos = await this.obtenerEstablecimientosDeUsuario(user.id);
