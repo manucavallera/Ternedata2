@@ -2,6 +2,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   Body,
   UseGuards,
   HttpException,
@@ -285,6 +287,46 @@ export class BotController {
       where: { rp_madre: rp, id_establecimiento: idEstablecimiento },
     });
     return !!existe;
+  }
+
+  // ════════════════════════════════════════════
+  // ENDPOINT DE ESTADO — n8n consulta esto primero
+  // ════════════════════════════════════════════
+  @Get('estado')
+  @ApiOperation({
+    summary: 'Consulta si el usuario necesita seleccionar establecimiento',
+    description: 'n8n llama esto antes de la IA para saber si el usuario está en flujo de selección.',
+  })
+  async estado(@Query('phone') phone: string) {
+    if (!phone) {
+      return { requiere_seleccion: false, mensaje: null };
+    }
+
+    const user = await this.buscarUsuarioPorTelefono(phone);
+    if (!user) {
+      return { requiere_seleccion: false, usuario_no_encontrado: true };
+    }
+
+    const establecimientos = await this.obtenerEstablecimientosDeUsuario(user.id);
+
+    if (establecimientos.length <= 1) {
+      return { requiere_seleccion: false };
+    }
+
+    // Tiene varios → verificar si ya eligió uno válido
+    if (user.bot_establecimiento_id) {
+      const valido = establecimientos.find(e => e.id === user.bot_establecimiento_id);
+      if (valido) {
+        return { requiere_seleccion: false, establecimiento_actual: valido };
+      }
+    }
+
+    const lista = this.formatearListaEstablecimientos(establecimientos);
+    return {
+      requiere_seleccion: true,
+      establecimientos,
+      mensaje: `🏠 ¿En qué establecimiento querés registrar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
+    };
   }
 
   // ════════════════════════════════════════════
