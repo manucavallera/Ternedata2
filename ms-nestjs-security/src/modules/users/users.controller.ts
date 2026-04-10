@@ -153,7 +153,6 @@ export class UsersController {
     return await this.usersService.changeRole(id, rol);
   }
 
-  // 👇 AGREGAR ESTO EN users.controller.ts
   @Post('assign-establishment')
   async assignEstablecimiento(
     @Body() body: { userId: number; establecimientoId: number },
@@ -162,5 +161,23 @@ export class UsersController {
       body.userId,
       body.establecimientoId,
     );
+  }
+
+  @Get(':id/establecimientos')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Obtener establecimientos asignados al usuario' })
+  async getEstablecimientos(@Param('id', ParseIntPipe) id: number) {
+    return await this.usersService.getEstablecimientos(id);
+  }
+
+  @Put(':id/establecimientos')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Sincronizar establecimientos asignados al usuario' })
+  async syncEstablecimientos(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('ids') ids: number[],
+  ) {
+    await this.usersService.syncEstablecimientos(id, ids);
+    return { ok: true };
   }
 }

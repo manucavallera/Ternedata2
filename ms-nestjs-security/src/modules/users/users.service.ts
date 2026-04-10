@@ -336,4 +336,19 @@ export class UsersService {
 
     return await this.userEstablecimientoRepository.save(newRelation);
   }
+
+  async getEstablecimientos(userId: number): Promise<number[]> {
+    const asignaciones = await this.userEstablecimientoRepository.find({ where: { userId } });
+    return asignaciones.map((a) => a.establecimientoId);
+  }
+
+  async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
+    await this.userEstablecimientoRepository.delete({ userId });
+    if (ids.length > 0) {
+      const nuevas = ids.map((establecimientoId) =>
+        this.userEstablecimientoRepository.create({ userId, establecimientoId }),
+      );
+      await this.userEstablecimientoRepository.save(nuevas);
+    }
+  }
 }
