@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/user.dto';
 import { UserEntity, UserRole, UserStatus } from './entity/users.entity';
+import { UserEstablecimientoEntity } from './entity/user-establecimiento.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -15,6 +16,8 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
+    @InjectRepository(UserEstablecimientoEntity)
+    private readonly userEstRepo: Repository<UserEstablecimientoEntity>,
   ) {}
 
   // ===== MÉTODOS EXISTENTES (mejorados) =====
@@ -238,5 +241,22 @@ export class UsersService {
     await this.usersRepository.update(userId, {
       id_establecimiento: establecimientoId,
     });
+  }
+
+  // Obtener establecimientos asignados a un usuario
+  async getEstablecimientos(userId: number): Promise<number[]> {
+    const asignaciones = await this.userEstRepo.find({ where: { userId } });
+    return asignaciones.map((a) => a.establecimientoId);
+  }
+
+  // Sincronizar establecimientos de un usuario (reemplaza todos)
+  async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
+    await this.userEstRepo.delete({ userId });
+    if (ids.length > 0) {
+      const nuevas = ids.map((establecimientoId) =>
+        this.userEstRepo.create({ userId, establecimientoId, rol: 'admin' }),
+      );
+      await this.userEstRepo.save(nuevas);
+    }
   }
 }

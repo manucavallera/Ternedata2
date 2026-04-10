@@ -60,6 +60,7 @@ const AdminPanel = () => {
   const [showModalUsuario, setShowModalUsuario] = useState(false);
   const [modalModeUsuario, setModalModeUsuario] = useState("crear");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [establecimientosAsignados, setEstablecimientosAsignados] = useState([]);
 
   // Estados para modal de establecimientos
   const [showModalEstablecimiento, setShowModalEstablecimiento] =
@@ -345,16 +346,16 @@ const AdminPanel = () => {
       name: "",
       email: "",
       password: "",
-      rol: "operario", // Por defecto creamos operarios
+      rol: "operario",
       telefono: "",
       estado: "activo",
-      id_establecimiento: idPredefinido, // 👈 ¡Aquí está la magia!
+      id_establecimiento: idPredefinido,
     });
-
+    setEstablecimientosAsignados([]);
     setShowModalUsuario(true);
   };
 
-  const abrirModalEditarUsuario = (user) => {
+  const abrirModalEditarUsuario = async (user) => {
     setModalModeUsuario("editar");
     setSelectedUser(user);
     setFormDataUsuario({
@@ -366,6 +367,19 @@ const AdminPanel = () => {
       estado: user.estado,
       id_establecimiento: user.id_establecimiento || "",
     });
+    // Cargar establecimientos asignados si es admin
+    if (user.rol === "admin") {
+      try {
+        const res = await axios.get(`${API_URL}/users/${user.id}/establecimientos`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        setEstablecimientosAsignados(res.data || []);
+      } catch {
+        setEstablecimientosAsignados([]);
+      }
+    } else {
+      setEstablecimientosAsignados([]);
+    }
     setShowModalUsuario(true);
   };
 
@@ -391,9 +405,15 @@ const AdminPanel = () => {
       };
 
       if (modalModeUsuario === "crear") {
-        await axios.post(`${API_URL}/users`, dataToSend, {
+        const creado = await axios.post(`${API_URL}/users`, dataToSend, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
+        // Sincronizar establecimientos si es admin
+        if (dataToSend.rol === "admin" && establecimientosAsignados.length > 0) {
+          await axios.put(`${API_URL}/users/${creado.data.id}/establecimientos`, { ids: establecimientosAsignados }, {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+        }
         showAlert("Usuario creado correctamente", "success");
       } else {
         if (!dataToSend.password) {
@@ -403,6 +423,12 @@ const AdminPanel = () => {
         await axios.put(`${API_URL}/users/${selectedUser.id}`, dataToSend, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
+        // Sincronizar establecimientos si es admin
+        if (dataToSend.rol === "admin") {
+          await axios.put(`${API_URL}/users/${selectedUser.id}/establecimientos`, { ids: establecimientosAsignados }, {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+        }
         showAlert("Usuario actualizado correctamente", "success");
       }
 
@@ -1980,6 +2006,37 @@ const AdminPanel = () => {
                     sistema
                   </p>
                 </div>
+
+                {/* Establecimientos extra para admins (bot WhatsApp) */}
+                {formDataUsuario.rol === "admin" && (
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      Establecimientos del bot (WhatsApp)
+                    </label>
+                    <p className='text-xs text-gray-500 mb-2'>
+                      Seleccioná en cuáles puede registrar datos desde WhatsApp
+                    </p>
+                    <div className='space-y-1 border border-gray-200 rounded-lg p-3'>
+                      {establecimientos.filter((e) => e.estado === "activo").map((est) => (
+                        <label key={est.id_establecimiento} className='flex items-center gap-2 cursor-pointer'>
+                          <input
+                            type='checkbox'
+                            checked={establecimientosAsignados.includes(est.id_establecimiento)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEstablecimientosAsignados([...establecimientosAsignados, est.id_establecimiento]);
+                              } else {
+                                setEstablecimientosAsignados(establecimientosAsignados.filter((id) => id !== est.id_establecimiento));
+                              }
+                            }}
+                            className='rounded'
+                          />
+                          <span className='text-sm'>{est.nombre}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>
