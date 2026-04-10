@@ -17,11 +17,11 @@ const SeleccionarMadre = ({ madreSeleccionada, idEstablecimiento }) => {
       const queryParams = idEstab ? `id_establecimiento=${idEstab}` : "";
       const resListMadre = await obtenerMadreHook(queryParams);
 
-      setMadres(resListMadre?.data || []);
+      setMadres(resListMadre?.data?.data || []);
 
       // Si cambia el establecimiento, resetear selección
       if (selectedMadreId) {
-        const madreExiste = resListMadre?.data?.some(
+        const madreExiste = resListMadre?.data?.data?.some(
           (m) => m.id_madre === parseInt(selectedMadreId)
         );
         if (!madreExiste) {

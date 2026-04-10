@@ -17,11 +17,11 @@ const SeleccionarTernero = ({ terneroSeleccionado, idEstablecimiento }) => {
       const queryParams = idEstab ? `id_establecimiento=${idEstab}` : "";
       const resListTernero = await obtenerTerneroHook(queryParams);
 
-      setTerneros(resListTernero?.data || []);
+      setTerneros(resListTernero?.data?.data || []);
 
       // Si cambia el establecimiento, resetear selección
       if (selectedTerneroId) {
-        const terneroExiste = resListTernero?.data?.some(
+        const terneroExiste = resListTernero?.data?.data?.some(
           (t) => t.id_ternero === parseInt(selectedTerneroId)
         );
         if (!terneroExiste) {

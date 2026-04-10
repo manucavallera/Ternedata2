@@ -542,7 +542,7 @@ export class BotController {
             turno: body.turno || 'mañana',
             fecha_tratamiento: hoy,
             id_establecimiento: idEstablecimiento,
-            ternero: { id_ternero: terneroResult.id },
+            id_ternero: terneroResult.id,
           };
 
           console.log('💊 Creando tratamiento:', data);
