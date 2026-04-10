@@ -20,10 +20,16 @@ import { TerneroEntity } from '../terneros/entities/ternero.entity';
 import { MadreEntity } from '../madres/entities/madre.entity';
 import { UserEntity } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
+import { Establecimiento } from '../establecimientos/entities/establecimiento.entity';
 
 // ─────────────────────────────────────────────
 // Body unificado que recibe del flow de n8n
 // ─────────────────────────────────────────────
+interface EstablecimientoInfo {
+  id: number;
+  nombre: string;
+}
+
 interface BotRequestBody {
   accion:
     | 'crear_ternero'
@@ -31,8 +37,11 @@ interface BotRequestBody {
     | 'crear_evento'
     | 'crear_multiples_eventos'
     | 'crear_tratamiento'
-    | 'crear_diarrea';
+    | 'crear_diarrea'
+    | 'seleccionar_establecimiento'
+    | 'cambiar_establecimiento';
   phone?: string;
+  seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
 }
 
@@ -59,20 +68,17 @@ export class BotController {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstRepo: Repository<UserEstablecimientoEntity>,
+    @InjectRepository(Establecimiento)
+    private readonly establecimientoRepo: Repository<Establecimiento>,
   ) {}
 
   // ─────────────────────────────────────────────
-  // HELPER: Autenticar usuario por teléfono
+  // HELPER: Buscar usuario por teléfono (sin resolver establecimiento)
   // ─────────────────────────────────────────────
-  private async autenticarPorTelefono(phone: string): Promise<{
-    userId: number;
-    userName: string;
-    establecimientoId: number;
-  } | null> {
+  private async buscarUsuarioPorTelefono(phone: string): Promise<UserEntity | null> {
     if (!phone) return null;
 
     const telefonoNormalizado = phone.replace(/[\s\-\+]/g, '');
-
     const variantes = [
       telefonoNormalizado,
       telefonoNormalizado.replace(/^54/, ''),
@@ -81,52 +87,102 @@ export class BotController {
       telefonoNormalizado.replace(/^549/, ''),
     ];
 
-    let user: UserEntity | null = null;
-
     for (const variante of variantes) {
-      user = await this.userRepo.findOne({
-        where: { telefono: variante },
-      });
-      if (user) break;
-    }
-
-    if (!user) {
-      console.warn(
-        `📱 No se encontró usuario con teléfono: ${phone} (variantes: ${variantes.join(', ')})`,
-      );
-      return null;
-    }
-
-    console.log(
-      `📱 Usuario encontrado: ${user.name} (ID: ${user.id}) para teléfono ${phone}`,
-    );
-
-    let establecimientoId = user.id_establecimiento;
-
-    if (!establecimientoId) {
-      const asignacion = await this.userEstRepo.findOne({
-        where: { userId: user.id },
-        order: { id: 'ASC' },
-      });
-      if (asignacion) {
-        establecimientoId = asignacion.establecimientoId;
+      const user = await this.userRepo.findOne({ where: { telefono: variante } });
+      if (user) {
+        console.log(`📱 Usuario encontrado: ${user.name} (ID: ${user.id})`);
+        return user;
       }
     }
 
-    if (!establecimientoId) {
-      console.warn(`⚠️ Usuario ${user.name} no tiene establecimiento asignado`);
-      return null;
+    console.warn(`📱 No se encontró usuario con teléfono: ${phone}`);
+    return null;
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPER: Obtener establecimientos de un usuario
+  // ─────────────────────────────────────────────
+  private async obtenerEstablecimientosDeUsuario(userId: number): Promise<EstablecimientoInfo[]> {
+    const asignaciones = await this.userEstRepo.find({ where: { userId } });
+    if (!asignaciones.length) return [];
+
+    const ids = asignaciones.map(a => a.establecimientoId);
+    const establecimientos = await this.establecimientoRepo.findByIds(ids);
+
+    return establecimientos.map(e => ({ id: e.id_establecimiento, nombre: e.nombre }));
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPER: Autenticar usuario por teléfono
+  // ─────────────────────────────────────────────
+  private async autenticarPorTelefono(phone: string): Promise<{
+    userId: number;
+    userName: string;
+    establecimientoId: number | null;
+    requiere_seleccion: boolean;
+    establecimientos: EstablecimientoInfo[];
+  } | null> {
+    const user = await this.buscarUsuarioPorTelefono(phone);
+    if (!user) return null;
+
+    const establecimientos = await this.obtenerEstablecimientosDeUsuario(user.id);
+
+    // Sin establecimientos asignados en tabla intermedia → usar campo directo
+    if (establecimientos.length === 0) {
+      if (!user.id_establecimiento) {
+        console.warn(`⚠️ Usuario ${user.name} no tiene establecimiento asignado`);
+        return null;
+      }
+      return {
+        userId: user.id,
+        userName: user.name,
+        establecimientoId: user.id_establecimiento,
+        requiere_seleccion: false,
+        establecimientos: [],
+      };
     }
 
-    console.log(
-      `🏠 Establecimiento resuelto: ${establecimientoId} para ${user.name}`,
-    );
+    // Un solo establecimiento → directo, sin preguntar
+    if (establecimientos.length === 1) {
+      return {
+        userId: user.id,
+        userName: user.name,
+        establecimientoId: establecimientos[0].id,
+        requiere_seleccion: false,
+        establecimientos,
+      };
+    }
 
+    // Múltiples establecimientos → revisar si ya eligió uno para el bot
+    if (user.bot_establecimiento_id) {
+      const valido = establecimientos.find(e => e.id === user.bot_establecimiento_id);
+      if (valido) {
+        console.log(`🏠 Bot usando establecimiento guardado: ${valido.nombre}`);
+        return {
+          userId: user.id,
+          userName: user.name,
+          establecimientoId: user.bot_establecimiento_id,
+          requiere_seleccion: false,
+          establecimientos,
+        };
+      }
+    }
+
+    // Necesita seleccionar
     return {
       userId: user.id,
       userName: user.name,
-      establecimientoId,
+      establecimientoId: null,
+      requiere_seleccion: true,
+      establecimientos,
     };
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPER: Formatear lista de establecimientos para WhatsApp
+  // ─────────────────────────────────────────────
+  private formatearListaEstablecimientos(establecimientos: EstablecimientoInfo[]): string {
+    return establecimientos.map((e, i) => `${i + 1}. ${e.nombre}`).join('\n');
   }
 
   // ─────────────────────────────────────────────
@@ -255,20 +311,93 @@ export class BotController {
     // ── Autenticación por teléfono ──
     let idEstablecimiento = body.id_establecimiento;
     let userName = 'Ganadero';
+    let userEntity: UserEntity | null = null;
 
     if (phone) {
-      const auth = await this.autenticarPorTelefono(phone);
-      if (!auth) {
+      userEntity = await this.buscarUsuarioPorTelefono(phone);
+      if (!userEntity) {
         return {
           success: false,
           mensaje: `⚠️ Tu número (${phone}) no está vinculado a ninguna cuenta. Pedile al administrador que cargue tu celular en el sistema.`,
         };
       }
+      userName = userEntity.name;
+    }
+
+    // ── Acciones de selección de establecimiento (se manejan antes del switch principal) ──
+    if (accion === 'cambiar_establecimiento') {
+      if (!userEntity) {
+        return { success: false, mensaje: '⚠️ Necesito saber tu número de teléfono para cambiar el establecimiento.' };
+      }
+      await this.userRepo.update(userEntity.id, { bot_establecimiento_id: null });
+      const establecimientos = await this.obtenerEstablecimientosDeUsuario(userEntity.id);
+      const lista = this.formatearListaEstablecimientos(establecimientos);
+      return {
+        success: true,
+        requiere_seleccion: true,
+        establecimientos,
+        mensaje: `🔄 ¿En qué establecimiento querés registrar?\n${lista}`,
+      };
+    }
+
+    if (accion === 'seleccionar_establecimiento') {
+      if (!userEntity) {
+        return { success: false, mensaje: '⚠️ Necesito saber tu número de teléfono para seleccionar el establecimiento.' };
+      }
+      const establecimientos = await this.obtenerEstablecimientosDeUsuario(userEntity.id);
+      const selStr = String(body.seleccion ?? '').trim();
+      const numSel = parseInt(selStr);
+
+      let elegido: EstablecimientoInfo | undefined;
+      if (!isNaN(numSel) && numSel >= 1 && numSel <= establecimientos.length) {
+        elegido = establecimientos[numSel - 1];
+      } else {
+        elegido = establecimientos.find(e =>
+          e.nombre.toLowerCase().includes(selStr.toLowerCase())
+        );
+      }
+
+      if (!elegido) {
+        const lista = this.formatearListaEstablecimientos(establecimientos);
+        return {
+          success: false,
+          requiere_seleccion: true,
+          establecimientos,
+          mensaje: `⚠️ No entendí la selección. Respondé con el número:\n${lista}`,
+        };
+      }
+
+      await this.userRepo.update(userEntity.id, { bot_establecimiento_id: elegido.id });
+      return {
+        success: true,
+        accion: 'seleccionar_establecimiento',
+        mensaje: `✅ Listo! Registrando en *${elegido.nombre}*.\nAhora podés enviar tus datos.`,
+        establecimiento: elegido,
+      };
+    }
+
+    // ── Resolver establecimiento para acciones normales ──
+    if (userEntity) {
+      const auth = await this.autenticarPorTelefono(phone);
+      if (!auth) {
+        return {
+          success: false,
+          mensaje: `⚠️ No tenés ningún establecimiento asignado. Contactá al administrador.`,
+        };
+      }
+
+      if (auth.requiere_seleccion) {
+        const lista = this.formatearListaEstablecimientos(auth.establecimientos);
+        return {
+          success: false,
+          requiere_seleccion: true,
+          establecimientos: auth.establecimientos,
+          mensaje: `🏠 ¿En qué establecimiento querés registrar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
+        };
+      }
+
       idEstablecimiento = auth.establecimientoId;
-      userName = auth.userName;
-      console.log(
-        `✅ Autenticado: ${userName} → Establecimiento ${idEstablecimiento}`,
-      );
+      console.log(`✅ Autenticado: ${userName} → Establecimiento ${idEstablecimiento}`);
     }
 
     if (!idEstablecimiento) {
@@ -615,6 +744,8 @@ export class BotController {
                 'crear_multiples_eventos',
                 'crear_tratamiento',
                 'crear_diarrea',
+                'seleccionar_establecimiento',
+                'cambiar_establecimiento',
               ],
             },
             HttpStatus.BAD_REQUEST,

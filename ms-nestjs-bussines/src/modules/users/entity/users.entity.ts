@@ -76,6 +76,10 @@ export class UserEntity {
   @Column({ type: 'text', nullable: true })
   permisos_especiales: string; // JSON con permisos personalizados
 
+  // Establecimiento activo para el bot de WhatsApp (solo admins con varios establecimientos)
+  @Column({ type: 'int', nullable: true })
+  bot_establecimiento_id: number;
+
   @CreateDateColumn()
   fecha_creacion: Date;
 

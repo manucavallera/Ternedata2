@@ -22,6 +22,7 @@ import { DiarreaTerneroEntity } from '../diarrea-terneros/entities/diarrea-terne
 import { TratamientoEntity } from '../tratamientos/entities/tratamiento.entity';
 import { UserEntity } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
+import { Establecimiento } from '../establecimientos/entities/establecimiento.entity';
 
 @Module({
   imports: [
@@ -32,8 +33,9 @@ import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.
       EventoEntity,
       DiarreaTerneroEntity,
       TratamientoEntity,
-      UserEntity, // ← NUEVO
-      UserEstablecimientoEntity, // ← NUEVO
+      UserEntity,
+      UserEstablecimientoEntity,
+      Establecimiento,
     ]),
   ],
   controllers: [BotController],
