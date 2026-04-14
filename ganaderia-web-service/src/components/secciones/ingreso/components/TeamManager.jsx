@@ -104,14 +104,14 @@ export const TeamManager = ({ establecimientoId }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
       {/* Cabecera */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
         <div>
           <h3 className="text-xl font-bold text-gray-800">Equipo de Trabajo 🚜</h3>
           <p className="text-sm text-gray-500">Gestiona quién puede acceder a este campo.</p>
         </div>
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm"
+          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm w-full sm:w-auto"
         >
           ✉️ Invitar persona
         </button>
@@ -145,7 +145,7 @@ export const TeamManager = ({ establecimientoId }) => {
         <div className="text-center py-8 text-gray-400">Cargando...</div>
       ) : tab === "equipo" ? (
         /* TABLA EQUIPO */
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-gray-600 text-sm font-semibold">
               <tr>
@@ -190,7 +190,7 @@ export const TeamManager = ({ establecimientoId }) => {
         </div>
       ) : (
         /* TABLA PENDIENTES */
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-gray-600 text-sm font-semibold">
               <tr>

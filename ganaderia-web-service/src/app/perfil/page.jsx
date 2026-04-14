@@ -109,7 +109,7 @@ export default function PerfilPage() {
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Cabecera de perfil */}
-        <div className="bg-white rounded-xl shadow-md p-6 flex items-center gap-4">
+        <div className="bg-white rounded-xl shadow-md p-6 flex flex-col sm:flex-row items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
             {perfil?.name?.charAt(0)?.toUpperCase() || "?"}
           </div>
