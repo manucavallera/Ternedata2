@@ -90,10 +90,18 @@ export class BotController {
     ];
 
     for (const variante of variantes) {
-      const user = await this.userRepo.findOne({ where: { telefono: variante } });
-      if (user) {
-        console.log(`📱 Usuario encontrado: ${user.name} (ID: ${user.id})`);
-        return user;
+      const users = await this.userRepo.find({ where: { telefono: variante } });
+      if (users.length > 1) {
+        console.warn(`⚠️ Teléfono duplicado: ${variante} — ${users.map(u => u.name).join(', ')}`);
+        // Priorizar admin sobre operario si hay duplicados
+        const admin = users.find(u => u.rol === 'admin');
+        const elegido = admin || users[0];
+        console.log(`📱 Usuario elegido (duplicado): ${elegido.name} (ID: ${elegido.id})`);
+        return elegido;
+      }
+      if (users.length === 1) {
+        console.log(`📱 Usuario encontrado: ${users[0].name} (ID: ${users[0].id})`);
+        return users[0];
       }
     }
 

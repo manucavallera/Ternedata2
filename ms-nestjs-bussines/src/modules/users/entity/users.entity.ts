@@ -65,7 +65,7 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 20, default: 'activo' })
   estado: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true, unique: true })
   telefono: string;
 
   // ⚠️ NOTA: Este campo ya no define "propiedad", sino el "contexto actual".

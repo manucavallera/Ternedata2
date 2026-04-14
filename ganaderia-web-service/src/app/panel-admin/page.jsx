@@ -1,11 +1,13 @@
 "use client";
 
 import { useAuthContext } from "@/context/authContext";
+import { useSelector } from "react-redux";
 import { redirect } from "next/navigation";
 import AdminPanel from "@/components/secciones/admin/AdminPanel";
 
 export default function PanelAdminPage() {
   const { isLoggedIn, isLoading } = useAuthContext();
+  const { userPayload } = useSelector((state) => state.auth);
 
   if (isLoading) {
     return (
@@ -17,6 +19,11 @@ export default function PanelAdminPage() {
 
   if (!isLoggedIn) {
     redirect("/auth/login");
+    return null;
+  }
+
+  if (userPayload && userPayload.rol !== "admin") {
+    redirect("/admin/dashboard");
     return null;
   }
 

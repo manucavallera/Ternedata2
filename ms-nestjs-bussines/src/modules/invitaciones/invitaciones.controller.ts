@@ -14,15 +14,19 @@ import { InvitacionesService } from './invitaciones.service';
 import { RolEstablecimiento } from '../invitaciones/roles.enum';
 // Asegúrate que la ruta al Guard sea correcta (a veces está en modules/auth o shared)
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entity/users.entity';
 
 @ApiTags('Invitaciones')
 @Controller('invitaciones')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class InvitacionesController {
   constructor(private readonly invitacionesService: InvitacionesService) {}
 
   @Post('crear/:establecimientoId')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Invitar usuario por email' })
   async crear(
     @Param('establecimientoId', ParseIntPipe) id: number,
@@ -55,6 +59,7 @@ export class InvitacionesController {
   }
 
   @Get('pendientes/:establecimientoId')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Ver invitaciones pendientes de un establecimiento' })
   async pendientes(
     @Param('establecimientoId', ParseIntPipe) id: number,
@@ -63,6 +68,7 @@ export class InvitacionesController {
   }
 
   @Delete('revocar/:id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Revocar (eliminar) una invitación pendiente' })
   async revocar(@Param('id', ParseIntPipe) id: number) {
     return await this.invitacionesService.revocar(id);

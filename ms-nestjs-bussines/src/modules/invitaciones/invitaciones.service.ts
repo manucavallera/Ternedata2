@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InvitacionEntity } from './invitacion.entity';
@@ -31,6 +31,15 @@ export class InvitacionesService {
   ) {
     console.log('🔧 SERVICIO: Iniciando generarLink');
     console.log('📧 Email recibido en servicio:', email);
+
+    if (email) {
+      const pendiente = await this.invitacionRepo.findOne({
+        where: { email, establecimientoId, usado: false },
+      });
+      if (pendiente) {
+        throw new ConflictException('Ya existe una invitación pendiente para ese email en este establecimiento');
+      }
+    }
 
     const token = uuidv4();
     const expiracion = new Date();

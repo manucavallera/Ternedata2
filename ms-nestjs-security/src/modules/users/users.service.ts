@@ -241,6 +241,15 @@ export class UsersService {
       }
     }
 
+    if (updateUserDto.telefono && updateUserDto.telefono !== user.telefono) {
+      const existingPhone = await this.usersRepository.findOne({
+        where: { telefono: updateUserDto.telefono },
+      });
+      if (existingPhone) {
+        throw new ConflictException('El teléfono ya está registrado por otro usuario');
+      }
+    }
+
     if (updateUserDto.password) {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     } else {

@@ -73,7 +73,7 @@ export class UserEntity {
   })
   estado: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true, unique: true })
   telefono: string;
 
   @Column({ type: 'int', nullable: true })
