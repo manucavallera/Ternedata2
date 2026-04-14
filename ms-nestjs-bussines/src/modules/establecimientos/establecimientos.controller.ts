@@ -98,6 +98,7 @@ export class EstablecimientosController {
   }
 
   @Put(':id')
+  @Roles(UserRole.ADMIN)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateEstablecimientoDto,
@@ -106,12 +107,14 @@ export class EstablecimientosController {
   }
 
   @Get(':id/equipo')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener miembros del equipo del establecimiento' })
   async getEquipo(@Param('id', ParseIntPipe) id: number) {
     return await this.establecimientosService.getEquipo(id);
   }
 
   @Delete(':id/equipo/:userId')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Eliminar miembro del equipo' })
   async eliminarMiembro(
     @Param('id', ParseIntPipe) id: number,

@@ -79,9 +79,17 @@ export class UsersService {
       const existingUser = await this.usersRepository.findOne({
         where: { email: updateUserDto.email },
       });
-
       if (existingUser) {
         throw new ConflictException('El email ya está registrado');
+      }
+    }
+
+    if (updateUserDto.telefono && updateUserDto.telefono !== user.telefono) {
+      const existingPhone = await this.usersRepository.findOne({
+        where: { telefono: updateUserDto.telefono },
+      });
+      if (existingPhone) {
+        throw new ConflictException('El teléfono ya está registrado por otro usuario');
       }
     }
 
