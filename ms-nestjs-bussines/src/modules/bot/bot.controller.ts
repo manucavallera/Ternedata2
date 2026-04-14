@@ -410,6 +410,18 @@ export class BotController {
       if (!userEntity) {
         return { success: false, mensaje: '⚠️ Necesito saber tu número de teléfono para cambiar el establecimiento.' };
       }
+      // Si ya tiene un establecimiento activo, ignorar (probablemente es un eco procesado por Claude)
+      // El cambio real se maneja en /bot/estado cuando el usuario escribe "cambiar establecimiento"
+      if (userEntity.bot_establecimiento_id) {
+        const establecimientos = await this.obtenerEstablecimientosDeUsuario(userEntity.id);
+        const actual = establecimientos.find(e => e.id === userEntity.bot_establecimiento_id);
+        if (actual) {
+          return {
+            success: true,
+            mensaje: `✅ Registrando en *${actual.nombre}*. Para cambiar escribí "cambiar establecimiento".`,
+          };
+        }
+      }
       await this.userRepo.update(userEntity.id, { bot_establecimiento_id: null });
       const establecimientos = await this.obtenerEstablecimientosDeUsuario(userEntity.id);
       const lista = this.formatearListaEstablecimientos(establecimientos);
