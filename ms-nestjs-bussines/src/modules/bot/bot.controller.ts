@@ -336,6 +336,30 @@ export class BotController {
       }
     }
 
+    // Intentar procesar selección inline si el texto parece una selección válida
+    if (text) {
+      const selStr = text.trim();
+      const numSel = parseInt(selStr);
+      let elegido: EstablecimientoInfo | undefined;
+
+      if (!isNaN(numSel) && numSel >= 1 && numSel <= establecimientos.length) {
+        elegido = establecimientos[numSel - 1];
+      } else if (selStr.length >= 2) {
+        elegido = establecimientos.find(e =>
+          e.nombre.toLowerCase().includes(selStr.toLowerCase())
+        );
+      }
+
+      if (elegido) {
+        await this.userRepo.update(user.id, { bot_establecimiento_id: elegido.id });
+        return {
+          requiere_seleccion: false,
+          seleccion_exitosa: true,
+          mensaje: `✅ Listo! Registrando en *${elegido.nombre}*.\nAhora podés enviar tus datos.`,
+        };
+      }
+    }
+
     const lista = this.formatearListaEstablecimientos(establecimientos);
     return {
       requiere_seleccion: true,
