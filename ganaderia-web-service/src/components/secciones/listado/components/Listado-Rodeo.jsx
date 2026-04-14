@@ -421,7 +421,7 @@ const ListadoRodeo = () => {
   };
 
   return (
-    <div className='p-6'>
+    <div className='p-3 sm:p-6'>
       {/* Alerta */}
       {alert.show && (
         <div

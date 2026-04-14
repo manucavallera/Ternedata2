@@ -27,8 +27,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-7rem)] flex justify-center items-center">
-      <div className="w-full sm:w-1/2 md:w-1/3 lg:w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8">
+    <div className="min-h-[calc(100vh-7rem)] flex justify-center items-center px-4 py-6">
+      <div className="w-full sm:w-10/12 md:w-1/2 lg:w-1/3 xl:w-1/4 bg-white shadow-md rounded-xl px-6 sm:px-8 pt-6 pb-8">
         <h1 className="font-bold text-2xl mb-2 text-gray-700">Recuperar contraseña</h1>
         <p className="text-sm text-gray-500 mb-6">
           Ingresá tu email y te enviamos un link para resetear tu contraseña.

@@ -28,8 +28,13 @@ function JoinContent() {
     // Si la invitación tiene email y hay un usuario logueado con distinto email → sesión incorrecta
     if (email) {
       try {
-        const userSelected = JSON.parse(localStorage.getItem("userSelected") || "{}");
-        if (userSelected.email && userSelected.email.toLowerCase() !== email.toLowerCase()) {
+        const userSelected = JSON.parse(
+          localStorage.getItem("userSelected") || "{}",
+        );
+        if (
+          userSelected.email &&
+          userSelected.email.toLowerCase() !== email.toLowerCase()
+        ) {
           // El usuario logueado no es el destinatario → limpiar sesión y pedir login
           localStorage.removeItem("token");
           localStorage.removeItem("userSelected");
@@ -94,14 +99,13 @@ function JoinContent() {
     if (token && typeof window !== "undefined") {
       localStorage.setItem("backupToken", token);
     }
-    const emailParam = email ? `&email=${encodeURIComponent(email)}` : '';
+    const emailParam = email ? `&email=${encodeURIComponent(email)}` : "";
     router.push(`${ruta}?token=${token}${emailParam}`);
   };
 
   return (
     <div className='min-h-screen flex items-center justify-center bg-gray-100 p-4'>
-      <div className='bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-200'>
-
+      <div className='bg-white p-5 sm:p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-200'>
         {status === "cargando" && (
           <>
             <div className='animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4'></div>
@@ -179,7 +183,6 @@ function JoinContent() {
             </button>
           </>
         )}
-
       </div>
     </div>
   );

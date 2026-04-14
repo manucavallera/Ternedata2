@@ -227,13 +227,13 @@ const FormularioEvento = ({ setStep }) => {
   };
 
   return (
-    <div className='flex items-center justify-center min-h-screen bg-gray-100 p-4'>
-      <div className='bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl'>
-        <h2 className='text-3xl font-bold text-center mb-6 text-gray-800'>
+    <div className='flex items-center justify-center min-h-screen bg-gray-100 p-3 sm:p-4'>
+      <div className='bg-white p-4 sm:p-8 rounded-lg shadow-lg w-full max-w-4xl'>
+        <h2 className='text-xl sm:text-3xl font-bold text-center mb-4 sm:mb-6 text-gray-800'>
           Registro de Múltiples Eventos
         </h2>
 
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8'>
           {/* FORMULARIO */}
           <div className='space-y-6'>
             <h3 className='text-xl font-semibold text-gray-700 border-b pb-2'>

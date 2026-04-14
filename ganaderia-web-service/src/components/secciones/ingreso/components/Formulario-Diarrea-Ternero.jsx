@@ -348,10 +348,10 @@ const FormularioDiarreaTernero = ({ setStep }) => {
   };
 
   return (
-    <div className='flex items-center justify-center min-h-screen bg-gray-100 p-4'>
-      <div className='bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl'>
-        <div className='text-center mb-8'>
-          <h2 className='text-3xl font-bold text-gray-800 mb-2'>
+    <div className='flex items-center justify-center min-h-screen bg-gray-100 p-3 sm:p-4'>
+      <div className='bg-white p-4 sm:p-8 rounded-lg shadow-lg w-full max-w-2xl'>
+        <div className='text-center mb-4 sm:mb-8'>
+          <h2 className='text-xl sm:text-3xl font-bold text-gray-800 mb-2'>
             🥼 Registro de Diarrea en Ternero
           </h2>
           <p className='text-gray-600'>

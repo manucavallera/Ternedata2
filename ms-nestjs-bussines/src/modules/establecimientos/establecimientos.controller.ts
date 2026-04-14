@@ -33,6 +33,7 @@ export class EstablecimientosController {
   ) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Crear un nuevo establecimiento' })
   async create(@Body() createDto: CreateEstablecimientoDto, @Req() req: any) {
     return await this.establecimientosService.create(

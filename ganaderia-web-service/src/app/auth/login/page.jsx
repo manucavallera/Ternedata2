@@ -141,10 +141,10 @@ const LoginContent = () => {
       }
     >
       {statusSessionUser === false && (
-        <div className='h-[calc(100vh-7rem)] flex justify-center items-center'>
+        <div className='min-h-[calc(100vh-7rem)] flex justify-center items-center px-4 py-6'>
           <form
             onSubmit={onSubmit}
-            className='w-full sm:w-1/2 md:w-1/3 lg:w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'
+            className='w-full sm:w-10/12 md:w-1/2 lg:w-1/3 xl:w-1/4 bg-white shadow-md rounded-xl px-6 sm:px-8 pt-6 pb-8'
           >
             {statusRegister && (
               <p className='bg-green-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2 mb-5'>
@@ -152,9 +152,12 @@ const LoginContent = () => {
               </p>
             )}
 
-            <h1 className='font-bold text-4xl mb-4 text-gray-700'>
-              Acceso Login
-            </h1>
+            <div className='flex items-center gap-3 mb-4'>
+              <span className='text-3xl'>🐮</span>
+              <h1 className='font-bold text-2xl sm:text-3xl text-gray-700'>
+                Ingresar
+              </h1>
+            </div>
 
             <label
               htmlFor='email'

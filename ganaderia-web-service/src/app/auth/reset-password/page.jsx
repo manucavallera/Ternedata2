@@ -45,8 +45,8 @@ const ResetPasswordContent = () => {
 
   if (!token) {
     return (
-      <div className="h-[calc(100vh-7rem)] flex justify-center items-center">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-red-700 max-w-sm">
+      <div className="min-h-[calc(100vh-7rem)] flex justify-center items-center px-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-red-700 max-w-sm w-full">
           Link inválido. <br />
           <a href="/auth/forgot-password" className="mt-2 inline-block text-indigo-600 hover:underline">
             Solicitar nuevo link
@@ -57,8 +57,8 @@ const ResetPasswordContent = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-7rem)] flex justify-center items-center">
-      <div className="w-full sm:w-1/2 md:w-1/3 lg:w-1/4 bg-white shadow-md rounded px-8 pt-6 pb-8">
+    <div className="min-h-[calc(100vh-7rem)] flex justify-center items-center px-4 py-6">
+      <div className="w-full sm:w-10/12 md:w-1/2 lg:w-1/3 xl:w-1/4 bg-white shadow-md rounded-xl px-6 sm:px-8 pt-6 pb-8">
         <h1 className="font-bold text-2xl mb-2 text-gray-700">Nueva contraseña</h1>
         <p className="text-sm text-gray-500 mb-6">Ingresá tu nueva contraseña.</p>
 

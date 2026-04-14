@@ -841,11 +841,11 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 mt-16'>
+    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-3 sm:p-6 mt-16'>
       {/* Navbar Verde */}
-      <nav className='fixed top-0 left-0 right-0 flex justify-between items-center bg-green-400 text-white px-24 py-3 z-50'>
+      <nav className='fixed top-0 left-0 right-0 flex justify-between items-center bg-green-400 text-white px-3 sm:px-6 md:px-12 lg:px-24 py-3 z-50'>
         {/* Lado izquierdo: Botones de navegación */}
-        <div className='flex gap-4'>
+        <div className='flex gap-2 sm:gap-4'>
           <button
             onClick={onclickIngreso}
             className='text-x font-bold flex items-center hover:text-green-700 transition-colors'
@@ -890,9 +890,9 @@ const AdminPanel = () => {
         </div>
 
         {/* Lado derecho: Badges, hora y usuario */}
-        <ul className='flex gap-x-4 items-center'>
+        <ul className='flex gap-x-1 sm:gap-x-2 md:gap-x-4 items-center'>
           {/* Badge del establecimiento */}
-          <li>
+          <li className='hidden md:block'>
             <EstablecimientoBadge />
           </li>
 
@@ -902,31 +902,30 @@ const AdminPanel = () => {
           </li>
 
           {/* Hora UTC */}
-          <li className='text-sm font-semibold'>{currentTime} UTC</li>
+          <li className='text-xs sm:text-sm font-semibold hidden sm:block'>{currentTime} UTC</li>
 
           {/* Nombre del usuario */}
-          <li>
-            <h1 className='text-white font-semibold'>{usuarioSeguro?.name}</h1>
+          <li className='hidden sm:block'>
+            <h1 className='text-white font-semibold text-sm'>{usuarioSeguro?.name}</h1>
           </li>
 
-          {/* 👇 AGREGA ESTE <li> CON EL BOTÓN AQUÍ AL FINAL */}
           <li>
             <button
               onClick={handleLogout}
-              className='bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-sm border-2 border-red-400 flex items-center gap-2'
+              className='bg-red-500 hover:bg-red-600 text-white px-2 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-sm border-2 border-red-400 flex items-center gap-1 sm:gap-2'
               title='Cerrar Sesión'
             >
-              🚪 Salir
+              🚪 <span className='hidden sm:inline'>Salir</span>
             </button>
           </li>
         </ul>
       </nav>
       {/* Header */}
-      <div className='mb-8'>
-        <h1 className='text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2'>
+      <div className='mb-4 sm:mb-8'>
+        <h1 className='text-2xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2'>
           🎛️ Panel de Administración
         </h1>
-        <p className='text-gray-600'>
+        <p className='text-gray-600 text-sm sm:text-base'>
           Gestiona usuarios, establecimientos y configuración del sistema
         </p>
       </div>
@@ -992,43 +991,41 @@ const AdminPanel = () => {
       )}
       {/* Tabs */}
       <div className='bg-white rounded-lg shadow-md mb-6'>
-        <div className='flex border-b'>
+        <div className='flex border-b overflow-x-auto scrollbar-hide'>
           <button
             onClick={() => setActiveTab("usuarios")}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
               activeTab === "usuarios"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
             }`}
           >
-            👥 Gestión de Usuarios
+            👥 <span className='hidden sm:inline'>Gestión de </span>Usuarios
           </button>
           <button
             onClick={() => setActiveTab("establecimientos")}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
               activeTab === "establecimientos"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
             }`}
           >
-            🏢 Establecimientos
+            🏢 <span className='hidden sm:inline'>Establecimientos</span><span className='sm:hidden'>Estabs.</span>
           </button>
-          {/* ⬅️ NUEVO TAB */}
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
               activeTab === "dashboard"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
             }`}
           >
-            📊 Dashboard Comparativo
+            📊 <span className='hidden sm:inline'>Dashboard Comparativo</span><span className='sm:hidden'>Dashboard</span>
           </button>
 
-          {/* 🟢 PEGALO AQUÍ, ANTES O DESPUÉS DE CONFIGURACIÓN */}
           <button
             onClick={() => setActiveTab("equipo")}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
               activeTab === "equipo"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-600 hover:text-blue-600"
@@ -1037,18 +1034,17 @@ const AdminPanel = () => {
             🚜 Equipo
           </button>
 
-          {/* 👇 MODIFICACIÓN: Solo mostrar si es Admin o SuperAdmin */}
           {(usuarioSeguro?.rol === "admin" ||
             usuarioSeguro?.rol === "super_admin") && (
             <button
               onClick={() => setActiveTab("configuracion")}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
                 activeTab === "configuracion"
                   ? "border-b-2 border-blue-500 text-blue-600"
                   : "text-gray-600 hover:text-blue-600"
               }`}
             >
-              ⚙️ Configuración
+              ⚙️ Config
             </button>
           )}
         </div>

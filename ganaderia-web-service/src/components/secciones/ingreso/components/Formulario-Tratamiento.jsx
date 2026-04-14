@@ -273,8 +273,8 @@ const FormularioTratamiento = ({ setStep }) => {
   };
 
   return (
-    <div className='flex items-center justify-center min-h-screen bg-gray-100'>
-      <div className='bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl mb-10 mt-10'>
+    <div className='flex items-center justify-center min-h-screen bg-gray-100 px-3 sm:px-4'>
+      <div className='bg-white p-4 sm:p-8 rounded-lg shadow-lg w-full max-w-4xl mb-6 sm:mb-10 mt-6 sm:mt-10'>
         <div className='flex items-center justify-between mb-6'>
           <h2 className='text-2xl font-bold'>
             {modoMultiple
