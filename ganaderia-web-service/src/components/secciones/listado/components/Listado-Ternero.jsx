@@ -12,6 +12,7 @@ const ListadoTernero = () => {
     agregarPesoDiarioHook,
     obtenerHistorialCompletoHook,
     actualizarCalostradoHook,
+    patchTerneroHook,
   } = useBussinesMicroservicio();
 
   const [terneros, setTerneros] = useState([]);
@@ -40,10 +41,9 @@ const ListadoTernero = () => {
     ternero: null,
   });
 
-  const [modalEliminar, setModalEliminar] = useState({
-    isOpen: false,
-    ternero: null,
-  });
+  const [modalEliminar, setModalEliminar] = useState({ isOpen: false, ternero: null });
+  const [modalEditar, setModalEditar] = useState({ isOpen: false, ternero: null });
+  const [formEditar, setFormEditar] = useState({ estado: 'Vivo', sexo: 'Macho', semen: '', observaciones: '' });
 
   const [modalCalostrado, setModalCalostrado] = useState({
     isOpen: false,
@@ -189,6 +189,27 @@ const ListadoTernero = () => {
       tipo_peso: "15d",
       observaciones: "",
     });
+  };
+
+  const abrirModalEditar = (ternero) => {
+    setFormEditar({
+      estado: ternero.estado || 'Vivo',
+      sexo: ternero.sexo || 'Macho',
+      semen: ternero.semen || '',
+      observaciones: ternero.observaciones || '',
+    });
+    setModalEditar({ isOpen: true, ternero });
+  };
+
+  const guardarEdicionTernero = async () => {
+    const res = await patchTerneroHook(modalEditar.ternero.id_ternero, formEditar);
+    if (res?.error || (res?.status && res.status >= 400)) {
+      showAlert(`❌ Error al editar ternero (${res?.status})`, 'error');
+    } else {
+      showAlert(`✅ Ternero RP ${modalEditar.ternero.rp_ternero} actualizado`);
+      setModalEditar({ isOpen: false, ternero: null });
+      cargarTernerosList();
+    }
   };
 
   // Función para abrir modal de eliminar
@@ -758,6 +779,12 @@ const ListadoTernero = () => {
                           className='w-full px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors'
                         >
                           📊 Peso Oficial
+                        </button>
+                        <button
+                          onClick={() => abrirModalEditar(ternero)}
+                          className='w-full px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors'
+                        >
+                          ✏️ Editar
                         </button>
                         <button
                           onClick={() => abrirModalEliminar(ternero)}
@@ -1371,6 +1398,59 @@ const ListadoTernero = () => {
                   className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors'
                 >
                   Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Edición de Ternero */}
+        {modalEditar.isOpen && (
+          <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4'>
+            <div className='bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-md mx-2 sm:mx-4'>
+              <h3 className='text-base sm:text-lg font-bold text-gray-800 mb-4'>✏️ Editar Ternero RP {modalEditar.ternero?.rp_ternero}</h3>
+              <div className='space-y-3'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Estado</label>
+                  <select value={formEditar.estado}
+                    onChange={(e) => setFormEditar({ ...formEditar, estado: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    <option value='Vivo'>Vivo</option>
+                    <option value='Muerto'>Muerto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Sexo</label>
+                  <select value={formEditar.sexo}
+                    onChange={(e) => setFormEditar({ ...formEditar, sexo: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    <option value='Macho'>Macho</option>
+                    <option value='Hembra'>Hembra</option>
+                  </select>
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Semen</label>
+                  <input type='text' value={formEditar.semen}
+                    onChange={(e) => setFormEditar({ ...formEditar, semen: e.target.value })}
+                    placeholder='Ej: Angus 1234'
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Observaciones</label>
+                  <textarea value={formEditar.observaciones}
+                    onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
+                    rows={2}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+              </div>
+              <div className='flex gap-3 mt-4'>
+                <button onClick={() => setModalEditar({ isOpen: false, ternero: null })}
+                  className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  Cancelar
+                </button>
+                <button onClick={guardarEdicionTernero}
+                  className='flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  💾 Guardar
                 </button>
               </div>
             </div>

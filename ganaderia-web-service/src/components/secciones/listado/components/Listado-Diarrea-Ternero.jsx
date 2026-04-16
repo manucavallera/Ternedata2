@@ -3,7 +3,7 @@ import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoDiarreaTernero = () => {
-  const { obtenerDiarreaTerneroHook } = useBussinesMicroservicio();
+  const { obtenerDiarreaTerneroHook, patchDiarreaHook } = useBussinesMicroservicio();
   const { establecimientoActual, userPayload } = useSelector(
     (state) => state.auth
   ); // ⬅️ NUEVO
@@ -13,10 +13,9 @@ const ListadoDiarreaTernero = () => {
   const [cargando, setCargando] = useState(true);
 
   // Estados para modal y alertas (mantener igual)
-  const [modalEliminar, setModalEliminar] = useState({
-    isOpen: false,
-    diarrea: null,
-  });
+  const [modalEliminar, setModalEliminar] = useState({ isOpen: false, diarrea: null });
+  const [modalEditar, setModalEditar] = useState({ isOpen: false, diarrea: null });
+  const [formEditar, setFormEditar] = useState({ fecha_diarrea_ternero: '', severidad: 'Leve', observaciones: '' });
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
 
   const showAlert = (message, type = "success") => {
@@ -53,6 +52,26 @@ const ListadoDiarreaTernero = () => {
       setCargando(false);
     }
   };
+  const abrirModalEditar = (diarrea) => {
+    setFormEditar({
+      fecha_diarrea_ternero: diarrea.fecha_diarrea_ternero || '',
+      severidad: diarrea.severidad || 'Leve',
+      observaciones: diarrea.observaciones || '',
+    });
+    setModalEditar({ isOpen: true, diarrea });
+  };
+
+  const guardarEdicion = async () => {
+    const res = await patchDiarreaHook(modalEditar.diarrea.id_diarrea_ternero, formEditar);
+    if (res?.error || (res?.status && res.status >= 400)) {
+      showAlert(`❌ Error al editar (${res?.status})`, 'error');
+    } else {
+      showAlert('✅ Registro de diarrea actualizado');
+      setModalEditar({ isOpen: false, diarrea: null });
+      cargarDiarreaTerneroList();
+    }
+  };
+
   // ✅ NUEVO: Función para abrir modal de eliminar
   const abrirModalEliminar = (diarrea) => {
     setModalEliminar({
@@ -403,9 +422,16 @@ const ListadoDiarreaTernero = () => {
                       )}
                     </td>
 
-                    {/* ✅ NUEVA COLUMNA: Acciones */}
+                    {/* Acciones */}
                     <td className='px-4 py-3 border-b border-slate-700'>
                       <div className='flex flex-col gap-2'>
+                        <button
+                          onClick={() => abrirModalEditar(diarrea)}
+                          className='px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors'
+                          title='Editar registro de diarrea'
+                        >
+                          ✏️ Editar
+                        </button>
                         <button
                           onClick={() => abrirModalEliminar(diarrea)}
                           className='px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors'
@@ -413,7 +439,6 @@ const ListadoDiarreaTernero = () => {
                         >
                           🗑️ Eliminar
                         </button>
-                        {/* Aquí puedes agregar más botones como Editar */}
                       </div>
                     </td>
                   </tr>
@@ -458,6 +483,51 @@ const ListadoDiarreaTernero = () => {
                 <p className='text-lg sm:text-xl font-bold text-yellow-400'>
                   {diarreasTernero.filter((d) => d.numero_episodio >= 3).length}
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Edición */}
+        {modalEditar.isOpen && (
+          <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4'>
+            <div className='bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-md mx-2 sm:mx-4'>
+              <h3 className='text-base sm:text-lg font-bold text-gray-800 mb-4'>✏️ Editar Registro de Diarrea</h3>
+              <div className='space-y-3'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha</label>
+                  <input type='date' value={formEditar.fecha_diarrea_ternero}
+                    onChange={(e) => setFormEditar({ ...formEditar, fecha_diarrea_ternero: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Severidad</label>
+                  <select value={formEditar.severidad}
+                    onChange={(e) => setFormEditar({ ...formEditar, severidad: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    <option value='Leve'>Leve</option>
+                    <option value='Moderada'>Moderada</option>
+                    <option value='Severa'>Severa</option>
+                    <option value='Crítica'>Crítica</option>
+                  </select>
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Observaciones</label>
+                  <textarea value={formEditar.observaciones}
+                    onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
+                    rows={2}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+              </div>
+              <div className='flex gap-3 mt-4'>
+                <button onClick={() => setModalEditar({ isOpen: false, diarrea: null })}
+                  className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  Cancelar
+                </button>
+                <button onClick={guardarEdicion}
+                  className='flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  💾 Guardar
+                </button>
               </div>
             </div>
           </div>

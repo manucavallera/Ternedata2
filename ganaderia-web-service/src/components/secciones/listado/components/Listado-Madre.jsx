@@ -3,7 +3,7 @@ import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoMadre = () => {
-  const { obtenerMadreHook } = useBussinesMicroservicio();
+  const { obtenerMadreHook, patchMadreHook } = useBussinesMicroservicio();
   const { establecimientoActual, userPayload } = useSelector(
     (state) => state.auth
   ); // ⬅️ NUEVO
@@ -24,6 +24,8 @@ const ListadoMadre = () => {
     isOpen: false,
     madre: null,
   });
+  const [modalEditar, setModalEditar] = useState({ isOpen: false, madre: null });
+  const [formEditar, setFormEditar] = useState({ nombre: '', rp_madre: '', estado: '', fecha_nacimiento: '', observaciones: '' });
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
 
   const showAlert = (message, type = "success") => {
@@ -76,6 +78,28 @@ const ListadoMadre = () => {
   const handleEstadoChange = (nuevoEstado) => {
     setFiltroEstado(nuevoEstado);
     cargarMadresList(1, searchActivo, nuevoEstado);
+  };
+
+  const abrirModalEditar = (madre) => {
+    setFormEditar({
+      nombre: madre.nombre || '',
+      rp_madre: madre.rp_madre || '',
+      estado: madre.estado || 'Seca',
+      fecha_nacimiento: madre.fecha_nacimiento || '',
+      observaciones: madre.observaciones || '',
+    });
+    setModalEditar({ isOpen: true, madre });
+  };
+
+  const guardarEdicion = async () => {
+    const res = await patchMadreHook(modalEditar.madre.id_madre, formEditar);
+    if (res?.error || (res?.status && res.status >= 400)) {
+      showAlert(`❌ Error al editar madre (${res?.status})`, 'error');
+    } else {
+      showAlert(`✅ Madre "${formEditar.nombre}" actualizada`);
+      setModalEditar({ isOpen: false, madre: null });
+      cargarMadresList();
+    }
   };
 
   // ✅ NUEVO: Función para abrir modal de eliminar
@@ -438,9 +462,16 @@ const ListadoMadre = () => {
                       </div>
                     </td>
 
-                    {/* ✅ NUEVA COLUMNA: Acciones */}
+                    {/* Acciones */}
                     <td className='px-4 py-4 border-b border-slate-700'>
                       <div className='flex flex-col gap-2'>
+                        <button
+                          onClick={() => abrirModalEditar(madre)}
+                          className='px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors'
+                          title='Editar madre'
+                        >
+                          ✏️ Editar
+                        </button>
                         <button
                           onClick={() => abrirModalEliminar(madre)}
                           className='px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors'
@@ -448,7 +479,6 @@ const ListadoMadre = () => {
                         >
                           🗑️ Eliminar
                         </button>
-                        {/* Aquí puedes agregar más botones como Editar */}
                       </div>
                     </td>
                   </tr>
@@ -484,6 +514,61 @@ const ListadoMadre = () => {
             <p className='text-xs sm:text-sm text-slate-400'>Total Crías</p>
           </div>
         </div>
+
+        {/* Modal de Edición */}
+        {modalEditar.isOpen && (
+          <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4'>
+            <div className='bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-md mx-2 sm:mx-4'>
+              <h3 className='text-base sm:text-lg font-bold text-gray-800 mb-4'>✏️ Editar Madre</h3>
+              <div className='space-y-3'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Nombre</label>
+                  <input type='text' value={formEditar.nombre}
+                    onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>RP</label>
+                  <input type='number' value={formEditar.rp_madre}
+                    onChange={(e) => setFormEditar({ ...formEditar, rp_madre: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Estado</label>
+                  <select value={formEditar.estado}
+                    onChange={(e) => setFormEditar({ ...formEditar, estado: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    <option value='Seca'>Seca</option>
+                    <option value='En Tambo'>En Tambo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha de nacimiento</label>
+                  <input type='date' value={formEditar.fecha_nacimiento}
+                    onChange={(e) => setFormEditar({ ...formEditar, fecha_nacimiento: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Observaciones</label>
+                  <textarea value={formEditar.observaciones}
+                    onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
+                    rows={2}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+              </div>
+              <div className='flex gap-3 mt-4'>
+                <button onClick={() => setModalEditar({ isOpen: false, madre: null })}
+                  className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  Cancelar
+                </button>
+                <button onClick={guardarEdicion}
+                  className='flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  💾 Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ✅ Modal de Eliminación - Responsive */}
         {modalEliminar.isOpen && (

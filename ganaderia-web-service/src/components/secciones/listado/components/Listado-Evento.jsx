@@ -3,7 +3,7 @@ import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoEvento = () => {
-  const { obtenerEventoHook } = useBussinesMicroservicio();
+  const { obtenerEventoHook, patchEventoHook } = useBussinesMicroservicio();
   const { establecimientoActual, userPayload } = useSelector(
     (state) => state.auth
   ); // ⬅️ NUEVO
@@ -12,10 +12,9 @@ const ListadoEvento = () => {
   const [loading, setLoading] = useState(true);
 
   // Estados para modal y alertas (mantener igual)
-  const [modalEliminar, setModalEliminar] = useState({
-    isOpen: false,
-    evento: null,
-  });
+  const [modalEliminar, setModalEliminar] = useState({ isOpen: false, evento: null });
+  const [modalEditar, setModalEditar] = useState({ isOpen: false, evento: null });
+  const [formEditar, setFormEditar] = useState({ fecha_evento: '', observacion: '' });
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
 
   const showAlert = (message, type = "success") => {
@@ -56,6 +55,25 @@ const ListadoEvento = () => {
   };
 
   // ✅ NUEVO: Función para abrir modal de eliminar
+  const abrirModalEditar = (evento) => {
+    setFormEditar({
+      fecha_evento: evento.fecha_evento || '',
+      observacion: evento.observacion || '',
+    });
+    setModalEditar({ isOpen: true, evento });
+  };
+
+  const guardarEdicion = async () => {
+    const res = await patchEventoHook(modalEditar.evento.id_evento, formEditar);
+    if (res?.error || (res?.status && res.status >= 400)) {
+      showAlert(`❌ Error al editar evento (${res?.status})`, 'error');
+    } else {
+      showAlert('✅ Evento actualizado');
+      setModalEditar({ isOpen: false, evento: null });
+      cargarEventosList();
+    }
+  };
+
   const abrirModalEliminar = (evento) => {
     setModalEliminar({
       isOpen: true,
@@ -425,9 +443,16 @@ const ListadoEvento = () => {
                       </div>
                     </td>
 
-                    {/* ✅ NUEVA COLUMNA: Acciones */}
+                    {/* Acciones */}
                     <td className='px-4 py-4 border-b border-slate-700'>
                       <div className='flex flex-col gap-2'>
+                        <button
+                          onClick={() => abrirModalEditar(evento)}
+                          className='px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors'
+                          title='Editar evento'
+                        >
+                          ✏️ Editar
+                        </button>
                         <button
                           onClick={() => abrirModalEliminar(evento)}
                           className='px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors'
@@ -435,7 +460,6 @@ const ListadoEvento = () => {
                         >
                           🗑️ Eliminar
                         </button>
-                        {/* Aquí puedes agregar más botones como Editar */}
                       </div>
                     </td>
                   </tr>
@@ -474,6 +498,40 @@ const ListadoEvento = () => {
             <p className='text-xs sm:text-sm text-slate-400'>Madres Involucradas</p>
           </div>
         </div>
+
+        {/* Modal de Edición */}
+        {modalEditar.isOpen && (
+          <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4'>
+            <div className='bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-md mx-2 sm:mx-4'>
+              <h3 className='text-base sm:text-lg font-bold text-gray-800 mb-4'>✏️ Editar Evento</h3>
+              <div className='space-y-3'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha del evento</label>
+                  <input type='date' value={formEditar.fecha_evento}
+                    onChange={(e) => setFormEditar({ ...formEditar, fecha_evento: e.target.value })}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>Observación</label>
+                  <textarea value={formEditar.observacion}
+                    onChange={(e) => setFormEditar({ ...formEditar, observacion: e.target.value })}
+                    rows={3}
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                </div>
+              </div>
+              <div className='flex gap-3 mt-4'>
+                <button onClick={() => setModalEditar({ isOpen: false, evento: null })}
+                  className='flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  Cancelar
+                </button>
+                <button onClick={guardarEdicion}
+                  className='flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition-colors text-sm'>
+                  💾 Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ✅ Modal de Eliminación - Responsive */}
         {modalEliminar.isOpen && (

@@ -41,6 +41,19 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
+  const patchMadreHook = async (id, data) => {
+    try {
+      const res = await businessApi.patch(`/madres/patch-madre-by-id/${id}`, data);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
   //seccion TERNERO
   const crearTerneroHook = async (objectTernero) => {
     try {
@@ -105,6 +118,19 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
+  const patchTerneroHook = async (id, data) => {
+    try {
+      const res = await businessApi.patch(`/terneros/patch-ternero-by-id/${id}`, data);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
   //seccion EVENTO
   const crearEventoHook = async (objectEvento) => {
     try {
@@ -153,6 +179,19 @@ export const useBussinesMicroservicio = () => {
         logAuthMethod(dispatch, router);
       }
       return error.response?.status || error;
+    }
+  };
+
+  const patchEventoHook = async (id, data) => {
+    try {
+      const res = await businessApi.patch(`/eventos/patch-evento-by-id/${id}`, data);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
     }
   };
 
@@ -297,6 +336,19 @@ export const useBussinesMicroservicio = () => {
         logAuthMethod(dispatch, router);
       }
       return error.response?.status || error;
+    }
+  };
+
+  const patchDiarreaHook = async (id, data) => {
+    try {
+      const res = await businessApi.patch(`/diarrea-terneros/patch-diarrea-ternero-by-id/${id}`, data);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
     }
   };
 
@@ -797,9 +849,11 @@ export const useBussinesMicroservicio = () => {
     //seccion MADRES
     crearMadreHook,
     obtenerMadreHook,
+    patchMadreHook,
     //seccion TERNERO
     crearTerneroHook,
     obtenerTerneroHook,
+    patchTerneroHook,
     // NUEVO: Peso diario
     agregarPesoDiarioHook,
     obtenerHistorialCompletoHook,
@@ -807,6 +861,7 @@ export const useBussinesMicroservicio = () => {
     crearEventoHook,
     crearMultiplesEventosHook,
     obtenerEventoHook,
+    patchEventoHook,
     //seccion TRATAMIENTO
     crearTratamientoHook,
     crearMultiplesTratamientosHook,
@@ -820,6 +875,7 @@ export const useBussinesMicroservicio = () => {
     // seccion DIARREA TERNERO
     crearDiarreTerneroHook,
     obtenerDiarreaTerneroHook,
+    patchDiarreaHook,
     actualizarCalostradoHook,
     obtenerResumenSaludHook,
     // ===== USERS ADMIN =====

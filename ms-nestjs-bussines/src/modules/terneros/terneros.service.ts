@@ -215,7 +215,7 @@ export class TernerosService {
       // Búsqueda por RP
       if (search) {
         query.andWhere(
-          '(LOWER(ternero.rp_ternero) LIKE LOWER(:search) OR LOWER(madre.rp_madre) LIKE LOWER(:search))',
+          '(CAST(ternero.rp_ternero AS TEXT) LIKE :search OR CAST(madre.rp_madre AS TEXT) LIKE :search)',
           { search: `%${search}%` },
         );
       }

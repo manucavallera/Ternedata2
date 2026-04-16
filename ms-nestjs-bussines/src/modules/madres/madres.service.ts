@@ -141,7 +141,7 @@ export class MadresService {
       // Filtro: búsqueda por nombre o RP
       if (search) {
         query.andWhere(
-          '(LOWER(madre.nombre) LIKE LOWER(:search) OR LOWER(madre.rp_madre) LIKE LOWER(:search))',
+          '(LOWER(madre.nombre) LIKE LOWER(:search) OR CAST(madre.rp_madre AS TEXT) LIKE :search)',
           { search: `%${search}%` },
         );
       }
