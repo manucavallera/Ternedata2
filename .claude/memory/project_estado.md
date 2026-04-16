@@ -74,6 +74,11 @@ FRONTEND_URL=https://manu-frontendganaderia.gygo4l.easypanel.host
 - Acceso DB externo: `173.249.36.67:54320` (postgres / Manuelo12* / Ganaderia)
 - **Bug encontrado y corregido localmente**: tratamiento se creaba sin vincular al ternero (enviaba `ternero: { id_ternero }` en vez de `id_ternero` directo) — fix en `bot.controller.ts:545` — **pendiente commit + push + redeploy en EasyPanel**
 
+### Fixes sesión 2026-04-15
+
+- **Navbar mobile**: botones Login/Registro eran `hidden lg:flex` → invisibles en mobile para usuarios no autenticados. Fix: `flex` cuando no autenticado, `hidden lg:flex` cuando autenticado.
+- **Formulario-Madre.jsx vaciado**: el archivo fue borrado accidentalmente en commit `94e99af`. Restaurado desde commit `e77d876` (314 líneas). Causaba React error #130 ("Element type is invalid: got object") al loguear.
+
 ## Pendientes
 
 | # | Item | Descripción |
