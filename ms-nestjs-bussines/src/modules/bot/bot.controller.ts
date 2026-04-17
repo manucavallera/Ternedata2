@@ -564,9 +564,10 @@ export class BotController {
           console.log('🐮 Creando ternero:', data);
           const ternero = await this.ternerosService.create(data as any);
 
-          let mensaje = `✅ Ternero RP ${data.rp_ternero} registrado. Peso: ${data.peso_nacer} kg`;
+          let mensaje = `✅ Ternero registrado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
+          if (data.semen && data.semen !== 'Sin datos') mensaje += `\n🧬 Semen: ${data.semen}`;
           if (body.id_madre && !idMadre) {
-            mensaje += `\n⚠️ La madre RP ${body.id_madre} no se encontró, se registró sin madre.`;
+            mensaje += `\n⚠️ Madre RP ${body.id_madre} no encontrada, registrado sin madre.`;
           }
 
           return {
@@ -611,7 +612,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_madre',
-            mensaje: `✅ Madre RP ${data.rp_madre} "${data.nombre}" registrada`,
+            mensaje: `✅ Madre registrada\n📋 RP: ${data.rp_madre}\n🐄 Nombre: ${data.nombre}\n📊 Estado: ${data.estado}`,
             data: madre,
           };
         }
@@ -783,7 +784,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_tratamiento',
-            mensaje: `✅ Tratamiento "${data.nombre}" registrado para ternero RP ${rpTernero}`,
+            mensaje: `✅ Tratamiento registrado\n💊 ${data.nombre}\n🐄 Ternero RP: ${rpTernero}\n🏥 Tipo: ${data.tipo_enfermedad}\n⏰ Turno: ${data.turno}`,
             data: tratamiento,
           };
         }
@@ -828,7 +829,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_diarrea',
-            mensaje: `✅ Diarrea registrada para ternero RP ${rpTernero}. Severidad: ${data.severidad}. Episodio #${diarrea.numero_episodio}`,
+            mensaje: `✅ Diarrea registrada\n🐄 Ternero RP: ${rpTernero}\n🔴 Severidad: ${data.severidad}\n📋 Episodio #${diarrea.numero_episodio}\n📅 Fecha: ${data.fecha_diarrea_ternero}`,
             data: diarrea,
           };
         }
