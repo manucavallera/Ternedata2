@@ -115,22 +115,31 @@ function Navbar() {
           0% { background-position: -200% center; }
           100% { background-position: 200% center; }
         }
+        @keyframes glow-pulse {
+          0%, 100% { text-shadow: 0 0 8px rgba(255,255,255,0.6), 0 0 20px rgba(134,239,172,0.4); }
+          50% { text-shadow: 0 0 16px rgba(255,255,255,0.9), 0 0 40px rgba(134,239,172,0.7), 0 0 60px rgba(74,222,128,0.3); }
+        }
         .brand-shimmer {
           background: linear-gradient(
             90deg,
             #ffffff 0%,
-            #ffffff 40%,
-            #bbf7d0 50%,
-            #ffffff 60%,
+            #d1fae5 20%,
+            #86efac 35%,
+            #fde68a 50%,
+            #86efac 65%,
+            #d1fae5 80%,
             #ffffff 100%
           );
-          background-size: 200% auto;
+          background-size: 250% auto;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: shimmer 3s linear infinite, glow-pulse 2.5s ease-in-out infinite;
+          filter: drop-shadow(0 0 6px rgba(255,255,255,0.4));
         }
         .brand-shimmer:hover {
-          animation: shimmer 2s linear infinite;
+          animation: shimmer 1.2s linear infinite, glow-pulse 1s ease-in-out infinite;
+          filter: drop-shadow(0 0 12px rgba(255,255,255,0.8));
         }
       `}</style>
 
@@ -213,7 +222,7 @@ function Navbar() {
             width={40}
             height={40}
           />
-          <h1 className='text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider brand-shimmer drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-all duration-500 group-hover:tracking-[0.2em] select-none'>
+          <h1 className='text-2xl sm:text-3xl md:text-4xl font-black tracking-widest brand-shimmer transition-all duration-300 group-hover:tracking-[0.25em] select-none uppercase'>
             TerneData
           </h1>
         </div>
