@@ -222,7 +222,7 @@ function Navbar() {
             width={40}
             height={40}
           />
-          <h1 className='text-2xl sm:text-3xl md:text-4xl font-black tracking-widest brand-shimmer transition-all duration-300 group-hover:tracking-[0.25em] select-none uppercase'>
+          <h1 className='text-xl sm:text-2xl md:text-3xl font-black tracking-widest brand-shimmer transition-all duration-300 group-hover:tracking-[0.2em] select-none uppercase'>
             TerneData
           </h1>
         </div>

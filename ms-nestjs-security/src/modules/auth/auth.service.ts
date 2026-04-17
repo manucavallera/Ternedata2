@@ -26,6 +26,7 @@ export class AuthService {
   // =================================================================
   async register(registerAuthDto: RegisterAuthDto) {
     const { name, email, password, invitationToken } = registerAuthDto;
+    const telefono = (registerAuthDto as any).telefono;
 
     console.log(`📨 [SERVICE] Registrando: ${email}`);
 
@@ -46,6 +47,18 @@ export class AuthService {
       );
     }
 
+    if (telefono) {
+      const existingPhone = await this.usersRepository.findOne({
+        where: { telefono },
+      });
+      if (existingPhone) {
+        throw new HttpException(
+          'El teléfono ya está registrado por otro usuario',
+          HttpStatus.CONFLICT,
+        );
+      }
+    }
+
     const passwordHash = await hash(password, 10);
 
     // Sin invitación → admin (crea su propio establecimiento)
@@ -59,6 +72,7 @@ export class AuthService {
       estado: 'activo',
       rol,
       id_establecimiento: null,
+      ...(telefono ? { telefono } : {}),
     };
 
     const newUser = await this.usersRepository.save(userObject);

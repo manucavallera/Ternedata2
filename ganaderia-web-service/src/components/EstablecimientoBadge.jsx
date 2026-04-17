@@ -6,17 +6,13 @@ export default function EstablecimientoBadge() {
 
   if (!userPayload) return null;
 
-  // 👇 LÓGICA INTELIGENTE: Buscar el rol real en este establecimiento
+  // Si es admin global, siempre mostrar admin (no pisar con roles de invitación)
   const resolverRolReal = () => {
-    // 1. ¿En qué establecimiento estamos parados?
+    if (userPayload.rol === 'admin') return 'admin';
     const currentFarmId = userPayload.id_establecimiento;
-
-    // 2. Buscamos si tenemos un rol específico para este campo en la lista nueva
     const roleInFarm = userPayload.userEstablecimientos?.find(
       (ue) => ue.establecimientoId === currentFarmId,
     )?.rol;
-
-    // 3. Si existe un rol específico, úsalo. Si no, usa el global.
     return roleInFarm || userPayload.rol || "usuario";
   };
 
