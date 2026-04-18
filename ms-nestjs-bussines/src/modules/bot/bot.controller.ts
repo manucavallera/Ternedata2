@@ -400,6 +400,7 @@ export class BotController {
     // ── Autenticación por teléfono ──
     let idEstablecimiento = body.id_establecimiento;
     let userName = 'Ganadero';
+    let nombreEstablecimiento = '';
     let userEntity: UserEntity | null = null;
 
     if (phone) {
@@ -499,6 +500,13 @@ export class BotController {
 
       idEstablecimiento = auth.establecimientoId;
       console.log(`✅ Autenticado: ${userName} → Establecimiento ${idEstablecimiento}`);
+      const estInfo = auth.establecimientos.find(e => e.id === auth.establecimientoId);
+      if (estInfo) {
+        nombreEstablecimiento = estInfo.nombre;
+      } else if (idEstablecimiento) {
+        const est = await this.establecimientoRepo.findOne({ where: { id_establecimiento: idEstablecimiento } });
+        if (est) nombreEstablecimiento = est.nombre;
+      }
     }
 
     if (!idEstablecimiento) {
@@ -569,6 +577,7 @@ export class BotController {
           if (body.id_madre && !idMadre) {
             mensaje += `\n⚠️ Madre RP ${body.id_madre} no encontrada, registrado sin madre.`;
           }
+          if (nombreEstablecimiento) mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
 
           return {
             success: true,
@@ -612,7 +621,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_madre',
-            mensaje: `✅ Madre registrada\n📋 RP: ${data.rp_madre}\n🐄 Nombre: ${data.nombre}\n📊 Estado: ${data.estado}`,
+            mensaje: `✅ Madre registrada\n📋 RP: ${data.rp_madre}\n🐄 Nombre: ${data.nombre}\n📊 Estado: ${data.estado}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: madre,
           };
         }
@@ -665,7 +674,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_evento',
-            mensaje: `✅ Evento registrado: "${data.observacion}"`,
+            mensaje: `✅ Evento registrado: "${data.observacion}"${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: evento,
           };
         }
@@ -784,7 +793,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_tratamiento',
-            mensaje: `✅ Tratamiento registrado\n💊 ${data.nombre}\n🐄 Ternero RP: ${rpTernero}\n🏥 Tipo: ${data.tipo_enfermedad}\n⏰ Turno: ${data.turno}`,
+            mensaje: `✅ Tratamiento registrado\n💊 ${data.nombre}\n🐄 Ternero RP: ${rpTernero}\n🏥 Tipo: ${data.tipo_enfermedad}\n⏰ Turno: ${data.turno}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: tratamiento,
           };
         }
@@ -829,7 +838,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_diarrea',
-            mensaje: `✅ Diarrea registrada\n🐄 Ternero RP: ${rpTernero}\n🔴 Severidad: ${data.severidad}\n📋 Episodio #${diarrea.numero_episodio}\n📅 Fecha: ${data.fecha_diarrea_ternero}`,
+            mensaje: `✅ Diarrea registrada\n🐄 Ternero RP: ${rpTernero}\n🔴 Severidad: ${data.severidad}\n📋 Episodio #${diarrea.numero_episodio}\n📅 Fecha: ${data.fecha_diarrea_ternero}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: diarrea,
           };
         }
