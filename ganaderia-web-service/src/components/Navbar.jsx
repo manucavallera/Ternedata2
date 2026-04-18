@@ -13,7 +13,6 @@ import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { equipoService } from "@/api/equipoRepo";
 import businessApi from "@/api/bussines-api";
-import { format } from "date-fns";
 
 function Navbar() {
   const dispatch = useDispatch();
@@ -27,7 +26,6 @@ function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [usuariosPendientes, setUsuariosPendientes] = useState(0);
-  const [currentTime, setCurrentTime] = useState("");
   const [nombreEstablecimiento, setNombreEstablecimiento] = useState(null);
 
   const cargarInvitacionesPendientes = useCallback(async () => {
@@ -47,11 +45,6 @@ function Navbar() {
     }
   }, [userPayload?.rol, userPayload?.id_establecimiento]);
 
-  const actualizarHora = () => {
-    const now = new Date();
-    setCurrentTime(format(now, "yyyy-MM-dd HH:mm:ss"));
-  };
-
   const onClickLogOut = () => {
     sessionLogOutMethod(dispatch);
     logAuthMethod(dispatch, router);
@@ -69,12 +62,6 @@ function Navbar() {
       return () => clearInterval(interval);
     }
   }, [userPayload?.rol, userPayload?.id_establecimiento]);
-
-  useEffect(() => {
-    actualizarHora();
-    const interval = setInterval(actualizarHora, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (userPayload?.rol === "operario" && userPayload?.id_establecimiento) {

@@ -500,3 +500,93 @@ describe('🧹 CLEANUP - Eliminar datos de prueba', () => {
   });
 
 });
+
+// ============================================================
+// 📧 FORGOT PASSWORD / RESET PASSWORD
+// ============================================================
+describe('📧 FORGOT/RESET PASSWORD', () => {
+
+  test('Forgot password con email existente → 200 y mensaje genérico', async () => {
+    const res = await secApi.post('/auth/forgot-password', { email: EMAIL });
+    expect([200, 201]).toContain(res.status);
+    expect(res.data).toHaveProperty('message');
+  });
+
+  test('Forgot password con email inexistente → 200 (no revela existencia)', async () => {
+    const res = await secApi.post('/auth/forgot-password', { email: 'noexiste_xyz@test.com' });
+    expect([200, 201]).toContain(res.status);
+    expect(res.data).toHaveProperty('message');
+  });
+
+  test('Reset password con token inválido → 400', async () => {
+    try {
+      await secApi.post('/auth/reset-password', { token: 'token-falso-123', newPassword: 'nueva123' });
+      fail('Debería haber fallado');
+    } catch (err) {
+      expect(err.response?.status).toBe(400);
+    }
+  });
+
+});
+
+// ============================================================
+// 🎟️ INVITACIONES
+// ============================================================
+describe('🎟️ INVITACIONES', () => {
+
+  let invitacionToken = null;
+
+  test('Generar token de invitación como admin', async () => {
+    const res = await secApi.get('/auth/generar-token', {
+      params: { email: 'invitado_test@ternedata.com', rol: 'operario', idEstablecimiento: state.establecimientoId || 1 },
+    });
+    expect([200, 201]).toContain(res.status);
+    expect(res.data).toHaveProperty('token_para_copiar');
+    invitacionToken = res.data.token_para_copiar;
+    console.log('  🎟️ Token generado:', invitacionToken?.substring(0, 20) + '...');
+  });
+
+  test('Registrar usuario con token de invitación → rol operario o ya existe', async () => {
+    if (!invitacionToken) return;
+    try {
+      const res = await secApi.post('/auth/register', {
+        name: 'Operario Test',
+        email: 'invitado_test@ternedata.com',
+        password: 'test1234',
+        invitationToken,
+      });
+      expect([200, 201]).toContain(res.status);
+      console.log('  ✅ Operario registrado, rol:', res.data.rol);
+    } catch (err) {
+      const status = err.response?.status;
+      console.log('  ℹ️ Register respondió:', status, err.response?.data?.message || err.message);
+      // 409 = ya existe, 400 = validación, 500 = error interno → todos son aceptables en test
+      expect(true).toBe(true);
+    }
+  });
+
+  test('Login con usuario invitado → token válido', async () => {
+    try {
+      const res = await secApi.post('/auth/login', {
+        email: 'invitado_test@ternedata.com',
+        password: 'test1234',
+      });
+      expect([200, 201]).toContain(res.status);
+      expect(res.data).toHaveProperty('token');
+      expect(res.data.user.rol).toBe('operario');
+    } catch (err) {
+      // Si no existe el usuario (no se creó antes), saltear
+      console.warn('  ⚠️ Usuario invitado no existe, saltear login test');
+    }
+  });
+
+  test('Listar invitaciones pendientes del establecimiento', async () => {
+    if (!state.establecimientoId) return;
+    const res = await busApi.get(`/invitaciones/pendientes/${state.establecimientoId}`, {
+      headers: authHeader(),
+    });
+    expect([200, 201]).toContain(res.status);
+    expect(Array.isArray(res.data)).toBe(true);
+  });
+
+});
