@@ -4,6 +4,9 @@ import { RegisterAuthDto } from './dto/register.dto';
 import { LoginAuthDto } from './dto/login.dto';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './roles.guard';
+import { Roles } from './roles.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -13,17 +16,20 @@ export class AuthController {
   @ApiBody({ type: RegisterAuthDto })
   @Post('/register')
   async register(@Body() body: RegisterAuthDto) {
-    console.log('🔥 [CONTROLLER] Recibido:', JSON.stringify(body, null, 2));
     return this.AuthService.register(body);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiBody({ type: LoginAuthDto })
   @Post('/login')
   async login(@Body() loginAuthDto: LoginAuthDto) {
     return this.AuthService.login(loginAuthDto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Get('generar-token')
+  @ApiOperation({ summary: 'Generar token de invitación (solo admin)' })
   dameToken(
     @Query('email') email: string,
     @Query('rol') rol: string,

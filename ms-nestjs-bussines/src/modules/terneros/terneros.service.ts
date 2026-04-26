@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -27,6 +28,8 @@ interface UpdateCalostradoDto {
 
 @Injectable()
 export class TernerosService {
+  private readonly logger = new Logger(TernerosService.name);
+
   constructor(
     @InjectRepository(TerneroEntity)
     private readonly terneroRepository: Repository<TerneroEntity>,
@@ -49,6 +52,27 @@ export class TernerosService {
         );
       }
 
+      const fechaNacimiento = new Date(createTerneroDto.fecha_nacimiento);
+      if (fechaNacimiento > new Date()) {
+        throw new HttpException(
+          'La fecha de nacimiento no puede ser futura',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const terneroExistente = await this.terneroRepository.findOne({
+        where: {
+          rp_ternero: createTerneroDto.rp_ternero,
+          id_establecimiento: createTerneroDto.id_establecimiento,
+        },
+      });
+      if (terneroExistente) {
+        throw new HttpException(
+          `Ya existe un ternero con RP ${createTerneroDto.rp_ternero} en este establecimiento`,
+          HttpStatus.CONFLICT,
+        );
+      }
+
       // Buscar la madre (solo si se proporcionó id_madre)
       let madre: MadreEntity | null = null;
       if (createTerneroDto.id_madre) {
@@ -63,6 +87,13 @@ export class TernerosService {
           throw new HttpException(
             `No se encontró la madre con ID ${createTerneroDto.id_madre} en este establecimiento`,
             HttpStatus.NOT_FOUND,
+          );
+        }
+
+        if (madre.fecha_nacimiento && fechaNacimiento < new Date(madre.fecha_nacimiento)) {
+          throw new HttpException(
+            'La fecha de nacimiento del ternero no puede ser anterior a la de su madre',
+            HttpStatus.BAD_REQUEST,
           );
         }
       }
@@ -110,18 +141,13 @@ export class TernerosService {
       try {
         terneroGuardado.calcularIndicadoresCrecimiento();
       } catch (error) {
-        console.error('Error calculando indicadores en create:', error);
+        this.logger.error('Error calculando indicadores en create', error);
         terneroGuardado.dias_desde_nacimiento = 0;
       }
 
-      console.log('Ternero creado:', {
-        id: terneroGuardado.id_ternero,
-        id_establecimiento: terneroGuardado.id_establecimiento,
-      });
-
       return terneroGuardado;
     } catch (error) {
-      console.error('❌ Error completo al crear ternero:', error);
+      this.logger.error('Error al crear ternero', error);
 
       // Si es un error que ya lanzamos nosotros, re-lanzarlo
       if (
@@ -163,20 +189,6 @@ export class TernerosService {
     search?: string | null,
   ): Promise<any> {
     try {
-      console.log(
-        '🔍 Service findAll - ID Usuario:',
-        idEstablecimiento,
-        'Es Admin:',
-        esAdmin,
-        'Query Param:',
-        idEstablecimientoQuery,
-        'sinRodeo:',
-        sinRodeo,
-        'idRodeo:',
-        idRodeo,
-        'estado:',
-        estado,
-      );
 
       const query = this.terneroRepository
         .createQueryBuilder('ternero')
@@ -196,7 +208,7 @@ export class TernerosService {
           idEstablecimiento,
         });
       } else {
-        console.warn('⚠️ Usuario sin establecimiento asignado');
+        this.logger.warn('Usuario sin establecimiento asignado');
       }
 
       // 🐮 Filtros opcionales
@@ -226,14 +238,13 @@ export class TernerosService {
         .take(limit)
         .getManyAndCount();
 
-      console.log(`✅ Encontrados ${total} terneros (página ${page})`);
 
       const data = terneroList.map((ternero) => {
         try {
           ternero.calcularIndicadoresCrecimiento();
         } catch (error) {
-          console.error(
-            `Error calculando indicadores para ternero ID ${ternero.id_ternero}:`,
+          this.logger.error(
+            `Error calculando indicadores para ternero ID ${ternero.id_ternero}`,
             error,
           );
           ternero.dias_desde_nacimiento = 0;
@@ -251,7 +262,7 @@ export class TernerosService {
         totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      console.error('Error en findAll:', error);
+      this.logger.error('Error en findAll terneros', error);
       throw new HttpException(
         `Error al obtener los terneros: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -292,7 +303,7 @@ export class TernerosService {
       try {
         ternero.calcularIndicadoresCrecimiento();
       } catch (error) {
-        console.error('Error calculando indicadores en findOne:', error);
+        this.logger.error('Error calculando indicadores en findOne', error);
         ternero.dias_desde_nacimiento = 0;
         ternero.ultimo_peso = ternero.peso_nacer;
         ternero.aumento_diario_promedio = 0;
@@ -368,7 +379,7 @@ export class TernerosService {
       try {
         terneroActualizado.calcularIndicadoresCrecimiento();
       } catch (error) {
-        console.error('Error calculando indicadores en update:', error);
+        this.logger.error('Error calculando indicadores en update', error);
         terneroActualizado.dias_desde_nacimiento = 0;
         terneroActualizado.ultimo_peso = terneroActualizado.peso_nacer;
         terneroActualizado.aumento_diario_promedio = 0;
@@ -533,23 +544,18 @@ export class TernerosService {
     id: number,
     fecha: string,
     peso: number,
+    idEstablecimiento: number | null,
+    esAdmin: boolean,
     observaciones?: string,
   ): Promise<TerneroEntity> {
     try {
-      const ternero = await this.terneroRepository.findOne({
-        where: { id_ternero: id },
-        relations: ['madre'],
-      });
-
-      if (!ternero) {
-        throw new HttpException('Ternero no encontrado', HttpStatus.NOT_FOUND);
-      }
-
+      const ternero = await this.findOne(id, idEstablecimiento, esAdmin);
       ternero.agregarPesaje(fecha, peso);
       const terneroActualizado = await this.terneroRepository.save(ternero);
       terneroActualizado.calcularIndicadoresCrecimiento();
       return terneroActualizado;
     } catch (error) {
+      if (error instanceof HttpException || error instanceof ForbiddenException) throw error;
       throw new HttpException(
         `Error al agregar pesaje al ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -559,18 +565,14 @@ export class TernerosService {
 
   async obtenerHistorialPesajes(
     id: number,
+    idEstablecimiento: number | null,
+    esAdmin: boolean,
   ): Promise<Array<{ fecha: string; peso: number }>> {
     try {
-      const ternero = await this.terneroRepository.findOne({
-        where: { id_ternero: id },
-      });
-
-      if (!ternero) {
-        throw new HttpException('Ternero no encontrado', HttpStatus.NOT_FOUND);
-      }
-
+      const ternero = await this.findOne(id, idEstablecimiento, esAdmin);
       return ternero.obtenerHistorialPesajes();
     } catch (error) {
+      if (error instanceof HttpException || error instanceof ForbiddenException) throw error;
       throw new HttpException(
         `Error al obtener historial de pesajes del ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -3,10 +3,8 @@
 import { setAuthPayload, setStatus, setUserData } from "@/store/auth";
 
 const sessionLogOutMethod = (dispatch) => {
-  // ✅ CRÍTICO: Verificar que estamos en el navegador
   if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userSelected");
+    localStorage.clear();
   }
 
   dispatch(setAuthPayload({}));

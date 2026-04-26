@@ -48,8 +48,8 @@ const FormularioMadre = ({ setStep }) => {
       setLoadingRodeos(true);
       const idEst = userPayload?.id_establecimiento;
       const query = idEst && userPayload?.rol !== "admin"
-        ? `id_establecimiento=${idEst}`
-        : "";
+        ? `id_establecimiento=${idEst}&limit=500`
+        : "limit=500";
       const response = await obtenerRodeosHook(query);
       if (response?.status === 200) {
         setRodeos(response.data.filter((r) => r.estado === "activo"));

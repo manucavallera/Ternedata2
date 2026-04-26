@@ -292,12 +292,18 @@ function Navbar() {
                       </svg>
                       Mi Perfil
                     </Link>
-                    <button className='block w-full text-center px-3 py-2 hover:bg-gray-200 text-black-500 flex items-center justify-center gap-2 text-sm'>
-                      <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor' className='w-5 h-5'>
-                        <path strokeLinecap='round' strokeLinejoin='round' d='M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' />
-                      </svg>
-                      Crear usuario
-                    </button>
+                    {userPayload?.rol === "admin" && (
+                      <Link
+                        href='/panel-admin'
+                        onClick={() => setIsProfileOpen(false)}
+                        className='block w-full text-center px-3 py-2 hover:bg-gray-200 text-black-500 flex items-center justify-center gap-2 text-sm'
+                      >
+                        <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor' className='w-5 h-5'>
+                          <path strokeLinecap='round' strokeLinejoin='round' d='M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' />
+                        </svg>
+                        Crear usuario
+                      </Link>
+                    )}
                     <button
                       onClick={onClickLogOut}
                       className='block w-full text-center px-3 py-2 hover:bg-gray-200 text-black-500 flex items-center justify-center gap-2 text-sm'

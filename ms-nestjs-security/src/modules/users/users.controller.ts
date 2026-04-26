@@ -154,6 +154,7 @@ export class UsersController {
   }
 
   @Post('assign-establishment')
+  @Roles(UserRole.ADMIN)
   async assignEstablecimiento(
     @Body() body: { userId: number; establecimientoId: number },
   ) {

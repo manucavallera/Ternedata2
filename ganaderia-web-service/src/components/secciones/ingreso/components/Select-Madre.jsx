@@ -14,7 +14,7 @@ const SeleccionarMadre = ({ madreSeleccionada, idEstablecimiento }) => {
       setLoading(true);
 
       // Si hay establecimiento, filtrar por él
-      const queryParams = idEstab ? `id_establecimiento=${idEstab}` : "";
+      const queryParams = idEstab ? `id_establecimiento=${idEstab}&limit=500` : "limit=500";
       const resListMadre = await obtenerMadreHook(queryParams);
 
       setMadres(resListMadre?.data?.data || []);

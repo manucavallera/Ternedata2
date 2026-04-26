@@ -90,7 +90,7 @@ export class AlertsService {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-      tls: { rejectUnauthorized: false },
+      tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
 
     try {

@@ -28,16 +28,22 @@ export default function AuthContextProvider({ children }) {
     let initialAuthTokens = null;
 
     try {
-      // Ahora SÍ podemos acceder a window.localStorage porque estamos en el cliente
       const authTokensInLocalStorage =
         window.localStorage.getItem(AUTH_TOKENS_KEY);
 
-      // Validamos que no sea null, undefined ni el string "undefined"
-      if (
-        authTokensInLocalStorage &&
-        authTokensInLocalStorage !== "undefined"
-      ) {
-        initialAuthTokens = authTokensInLocalStorage;
+      if (authTokensInLocalStorage && authTokensInLocalStorage !== "undefined") {
+        // Verificar que el token no esté expirado
+        try {
+          const payload = JSON.parse(atob(authTokensInLocalStorage.split('.')[1]));
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            window.localStorage.clear();
+            initialAuthTokens = null;
+          } else {
+            initialAuthTokens = authTokensInLocalStorage;
+          }
+        } catch {
+          initialAuthTokens = authTokensInLocalStorage;
+        }
       }
     } catch (error) {
       console.error("Error parsing auth tokens:", error);

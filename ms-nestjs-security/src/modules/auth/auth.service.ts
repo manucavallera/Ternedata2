@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from 'src/modules/users/entity/users.entity';
 import { Repository } from 'typeorm';
@@ -13,6 +13,8 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
@@ -28,7 +30,6 @@ export class AuthService {
     const { name, email, password, invitationToken } = registerAuthDto;
     const telefono = (registerAuthDto as any).telefono;
 
-    console.log(`📨 [SERVICE] Registrando: ${email}`);
 
     if (!email || !name || !password) {
       throw new HttpException(
@@ -106,7 +107,7 @@ export class AuthService {
       userEstablecimientos: user.userEstablecimientos || [],
     };
 
-    const token = this.jwtService.sign(payload, { expiresIn: '30d' });
+    const token = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { user, token };
   }
 
@@ -133,7 +134,7 @@ export class AuthService {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
 
     const mailOptions = {
@@ -156,9 +157,9 @@ export class AuthService {
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log(`📧 Email enviado exitosamente a ${emailRecibido}`);
+      this.logger.log(`Email enviado a ${emailRecibido}`);
     } catch (error) {
-      console.error('❌ Error enviando email:', error);
+      this.logger.error('Error enviando email', error);
     }
 
     return {
@@ -188,7 +189,7 @@ export class AuthService {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
-      tls: { rejectUnauthorized: false },
+      tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
 
     try {
@@ -209,7 +210,7 @@ export class AuthService {
         `,
       });
     } catch (error) {
-      console.error('❌ Error enviando email de reset:', error);
+      this.logger.error('Error enviando email de reset', error);
     }
 
     return { message: 'Si el email existe, recibirás un correo en breve.' };
@@ -239,7 +240,7 @@ export class AuthService {
       userEstablecimientos: user.userEstablecimientos || [],
     };
 
-    const token = this.jwtService.sign(payload, { expiresIn: '30d' });
+    const token = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { user, token };
   }
 

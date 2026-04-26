@@ -5,6 +5,7 @@ import { Rodeos } from 'src/modules/rodeos/entities/rodeos.entity';
 import {
   Column,
   Entity,
+  Index,
   ManyToMany,
   ManyToOne,
   JoinColumn,
@@ -15,6 +16,8 @@ import {
 } from 'typeorm';
 
 @Entity('madres')
+@Index(['id_establecimiento'])
+@Index(['rp_madre'])
 export class MadreEntity {
   @PrimaryGeneratedColumn()
   id_madre: number;
@@ -44,11 +47,11 @@ export class MadreEntity {
   @JoinColumn({ name: 'id_rodeo' })
   rodeo: Rodeos;
 
-  //@CreateDateColumn()
-  //creado_en: Date;
+  @CreateDateColumn()
+  creado_en: Date;
 
-  //@UpdateDateColumn()
-  //actualizado_en: Date;
+  @UpdateDateColumn()
+  actualizado_en: Date;
 
   @OneToMany(() => TerneroEntity, (ternero) => ternero.madre, {
     onDelete: 'CASCADE',

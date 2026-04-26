@@ -14,7 +14,7 @@ const SeleccionarTernero = ({ terneroSeleccionado, idEstablecimiento }) => {
       setLoading(true);
 
       // Si hay establecimiento, filtrar por él
-      const queryParams = idEstab ? `id_establecimiento=${idEstab}` : "";
+      const queryParams = idEstab ? `id_establecimiento=${idEstab}&limit=500` : "limit=500";
       const resListTernero = await obtenerTerneroHook(queryParams);
 
       setTerneros(resListTernero?.data?.data || []);

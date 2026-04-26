@@ -115,7 +115,7 @@ const ListadoTratamiento = () => {
     // Cargar terneros del establecimiento del tratamiento
     if (tratamiento.id_establecimiento) {
       try {
-        const queryParams = `id_establecimiento=${tratamiento.id_establecimiento}`;
+        const queryParams = `id_establecimiento=${tratamiento.id_establecimiento}&limit=500`;
         const response = await obtenerTerneroHook(queryParams); // ✅ Usar el hook ya existente
         setTerneros(response?.data?.data || []);
       } catch (error) {

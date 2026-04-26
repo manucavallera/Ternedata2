@@ -18,11 +18,9 @@ const SeleccionarTratamiento = ({ tratamientoSeleccionado }) => {
   const construirQueryParams = () => {
     // Si es admin y tiene un establecimiento seleccionado
     if (userPayload?.rol === "admin" && establecimientoActual) {
-      return `id_establecimiento=${establecimientoActual}`;
+      return `id_establecimiento=${establecimientoActual}&limit=500`;
     }
-    // Para veterinario/operario, el backend filtra automáticamente
-    // Para admin sin establecimiento, ve todo
-    return "";
+    return "limit=500";
   };
 
   const cargarTratamientosList = async () => {

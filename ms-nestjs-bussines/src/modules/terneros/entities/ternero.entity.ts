@@ -1,12 +1,15 @@
 // ms-nestjs-business/src/modules/terneros/entities/ternero.entity.ts
 import {
   Column,
+  CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { MadreEntity } from 'src/modules/madres/entities/madre.entity';
 import { EventoEntity } from 'src/modules/eventos/entities/evento.entity';
@@ -16,6 +19,8 @@ import { TratamientoEntity } from 'src/modules/tratamientos/entities/tratamiento
 import { Rodeos } from 'src/modules/rodeos/entities/rodeos.entity'; // ⬅️ AGREGAR ESTO
 
 @Entity('terneros')
+@Index(['id_establecimiento'])
+@Index(['rp_ternero'])
 export class TerneroEntity {
   @PrimaryGeneratedColumn()
   id_ternero: number;
@@ -32,16 +37,16 @@ export class TerneroEntity {
   @Column({ type: 'float', nullable: false })
   peso_nacer: number;
 
-  @Column({ type: 'float', nullable: false })
+  @Column({ type: 'float', nullable: true, default: 0 })
   peso_15d: number;
 
-  @Column({ type: 'float', nullable: false })
+  @Column({ type: 'float', nullable: true, default: 0 })
   peso_30d: number;
 
-  @Column({ type: 'float', nullable: false })
+  @Column({ type: 'float', nullable: true, default: 0 })
   peso_45d: number;
 
-  @Column({ type: 'float', nullable: false })
+  @Column({ type: 'float', nullable: true, default: 0 })
   peso_largado: number;
 
   @Column({ type: 'text', nullable: true })
@@ -50,13 +55,13 @@ export class TerneroEntity {
   @Column({ type: 'float', nullable: true })
   peso_ideal: number;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', nullable: true })
   observaciones: string;
 
   @Column({ type: 'date', nullable: false })
   fecha_nacimiento: Date;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', nullable: true })
   semen: string;
 
   // ==================== CAMPOS DE CALOSTRADO ====================
@@ -123,6 +128,12 @@ export class TerneroEntity {
   })
   @JoinColumn({ name: 'id_rodeo' })
   rodeo: Rodeos; // ⬅️ AGREGAR ESTA LÍNEA
+
+  @CreateDateColumn()
+  creado_en: Date;
+
+  @UpdateDateColumn()
+  actualizado_en: Date;
 
   // ==================== CAMPOS CALCULADOS ====================
   dias_desde_nacimiento?: number;

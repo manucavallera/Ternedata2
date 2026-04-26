@@ -445,7 +445,8 @@ const ListadoRodeo = () => {
             </p>
           </div>
           {(userPayload?.rol === "admin" ||
-            userPayload?.rol === "veterinario") && (
+            userPayload?.rol === "veterinario" ||
+            userPayload?.rol === "operario") && (
             <button
               onClick={abrirModalCrear}
               className='w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md text-sm sm:text-base'
@@ -470,7 +471,8 @@ const ListadoRodeo = () => {
             No hay rodeos registrados
           </p>
           {(userPayload?.rol === "admin" ||
-            userPayload?.rol === "veterinario") && (
+            userPayload?.rol === "veterinario" ||
+            userPayload?.rol === "operario") && (
             <button
               onClick={abrirModalCrear}
               className='bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2'
@@ -550,8 +552,10 @@ const ListadoRodeo = () => {
                 >
                   📊 Stats
                 </button>
+
                 {(userPayload?.rol === "admin" ||
-                  userPayload?.rol === "veterinario") && (
+                  userPayload?.rol === "veterinario" ||
+                  userPayload?.rol === "operario") && (
                   <>
                     <button
                       onClick={() => abrirModalEditar(rodeo)}
@@ -568,21 +572,24 @@ const ListadoRodeo = () => {
                     >
                       🧩 Asignar
                     </button>
-
-                    <button
-                      onClick={() => toggleEstado(rodeo.id_rodeo)}
-                      className={`flex-1 ${
-                        rodeo.estado === "activo"
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-green-600 hover:bg-green-700"
-                      } text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium`}
-                      title={
-                        rodeo.estado === "activo" ? "Desactivar" : "Activar"
-                      }
-                    >
-                      {rodeo.estado === "activo" ? "❌" : "✅"}
-                    </button>
                   </>
+                )}
+
+                {(userPayload?.rol === "admin" ||
+                  userPayload?.rol === "veterinario") && (
+                  <button
+                    onClick={() => toggleEstado(rodeo.id_rodeo)}
+                    className={`flex-1 ${
+                      rodeo.estado === "activo"
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-green-600 hover:bg-green-700"
+                    } text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium`}
+                    title={
+                      rodeo.estado === "activo" ? "Desactivar" : "Activar"
+                    }
+                  >
+                    {rodeo.estado === "activo" ? "❌" : "✅"}
+                  </button>
                 )}
               </div>
             </div>

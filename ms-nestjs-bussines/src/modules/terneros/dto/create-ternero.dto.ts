@@ -41,34 +41,40 @@ export class CreateTerneroDto {
   @ApiProperty({ description: 'Peso al nacer en kg', example: 35.2 })
   @IsNotEmpty()
   @IsNumber()
+  @IsPositive()
   peso_nacer: number;
 
   @ApiProperty({ description: 'Peso a los 15 días en kg', example: 42.5 })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
+  @IsPositive()
   peso_15d: number;
 
   @ApiProperty({ description: 'Peso a los 30 días en kg', example: 51.3 })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
+  @IsPositive()
   peso_30d: number;
 
   @ApiProperty({ description: 'Peso a los 45 días en kg', example: 60.1 })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
+  @IsPositive()
   peso_45d: number;
 
   @ApiProperty({ description: 'Peso al ser largado en kg', example: 80.0 })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
+  @IsPositive()
   peso_largado: number;
 
   @ApiProperty({
     description: 'Peso ideal del ternero (doble del peso al nacer)',
     example: 70.4,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
+  @IsPositive()
   peso_ideal: number;
 
   @ApiProperty({
@@ -188,6 +194,7 @@ export class AddPesoDiarioDto {
   })
   @IsNotEmpty()
   @IsNumber()
+  @IsPositive()
   peso_actual: number;
 
   @ApiProperty({

@@ -41,20 +41,10 @@ export class MadresController {
   @ApiOperation({ summary: 'Servicio para crear una madre' })
   @ApiBody({ type: CreateMadreDto })
   async create(@Body() createMadreDto: CreateMadreDto, @Req() req: any) {
-    console.log('🔍 DEBUG CREATE MADRE:');
-    console.log('  - req.id_establecimiento:', req.id_establecimiento);
-    console.log('  - req.es_admin:', req.es_admin);
-    console.log('  - createMadreDto:', createMadreDto);
-
     const madreData = {
       ...createMadreDto,
-      // ⬅️ CORREGIDO: Priorizar el del DTO, si no existe usar el del JWT
-      id_establecimiento:
-        createMadreDto.id_establecimiento || req.id_establecimiento,
+      id_establecimiento: req.id_establecimiento,
     };
-
-    console.log('  - madreData final:', madreData);
-
     return this.madresService.create(madreData);
   }
 

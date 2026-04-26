@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsDateString,
   IsNotEmpty,
   IsString,
   IsEnum,
@@ -55,7 +56,7 @@ export class CreateTratamientoDto {
     example: '2024-12-15',
   })
   @IsNotEmpty()
-  @IsString()
+  @IsDateString()
   fecha_tratamiento: string;
 
   @ApiProperty({

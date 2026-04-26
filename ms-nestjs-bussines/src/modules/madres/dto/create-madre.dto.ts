@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsDateString,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -43,7 +44,7 @@ export class CreateMadreDto {
     required: false,
   })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   fecha_nacimiento?: string;
 
   @ApiProperty({

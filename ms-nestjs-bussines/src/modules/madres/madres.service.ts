@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateMadreDto } from './dto/create-madre.dto';
@@ -14,6 +15,8 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class MadresService {
+  private readonly logger = new Logger(MadresService.name);
+
   constructor(
     @InjectRepository(MadreEntity)
     private readonly madreRepository: Repository<MadreEntity>,
@@ -33,22 +36,27 @@ export class MadresService {
         );
       }
 
-      // ⬅️ AGREGAR: Validar que el RP no exista
-      const madreExistente = await this.madreRepository.findOne({
-        where: { rp_madre: createMadreDto.rp_madre },
-      });
+      if (createMadreDto.rp_madre) {
+        const madreExistente = await this.madreRepository.findOne({
+          where: {
+            rp_madre: createMadreDto.rp_madre,
+            id_establecimiento: createMadreDto.id_establecimiento,
+          },
+        });
+        if (madreExistente) {
+          throw new HttpException(
+            `Ya existe una madre con RP ${createMadreDto.rp_madre} en este establecimiento`,
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
 
       const nuevaMadre = this.madreRepository.create(createMadreDto);
       const madreSave = await this.madreRepository.save(nuevaMadre);
-
-      console.log('Madre creada:', {
-        id: madreSave.id_madre,
-        id_establecimiento: madreSave.id_establecimiento,
-      });
-
       return madreSave;
     } catch (error) {
-      console.error('❌ Error completo al crear madre:', error);
+      if (error instanceof HttpException || error instanceof ForbiddenException) throw error;
+      this.logger.error('Error al crear madre', error);
 
       // Si es error de duplicado (violación de unique constraint)
       if (error.code === '23505') {
@@ -91,15 +99,6 @@ export class MadresService {
     search?: string | null,
   ): Promise<any> {
     try {
-      console.log(
-        '🔍 Service Madres findAll - ID Usuario:',
-        idEstablecimiento,
-        'Es Admin:',
-        esAdmin,
-        'Query Param:',
-        idEstablecimientoQuery,
-      );
-
       const query = this.madreRepository
         .createQueryBuilder('madre')
         .leftJoinAndSelect('madre.terneros', 'terneros')
@@ -116,15 +115,11 @@ export class MadresService {
       } else {
         // Si NO es admin, SIEMPRE filtrar por su establecimiento
         if (idEstablecimiento) {
-          console.log(
-            '✅ Usuario no-admin, filtrando madres por su establecimiento:',
-            idEstablecimiento,
-          );
           query.where('madre.id_establecimiento = :idEstablecimiento', {
             idEstablecimiento,
           });
         } else {
-          console.warn('⚠️ Usuario no-admin sin establecimiento asignado');
+          this.logger.warn('Usuario no-admin sin establecimiento asignado');
         }
       }
 
@@ -152,7 +147,6 @@ export class MadresService {
         .take(limit)
         .getManyAndCount();
 
-      console.log(`✅ Encontradas ${total} madres (página ${page})`);
 
       return {
         data: madres,
@@ -162,7 +156,7 @@ export class MadresService {
         totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
-      console.error('Error en findAll madres:', error);
+      this.logger.error('Error en findAll madres', error);
       throw new HttpException(
         `Error al obtener las madres: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,

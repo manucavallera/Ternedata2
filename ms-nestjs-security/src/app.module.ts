@@ -1,6 +1,7 @@
 // ms-nestjs-security/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
@@ -20,6 +21,7 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
       isGlobal: true,
       load: [configuration],
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

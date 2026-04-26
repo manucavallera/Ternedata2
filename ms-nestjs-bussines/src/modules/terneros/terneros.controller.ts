@@ -116,21 +116,10 @@ export class TernerosController {
   @ApiOperation({ summary: 'Servicio para crear un ternero' })
   @ApiBody({ type: CreateTerneroDto })
   async create(@Body() createTerneroDto: CreateTerneroDto, @Req() req: any) {
-    console.log('🔍 DEBUG CREATE TERNERO:');
-    console.log('  - req.id_establecimiento:', req.id_establecimiento);
-    console.log('  - req.es_admin:', req.es_admin);
-    console.log('  - req.user:', req.user);
-    console.log('  - createTerneroDto:', createTerneroDto);
-
     const terneroData = {
       ...createTerneroDto,
-      // ⬅️ CORREGIDO: Priorizar el del DTO, si no existe usar el del JWT
-      id_establecimiento:
-        createTerneroDto.id_establecimiento || req.id_establecimiento,
+      id_establecimiento: req.id_establecimiento,
     };
-
-    console.log('  - terneroData final:', terneroData);
-
     return this.ternerosService.create(terneroData);
   }
 
@@ -321,11 +310,14 @@ export class TernerosController {
   async agregarPesaje(
     @Param('id_ternero') id_ternero: string,
     @Body() pesajeDto: AgregarPesajeDto,
+    @Req() req: any,
   ) {
     return this.ternerosService.agregarPesaje(
       +id_ternero,
       pesajeDto.fecha,
       pesajeDto.peso,
+      req.id_establecimiento,
+      req.es_admin,
       pesajeDto.observaciones,
     );
   }
@@ -339,8 +331,15 @@ export class TernerosController {
     name: 'id_ternero',
     description: 'ID del ternero',
   })
-  async obtenerHistorialPesajes(@Param('id_ternero') id_ternero: string) {
-    return this.ternerosService.obtenerHistorialPesajes(+id_ternero);
+  async obtenerHistorialPesajes(
+    @Param('id_ternero') id_ternero: string,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.obtenerHistorialPesajes(
+      +id_ternero,
+      req.id_establecimiento,
+      req.es_admin,
+    );
   }
 
   // ============================================================

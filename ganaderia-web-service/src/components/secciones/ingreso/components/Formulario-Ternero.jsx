@@ -85,7 +85,7 @@ const FormularioTernero = ({ setStep }) => {
   const cargarRodeosPorEstablecimiento = async (idEstablecimiento) => {
     try {
       setLoadingRodeos(true);
-      const queryParams = `id_establecimiento=${idEstablecimiento}`;
+      const queryParams = `id_establecimiento=${idEstablecimiento}&limit=500`;
       const response = await obtenerRodeosHook(queryParams);
 
       if (response?.status === 200) {
@@ -105,7 +105,7 @@ const FormularioTernero = ({ setStep }) => {
   const cargarRodeos = async () => {
     try {
       setLoadingRodeos(true);
-      const response = await obtenerRodeosHook();
+      const response = await obtenerRodeosHook("limit=500");
 
       if (response?.status === 200) {
         // Filtrar solo rodeos activos
@@ -184,16 +184,8 @@ const FormularioTernero = ({ setStep }) => {
       newErrors.peso_nacer = "Debe ser un peso válido mayor a 0";
     }
 
-    if (!formData.observaciones?.trim()) {
-      newErrors.observaciones = "Este campo es obligatorio";
-    }
-
     if (!formData.fecha_nacimiento) {
       newErrors.fecha_nacimiento = "Este campo es obligatorio";
-    }
-
-    if (!formData.semen?.trim()) {
-      newErrors.semen = "Este campo es obligatorio";
     }
 
     if (madreId === 0) {
