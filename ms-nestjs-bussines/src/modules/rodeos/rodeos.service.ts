@@ -24,9 +24,9 @@ export class RodeosService {
   ): Promise<any[]> {
     const query = this.rodeosRepository
       .createQueryBuilder('rodeo')
-      .leftJoinAndSelect('rodeo.establecimiento', 'establecimiento');
+      .leftJoinAndSelect('rodeo.establecimiento', 'establecimiento')
+      .loadRelationCountAndMap('rodeo.cantidad_terneros', 'rodeo.terneros');
 
-    // Lógica multi-tenancy
     if (esAdmin) {
       const filterId = idEstablecimientoQuery || idEstablecimiento;
       if (filterId) {
@@ -44,27 +44,7 @@ export class RodeosService {
     }
 
     query.orderBy('rodeo.fecha_creacion', 'DESC');
-
-    const rodeos = await query.getMany();
-
-    // Agregar contador de terneros manualmente
-    const rodeosConConteo = [];
-
-    for (const rodeo of rodeos) {
-      const countQuery = await this.rodeosRepository.query(
-        `SELECT COUNT(*) as count FROM terneros WHERE id_rodeo = $1`,
-        [rodeo.id_rodeo],
-      );
-
-      const cantidad = parseInt(countQuery[0]?.count || '0', 10);
-
-      rodeosConConteo.push({
-        ...rodeo,
-        cantidad_terneros: cantidad,
-      });
-    }
-
-    return rodeosConConteo;
+    return await query.getMany();
   }
 
   // ========== OBTENER UN RODEO ==========
@@ -76,6 +56,7 @@ export class RodeosService {
     const rodeo = await this.rodeosRepository
       .createQueryBuilder('rodeo')
       .leftJoinAndSelect('rodeo.establecimiento', 'establecimiento')
+      .loadRelationCountAndMap('rodeo.cantidad_terneros', 'rodeo.terneros')
       .where('rodeo.id_rodeo = :id', { id })
       .getOne();
 
@@ -83,23 +64,11 @@ export class RodeosService {
       throw new NotFoundException(`Rodeo con ID ${id} no encontrado`);
     }
 
-    // Verificar permisos multi-tenancy
     if (!esAdmin && rodeo.id_establecimiento !== idEstablecimiento) {
       throw new ForbiddenException('No tienes acceso a este rodeo');
     }
 
-    // Contar terneros con query raw
-    const countQuery = await this.rodeosRepository.query(
-      `SELECT COUNT(*) as count FROM terneros WHERE id_rodeo = $1`,
-      [rodeo.id_rodeo],
-    );
-
-    const cantidad = parseInt(countQuery[0]?.count || '0', 10);
-
-    return {
-      ...rodeo,
-      cantidad_terneros: cantidad,
-    };
+    return rodeo;
   }
 
   // ========== CREAR RODEO ==========

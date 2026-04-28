@@ -7,11 +7,13 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Establecimiento } from '../../establecimientos/entities/establecimiento.entity'; // ⬅️ CORREGIDO
 import { TerneroEntity } from '../../terneros/entities/ternero.entity'; // ⬅️ CORREGIDO
 
 @Entity('rodeos')
+@Index(['id_establecimiento'])
 export class Rodeos {
   @PrimaryGeneratedColumn()
   id_rodeo: number;

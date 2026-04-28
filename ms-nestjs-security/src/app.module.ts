@@ -1,7 +1,8 @@
 // ms-nestjs-security/src/app.module.ts
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
@@ -28,11 +29,6 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
       useFactory: (configService: ConfigService) => {
         // 👇 DEBUG: Verificamos en consola qué está leyendo
         const dbPassword = configService.get<string>('database.password');
-        console.log(
-          '🔌 Intentando conectar DB con pass:',
-          dbPassword ? '******' : 'UNDEFINED',
-        );
-
         return {
           type: 'postgres',
           host: configService.get<string>('database.host'),
@@ -56,6 +52,9 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

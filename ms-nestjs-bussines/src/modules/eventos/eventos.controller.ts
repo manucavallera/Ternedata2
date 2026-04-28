@@ -40,19 +40,10 @@ export class EventosController {
   })
   @ApiBody({ type: CreateEventoDto })
   async create(@Body() createEventoDto: CreateEventoDto, @Req() req: any) {
-    console.log('🔍 DEBUG CREATE EVENTO:');
-    console.log('  - req.id_establecimiento:', req.id_establecimiento);
-    console.log('  - req.es_admin:', req.es_admin);
-    console.log('  - createEventoDto:', createEventoDto);
-
     const data = {
       ...createEventoDto,
-      // ✅ Priorizar el del DTO (admin elige), si no existe usar el del JWT
-      id_establecimiento:
-        createEventoDto.id_establecimiento || req.id_establecimiento,
+      id_establecimiento: req.id_establecimiento,
     };
-
-    console.log('  - data final:', data);
     return this.eventosService.create(data);
   }
 
@@ -92,19 +83,10 @@ export class EventosController {
     @Body() createMultipleEventosDto: CreateMultipleEventosDto,
     @Req() req: any,
   ) {
-    console.log('🔍 DEBUG CREATE MULTIPLE EVENTOS:');
-    console.log('  - req.id_establecimiento:', req.id_establecimiento);
-    console.log('  - req.es_admin:', req.es_admin);
-    console.log('  - Body recibido:', createMultipleEventosDto);
-
-    // ✅ Priorizar el del DTO (admin elige), si no existe usar el del JWT
     const data = {
       ...createMultipleEventosDto,
-      id_establecimiento:
-        createMultipleEventosDto.id_establecimiento || req.id_establecimiento,
+      id_establecimiento: req.id_establecimiento,
     };
-
-    console.log('  - Data final con establecimiento:', data);
     return this.eventosService.createMultiple(data);
   }
   @Get('/obtener-listado-eventos')
@@ -118,14 +100,6 @@ export class EventosController {
     const establecimientoFiltro = idEstablecimientoQuery
       ? parseInt(idEstablecimientoQuery, 10)
       : null;
-
-    console.log(
-      '🔍 Controller Eventos - ID del usuario:',
-      req.id_establecimiento,
-      'Es Admin:',
-      req.es_admin,
-    );
-    console.log('📥 Query Param recibido:', establecimientoFiltro);
 
     return this.eventosService.findAll(
       req.id_establecimiento,

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InvitacionesService } from './invitaciones.service';
@@ -30,16 +31,18 @@ export class InvitacionesController {
   @ApiOperation({ summary: 'Invitar usuario por email' })
   async crear(
     @Param('establecimientoId', ParseIntPipe) id: number,
-    // 👇 1. AGREGAMOS "email" AQUÍ PARA RECIBIRLO
     @Body() body: { email: string; rol: RolEstablecimiento },
     @Req() req: any,
   ) {
-    // 👇👇👇 AGREGAR ESTOS LOGS OBLIGATORIAMENTE 👇👇👇
-    console.log('🚀 LLEGÓ LA PETICIÓN AL CONTROLADOR');
-    console.log('🏢 ID Establecimiento:', id);
-    console.log('📦 Datos recibidos (Body):', body);
-    // 👆👆👆
-    // 👇 2. PASAMOS EL EMAIL AL SERVICIO (Asegúrate de actualizar tu servicio también)
+    // H10: el admin solo puede invitar a establecimientos a los que pertenece
+    const userEstabs = (req.user?.userEstablecimientos || []).map(
+      (ue: any) => ue.establecimientoId,
+    );
+    const puedeAcceder =
+      req.user?.id_establecimiento === id || userEstabs.includes(id);
+    if (!puedeAcceder) {
+      throw new ForbiddenException('No tenés acceso a este establecimiento');
+    }
     return await this.invitacionesService.generarLink(id, body.rol, body.email);
   }
 
@@ -63,7 +66,16 @@ export class InvitacionesController {
   @ApiOperation({ summary: 'Ver invitaciones pendientes de un establecimiento' })
   async pendientes(
     @Param('establecimientoId', ParseIntPipe) id: number,
+    @Req() req: any,
   ) {
+    const userEstabs = (req.user?.userEstablecimientos || []).map(
+      (ue: any) => ue.establecimientoId,
+    );
+    const puedeAcceder =
+      req.user?.id_establecimiento === id || userEstabs.includes(id);
+    if (!puedeAcceder) {
+      throw new ForbiddenException('No tenés acceso a este establecimiento');
+    }
     return await this.invitacionesService.getPendientes(id);
   }
 

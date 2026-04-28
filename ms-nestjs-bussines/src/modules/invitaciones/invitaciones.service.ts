@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus, ConflictException } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InvitacionEntity } from './invitacion.entity';
@@ -11,6 +11,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class InvitacionesService {
+  private readonly logger = new Logger(InvitacionesService.name);
+
   constructor(
     @InjectRepository(InvitacionEntity)
     private readonly invitacionRepo: Repository<InvitacionEntity>,
@@ -29,9 +31,6 @@ export class InvitacionesService {
     rol: RolEstablecimiento,
     email?: string,
   ) {
-    console.log('🔧 SERVICIO: Iniciando generarLink');
-    console.log('📧 Email recibido en servicio:', email);
-
     if (email) {
       const pendiente = await this.invitacionRepo.findOne({
         where: { email, establecimientoId, usado: false },
@@ -59,9 +58,7 @@ export class InvitacionesService {
     const invitacion = this.invitacionRepo.create(datosInvitacion);
     await this.invitacionRepo.save(invitacion);
 
-    // 👇 3. LÓGICA DE ENVÍO DE EMAIL (¡ESTO FALTABA!)
     if (email) {
-      console.log('📨 INTENTANDO enviar email a:', email);
       try {
         await this.mailService.sendMail({
           to: email,
@@ -74,12 +71,10 @@ export class InvitacionesService {
             <a href="${process.env.FRONTEND_URL}/join?token=${token}&email=${encodeURIComponent(email)}">Aceptar Invitación</a>
           `,
         });
-        console.log('✅ NODEMAILER: Email enviado con éxito');
+        this.logger.log(`Invitación enviada a ${email}`);
       } catch (error) {
-        console.error('❌ NODEMAILER ERROR:', error);
+        this.logger.error(`Error enviando invitación a ${email}`, error);
       }
-    } else {
-      console.log('⚠️ SE SALTÓ EL ENVÍO (no hay email)');
     }
 
     const emailParam = email ? `&email=${encodeURIComponent(email)}` : '';
