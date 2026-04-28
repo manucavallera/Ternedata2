@@ -826,6 +826,28 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
+  // ===== DASHBOARD KPIs =====
+  const obtenerResumenDashboardHook = async (queryParams = "") => {
+    try {
+      const url = queryParams
+        ? `/terneros/resumen-dashboard?${queryParams}`
+        : `/terneros/resumen-dashboard`;
+      const { data, config, headers, status, statusText, request } =
+        await businessApi.get(url);
+      return { data, config, headers, status, statusText, request };
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return {
+        status: error?.response?.status || 500,
+        data: error?.response?.data || { message: error.message },
+        error: true,
+      };
+    }
+  };
+
   const desasignarMadresRodeoHook = async (idRodeo, data) => {
     try {
       const { data: responseData, config, headers, status, statusText, request } =
@@ -900,5 +922,7 @@ export const useBussinesMicroservicio = () => {
     desasignarTernerosRodeoHook,
     asignarMadresRodeoHook,
     desasignarMadresRodeoHook,
+    // ===== DASHBOARD =====
+    obtenerResumenDashboardHook,
   };
 };

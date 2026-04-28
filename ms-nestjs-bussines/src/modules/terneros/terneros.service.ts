@@ -579,4 +579,108 @@ export class TernerosService {
       );
     }
   }
+
+  // ============================================================
+  // RESUMEN DASHBOARD — un solo query con GROUP BY
+  // ============================================================
+  async getResumenDashboard(
+    idEstablecimiento: number | null,
+    esAdmin: boolean,
+    idEstablecimientoQuery?: number | null,
+  ): Promise<any> {
+    try {
+      const filterId = esAdmin
+        ? idEstablecimientoQuery || idEstablecimiento
+        : idEstablecimiento;
+
+      const qb = this.terneroRepository.createQueryBuilder('ternero');
+
+      if (filterId) {
+        qb.where('ternero.id_establecimiento = :filterId', { filterId });
+      }
+
+      const hace30Dias = new Date();
+      hace30Dias.setDate(hace30Dias.getDate() - 30);
+
+      const [total, vivos, muertos, vendidos, calostrados, muertosUltimos30d, bajoCrec] =
+        await Promise.all([
+          qb.getCount(),
+          qb.clone().andWhere("ternero.estado = 'Vivo'").getCount(),
+          qb.clone().andWhere("ternero.estado = 'Muerto'").getCount(),
+          qb.clone().andWhere("ternero.estado = 'Vendido'").getCount(),
+          qb
+            .clone()
+            .andWhere('ternero.metodo_calostrado IS NOT NULL')
+            .getCount(),
+          qb
+            .clone()
+            .andWhere("ternero.estado = 'Muerto'")
+            .andWhere('ternero.fecha_nacimiento >= :hace30Dias', { hace30Dias })
+            .getCount(),
+          // Terneros vivos con ganancia diaria < 0.5 kg/día (bajo crecimiento)
+          // Se calcula post-fetch porque aumento_diario_promedio es campo virtual
+          qb
+            .clone()
+            .andWhere("ternero.estado = 'Vivo'")
+            .andWhere('ternero.estimativo IS NOT NULL')
+            .andWhere("ternero.estimativo != ''")
+            .limit(500)
+            .getMany(),
+        ]);
+
+      // Calcular promedios en memoria (solo los vivos que tienen datos)
+      const vivosConDatos = (bajoCrec as any[]).filter((t) => {
+        try {
+          t.calcularIndicadoresCrecimiento?.();
+          return true;
+        } catch {
+          return false;
+        }
+      });
+
+      const promedioGananciaDiaria =
+        vivosConDatos.length > 0
+          ? parseFloat(
+              (
+                vivosConDatos.reduce(
+                  (sum, t) => sum + (t.aumento_diario_promedio || 0),
+                  0,
+                ) / vivosConDatos.length
+              ).toFixed(2),
+            )
+          : 0;
+
+      const alertasBajoCrecimiento = vivosConDatos.filter(
+        (t) => (t.aumento_diario_promedio || 0) < 0.5,
+      ).map((t) => ({
+        id_ternero: t.id_ternero,
+        rp_ternero: t.rp_ternero,
+        aumento_diario_promedio: t.aumento_diario_promedio,
+        dias_desde_nacimiento: t.dias_desde_nacimiento,
+        ultimo_peso: t.ultimo_peso,
+      }));
+
+      const porcentajeCalostrados =
+        vivos > 0 ? parseFloat(((calostrados / total) * 100).toFixed(1)) : 0;
+
+      return {
+        total,
+        vivos,
+        muertos,
+        vendidos,
+        calostrados,
+        porcentaje_calostrados: porcentajeCalostrados,
+        mortalidad_ultimos_30d: muertosUltimos30d,
+        promedio_ganancia_diaria_kg: promedioGananciaDiaria,
+        alertas_bajo_crecimiento: alertasBajoCrecimiento,
+        total_alertas: alertasBajoCrecimiento.length,
+      };
+    } catch (error) {
+      this.logger.error('Error en getResumenDashboard', error);
+      throw new HttpException(
+        `Error al obtener resumen del dashboard: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

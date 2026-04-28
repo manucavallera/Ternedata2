@@ -1,99 +1,106 @@
 import React, { useEffect, useState } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
+import Select from "react-select";
+
+// Estilos personalizados para que react-select se vea bien
+const customStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#6366f1" : "#d1d5db",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(99,102,241,0.3)" : "none",
+    borderRadius: "0.375rem",
+    minHeight: "46px",
+    backgroundColor: state.isDisabled ? "#f3f4f6" : "#fff",
+    cursor: state.isDisabled ? "not-allowed" : "default",
+    "&:hover": { borderColor: "#6366f1" },
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "#6366f1"
+      : state.isFocused
+      ? "#eef2ff"
+      : "#fff",
+    color: state.isSelected ? "#fff" : "#374151",
+    fontSize: "14px",
+    cursor: "pointer",
+  }),
+  placeholder: (base) => ({ ...base, color: "#9ca3af", fontSize: "14px" }),
+  singleValue: (base) => ({ ...base, fontSize: "14px", color: "#111827" }),
+  input: (base) => ({ ...base, fontSize: "14px" }),
+  menu: (base) => ({ ...base, zIndex: 9999, borderRadius: "0.375rem" }),
+  noOptionsMessage: (base) => ({ ...base, fontSize: "13px", color: "#6b7280" }),
+};
 
 const SeleccionarTernero = ({ terneroSeleccionado, idEstablecimiento }) => {
   const { obtenerTerneroHook } = useBussinesMicroservicio();
 
-  const [terneros, setTerneros] = useState([]);
-  const [selectedTerneroId, setSelectedTerneroId] = useState("");
+  const [opciones, setOpciones] = useState([]);
+  const [seleccionado, setSeleccionado] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Cargar terneros filtrados por establecimiento
   const cargarTerneroList = async (idEstab) => {
     try {
       setLoading(true);
+      const queryParams = idEstab
+        ? `id_establecimiento=${idEstab}&limit=500`
+        : "limit=500";
+      const res = await obtenerTerneroHook(queryParams);
+      const terneros = res?.data?.data || [];
+      const opts = terneros.map((t) => ({
+        value: t.id_ternero,
+        label: `RP: ${t.rp_ternero} — ${t.sexo}${t.madre ? " (Madre RP: " + t.madre.rp_madre + ")" : ""}`,
+      }));
+      setOpciones(opts);
 
-      // Si hay establecimiento, filtrar por él
-      const queryParams = idEstab ? `id_establecimiento=${idEstab}&limit=500` : "limit=500";
-      const resListTernero = await obtenerTerneroHook(queryParams);
-
-      setTerneros(resListTernero?.data?.data || []);
-
-      // Si cambia el establecimiento, resetear selección
-      if (selectedTerneroId) {
-        const terneroExiste = resListTernero?.data?.data?.some(
-          (t) => t.id_ternero === parseInt(selectedTerneroId)
-        );
-        if (!terneroExiste) {
-          setSelectedTerneroId("");
+      if (seleccionado) {
+        const sigueExistiendo = opts.some((o) => o.value === seleccionado.value);
+        if (!sigueExistiendo) {
+          setSeleccionado(null);
           terneroSeleccionado("0");
         }
       }
-    } catch (error) {
-      console.error("Error al cargar terneros:", error);
-      setTerneros([]);
+    } catch {
+      setOpciones([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Función para manejar el cambio de selección
-  const handleSelectChange = (event) => {
-    setSelectedTerneroId(event.target.value);
-    terneroSeleccionado(event.target.value);
+  const handleChange = (opcion) => {
+    setSeleccionado(opcion);
+    terneroSeleccionado(opcion ? String(opcion.value) : "0");
   };
 
-  // ✅ Recargar terneros cuando cambia el establecimiento
   useEffect(() => {
-    if (idEstablecimiento) {
-      cargarTerneroList(idEstablecimiento);
-    }
+    if (idEstablecimiento) cargarTerneroList(idEstablecimiento);
   }, [idEstablecimiento]);
 
   return (
     <>
-      {/* Dropdown de selección de terneros */}
-      <select
-        value={selectedTerneroId}
-        onChange={handleSelectChange}
-        disabled={loading || !idEstablecimiento}
-        className={`w-full px-4 py-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-          loading || !idEstablecimiento
-            ? "bg-gray-100 cursor-not-allowed"
-            : "bg-white"
-        } border-gray-300`}
-      >
-        <option value='0'>
-          {loading
+      <Select
+        options={opciones}
+        value={seleccionado}
+        onChange={handleChange}
+        isLoading={loading}
+        isDisabled={loading || !idEstablecimiento}
+        isClearable
+        isSearchable
+        placeholder={
+          loading
             ? "Cargando terneros..."
             : !idEstablecimiento
             ? "Primero seleccione un establecimiento"
-            : terneros.length === 0
-            ? "No hay terneros disponibles"
-            : "Seleccione un Ternero"}
-        </option>
-        {terneros.map((ternero) => (
-          <option key={ternero.id_ternero} value={ternero.id_ternero}>
-            RP: {ternero.rp_ternero} - Sexo: {ternero.sexo}
-          </option>
-        ))}
-      </select>
-
-      {/* Información adicional */}
-      {terneros.length > 0 && (
-        <p className='mt-1 text-xs text-gray-500'>
-          🐄 {terneros.length} ternero(s) disponible(s) en este establecimiento
+            : "Buscar ternero por RP..."
+        }
+        noOptionsMessage={() => "No hay terneros disponibles"}
+        styles={customStyles}
+      />
+      {opciones.length > 0 && (
+        <p className="mt-1 text-xs text-gray-500">
+          🐄 {opciones.length} ternero(s) disponible(s)
         </p>
       )}
-
-      {/* Mostrar el id seleccionado (solo en desarrollo) */}
-      {selectedTerneroId &&
-        selectedTerneroId !== "0" &&
-        process.env.NODE_ENV === "development" && (
-          <p className='mt-2 text-xs text-gray-600'>
-            ID seleccionado: <strong>{selectedTerneroId}</strong>
-          </p>
-        )}
     </>
   );
 };

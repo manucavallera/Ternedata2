@@ -3,7 +3,23 @@
     "allow": [
       "Bash(xargs cat *)",
       "Bash(npm install *)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(PGPASSWORD='Manuelo12*' psql -h 173.249.36.67 -p 54320 -U postgres -d Ganaderia -c \"SELECT id_ternero, rp_ternero, sexo, peso_nacer, estado, fecha_nacimiento, semen, observaciones, created_at FROM terneros ORDER BY id_ternero DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD='Manuelo12*' psql -h 173.249.36.67 -p 54320 -U postgres -d Ganaderia -c \"SELECT id_ternero, rp_ternero, sexo, peso_nacer, estado, fecha_nacimiento, semen, observaciones FROM terneros ORDER BY id_ternero DESC LIMIT 10;\")",
+      "Bash(where psql *)",
+      "Bash(where pg_dump)",
+      "Read(//c/Program Files/**)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('pg'\\)\")",
+      "Bash(xargs grep *)",
+      "Bash(dir \"c:\\\\Users\\\\coco\\\\Ternedata2\\\\n8n-workflows\")",
+      "Bash(dir \"c:\\\\Users\\\\coco\\\\Ternedata2\\\\TerneData*\")",
+      "Bash(grep -E \"\\\\.\\(jsx|js|ts|tsx\\)$\")",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf-8'\\); const p=JSON.parse\\(d\\); const deps={...p.dependencies,...p.devDependencies}; ['@nestjs/throttler','helmet','@nestjs/helmet','class-validator','class-transformer'].forEach\\(k=>console.log\\(k+':', deps[k]||'NO INSTALADO'\\)\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npm run *)"
     ]
   }
 }

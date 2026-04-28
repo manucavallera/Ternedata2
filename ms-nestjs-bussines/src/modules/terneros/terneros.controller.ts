@@ -144,8 +144,24 @@ export class TernerosController {
       id_rodeo ? parseInt(id_rodeo, 10) : null,
       estado || null,
       page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 20,
+      limit ? parseInt(limit, 10) : 100,
       search || null,
+    );
+  }
+
+  // ============================================================
+  // RESUMEN DASHBOARD
+  // ============================================================
+  @Get('/resumen-dashboard')
+  @ApiOperation({
+    summary: 'KPIs del establecimiento: totales, mortalidad, crecimiento, alertas',
+  })
+  async getResumenDashboard(@Req() req: any, @Query() query: any) {
+    const { id_establecimiento } = query;
+    return this.ternerosService.getResumenDashboard(
+      req.id_establecimiento,
+      req.es_admin,
+      id_establecimiento ? parseInt(id_establecimiento, 10) : null,
     );
   }
 

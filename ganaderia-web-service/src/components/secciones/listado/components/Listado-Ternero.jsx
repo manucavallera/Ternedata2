@@ -1,6 +1,16 @@
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux"; // 🆕 AGREGAR ESTA LÍNEA
+import { useSelector } from "react-redux";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const ListadoTernero = () => {
   // ✅ USAR HOOKS DISPONIBLES + NUEVOS
@@ -1321,6 +1331,60 @@ const ListadoTernero = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Gráfico curva de crecimiento vs objetivo */}
+                  {modalHistorial.data.historial_pesos?.length > 0 && (() => {
+                    const pesoNacer = modalHistorial.data.peso_nacer;
+                    // Construimos puntos: nacimiento + cada pesaje
+                    const puntos = [
+                      { label: "Nacer", real: pesoNacer, objetivo: pesoNacer },
+                      ...modalHistorial.data.historial_pesos.map((p, i) => ({
+                        label: p.fecha,
+                        real: p.peso,
+                        // curva objetivo: 0.8 kg/día × días acumulados (estimado por índice)
+                        objetivo: parseFloat((pesoNacer + 0.8 * (i + 1)).toFixed(1)),
+                      })),
+                    ];
+                    return (
+                      <div className="mt-2">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                          📈 Curva de crecimiento vs objetivo (0.8 kg/día)
+                        </h4>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <LineChart data={puntos} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} />
+                            <YAxis tick={{ fontSize: 11, fill: "#64748b" }} unit=" kg" />
+                            <Tooltip
+                              formatter={(val, name) => [`${val} kg`, name === "real" ? "Peso real" : "Objetivo"]}
+                              contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                            />
+                            <Legend
+                              formatter={(val) => val === "real" ? "Peso real" : "Objetivo"}
+                              wrapperStyle={{ fontSize: 12 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="real"
+                              stroke="#3b82f6"
+                              strokeWidth={2}
+                              dot={{ r: 4, fill: "#3b82f6" }}
+                              activeDot={{ r: 6 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="objetivo"
+                              stroke="#ef4444"
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              dot={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    );
+                  })()}
+
                 </div>
               ) : (
                 <div className='text-center py-12 text-red-500'>
