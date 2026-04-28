@@ -5,7 +5,7 @@ import { LoginAuthDto } from './dto/login.dto';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
-import { Roles } from './roles.decorator';
+import { Roles, UserRole } from './roles.decorator';
 import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
@@ -27,7 +27,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @Get('generar-token')
   @ApiOperation({ summary: 'Generar token de invitación (solo admin)' })
   dameToken(
