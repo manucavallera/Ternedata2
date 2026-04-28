@@ -355,14 +355,6 @@ const ListadoTratamiento = () => {
       // ⬅️ NUEVO: Agregar filtro de establecimiento para Admin
       if (userPayload?.rol === "admin" && establecimientoActual) {
         queryParams.append("id_establecimiento", establecimientoActual);
-        console.log(
-          "🔍 Admin filtrando tratamientos por establecimiento:",
-          establecimientoActual
-        );
-      } else if (userPayload?.rol === "admin" && !establecimientoActual) {
-        console.log("🔍 Admin viendo TODOS los tratamientos");
-      } else {
-        console.log("🔍 Usuario no-admin, backend filtra automáticamente");
       }
 
       // Filtros adicionales (tipo_enfermedad y turno)

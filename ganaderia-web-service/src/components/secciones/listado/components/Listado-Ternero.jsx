@@ -96,7 +96,7 @@ const ListadoTernero = () => {
       if (userPayload?.rol === "admin" && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
-      queryParams += `page=${paginaActual}&limit=20`;
+      queryParams += `page=${paginaActual}&limit=500`;
       if (searchVal) queryParams += `&search=${encodeURIComponent(searchVal)}`;
       if (estadoVal) queryParams += `&estado=${encodeURIComponent(estadoVal)}`;
 

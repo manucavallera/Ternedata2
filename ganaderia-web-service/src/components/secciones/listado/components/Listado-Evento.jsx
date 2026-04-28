@@ -33,14 +33,6 @@ const ListadoEvento = () => {
       // Si es admin y seleccionó un establecimiento, filtrar por ese
       if (userPayload?.rol === "admin" && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
-        console.log(
-          "🔍 Admin filtrando eventos por establecimiento:",
-          establecimientoActual
-        );
-      } else if (userPayload?.rol === "admin" && !establecimientoActual) {
-        console.log("🔍 Admin viendo TODOS los eventos");
-      } else {
-        console.log("🔍 Usuario no-admin, backend filtra automáticamente");
       }
 
       const resEventos = await obtenerEventoHook(queryParams);

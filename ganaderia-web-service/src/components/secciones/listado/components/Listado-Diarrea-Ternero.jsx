@@ -33,14 +33,6 @@ const ListadoDiarreaTernero = () => {
       // Si es admin y seleccionó un establecimiento, filtrar por ese
       if (userPayload?.rol === "admin" && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
-        console.log(
-          "🔍 Admin filtrando diarreas por establecimiento:",
-          establecimientoActual
-        );
-      } else if (userPayload?.rol === "admin" && !establecimientoActual) {
-        console.log("🔍 Admin viendo TODAS las diarreas");
-      } else {
-        console.log("🔍 Usuario no-admin, backend filtra automáticamente");
       }
 
       const resDiarreaTernero = await obtenerDiarreaTerneroHook(queryParams);

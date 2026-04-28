@@ -2,6 +2,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -16,6 +17,8 @@ import { TerneroEntity } from '../terneros/entities/ternero.entity';
 
 @Injectable()
 export class EventosService {
+  private readonly logger = new Logger(EventosService.name);
+
   constructor(
     @InjectRepository(EventoEntity)
     private readonly eventoRepository: Repository<EventoEntity>,
@@ -182,21 +185,11 @@ export class EventosService {
     idEstablecimientoQuery?: number | null, // ⬅️ NUEVO PARÁMETRO
   ): Promise<EventoEntity[]> {
     try {
-      console.log(
-        '🔍 Service Eventos findAll - ID Usuario:',
-        idEstablecimiento,
-        'Es Admin:',
-        esAdmin,
-        'Query Param:',
-        idEstablecimientoQuery,
-      );
-
       const queryBuilder = this.eventoRepository
         .createQueryBuilder('evento')
         .leftJoinAndSelect('evento.terneros', 'terneros')
         .leftJoinAndSelect('evento.madres', 'madres');
 
-      // Lógica de filtrado
       if (esAdmin) {
         const filterId = idEstablecimientoQuery || idEstablecimiento;
         if (filterId) {
@@ -205,26 +198,16 @@ export class EventosService {
           });
         }
       } else {
-        // Si NO es admin, SIEMPRE filtrar por su establecimiento
         if (idEstablecimiento) {
-          console.log(
-            '✅ Usuario no-admin, filtrando eventos por su establecimiento:',
-            idEstablecimiento,
-          );
           queryBuilder.where('evento.id_establecimiento = :idEstablecimiento', {
             idEstablecimiento,
           });
-        } else {
-          console.warn('⚠️ Usuario no-admin sin establecimiento asignado');
         }
       }
 
-      const eventos = await queryBuilder.getMany();
-      console.log(`✅ Encontrados ${eventos.length} eventos`);
-
-      return eventos;
+      return await queryBuilder.getMany();
     } catch (error) {
-      console.error('Error en findAll eventos:', error);
+      this.logger.error('Error en findAll eventos', error);
       throw new HttpException(
         `Error al obtener los eventos: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
