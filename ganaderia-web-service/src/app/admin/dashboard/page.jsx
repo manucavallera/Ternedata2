@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { setVistaApp } from "@/store/seccion";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import {
   BarChart,
@@ -20,23 +21,33 @@ import SetupEstablecimiento from "@/components/SetupEstablecimiento";
 // ─── KPI Card ────────────────────────────────────────────────
 const KPICard = ({ titulo, valor, subtitulo, color, icono, alerta }) => (
   <div
-    className={`relative flex flex-col gap-1 p-4 rounded-xl shadow-lg border ${
+    className={`relative flex flex-col gap-1 p-3 sm:p-4 rounded-xl shadow-lg border ${
       alerta
         ? "border-red-500 bg-red-950/40"
         : "border-slate-700 bg-slate-800/80"
-    } backdrop-blur-sm`}
+    } backdrop-blur-sm min-w-0`}
   >
     <div className="flex items-center justify-between">
-      <span className="text-2xl">{icono}</span>
+      <span className="text-xl sm:text-2xl">{icono}</span>
       {alerta && (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-semibold animate-pulse">
+        <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-red-600 text-white font-semibold animate-pulse">
           Alerta
         </span>
       )}
     </div>
-    <p className={`text-3xl font-extrabold mt-1 ${color}`}>{valor}</p>
-    <p className="text-sm font-medium text-slate-300">{titulo}</p>
-    {subtitulo && <p className="text-xs text-slate-500">{subtitulo}</p>}
+    <p
+      className={`text-xl sm:text-2xl lg:text-3xl font-extrabold mt-1 break-words leading-tight ${color}`}
+    >
+      {valor}
+    </p>
+    <p className="text-xs sm:text-sm font-medium text-slate-300 leading-tight">
+      {titulo}
+    </p>
+    {subtitulo && (
+      <p className="text-[11px] sm:text-xs text-slate-500 leading-tight">
+        {subtitulo}
+      </p>
+    )}
   </div>
 );
 
@@ -45,13 +56,15 @@ const TablaAlertas = ({ alertas }) => {
   if (!alertas?.length) return null;
   return (
     <div className="mt-6">
-      <h3 className="text-base font-semibold text-red-400 mb-3 flex items-center gap-2">
-        ⚠️ Terneros con bajo crecimiento (&lt; 0.5 kg/día)
+      <h3 className="text-sm sm:text-base font-semibold text-red-400 mb-3 flex flex-wrap items-center gap-2">
+        <span>⚠️ Terneros con bajo crecimiento (&lt; 0.5 kg/día)</span>
         <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
           {alertas.length}
         </span>
       </h3>
-      <div className="overflow-x-auto rounded-lg border border-slate-700">
+
+      {/* Vista tabla — md y arriba */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-700">
         <table className="min-w-full text-sm text-slate-300 bg-slate-800">
           <thead className="bg-slate-900 text-xs uppercase text-slate-400">
             <tr>
@@ -84,16 +97,44 @@ const TablaAlertas = ({ alertas }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Vista cards — mobile */}
+      <div className="md:hidden grid gap-2">
+        {alertas.map((t) => (
+          <div
+            key={t.id_ternero}
+            className="rounded-lg border border-slate-700 bg-slate-800 p-3"
+          >
+            <div className="flex justify-between items-start mb-2">
+              <span className="font-semibold text-red-300 text-sm">
+                RP {t.rp_ternero}
+              </span>
+              <span className="text-red-400 font-bold text-sm">
+                {t.aumento_diario_promedio != null
+                  ? `${t.aumento_diario_promedio.toFixed(2)} kg/día`
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>{t.dias_desde_nacimiento ?? "—"} días</span>
+              <span>
+                {t.ultimo_peso != null ? `${t.ultimo_peso} kg` : "—"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
 // ─── Dashboard principal ─────────────────────────────────────
 const Dashboard = () => {
+  const dispatch = useDispatch();
   const { authPayload, status, userPayload } = useSelector(
     (state) => state.auth
   );
-  const { stateSeccion } = useSelector((state) => state.seccion);
+  const { stateSeccion, vistaApp } = useSelector((state) => state.seccion);
   const { statusSessionUser } = useSelector((state) => state.register);
   const { establecimientoActual } = useSelector((state) => state.auth);
 
@@ -102,7 +143,8 @@ const Dashboard = () => {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [vista, setVista] = useState("dashboard"); // "dashboard" | "app"
+  const vista = vistaApp ? "app" : "dashboard";
+  const setVista = (v) => dispatch(setVistaApp(v === "app"));
 
   // ── Autenticación ─────────────────────────────────────────
   if (status !== "authenticated" && !authPayload?.user && statusSessionUser === true) {
@@ -181,30 +223,30 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Header */}
-      <div className="px-4 pt-6 pb-4 border-b border-slate-700/50">
+      <div className="px-3 sm:px-4 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-700/50">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
               🐄 TerneData
             </h1>
-            <p className="text-slate-400 text-sm mt-0.5">
+            <p className="text-slate-400 text-xs sm:text-sm mt-0.5 truncate">
               Bienvenido,{" "}
               <span className="text-slate-200 font-medium">
                 {userPayload?.name || "productor"}
               </span>
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={cargarResumen}
               disabled={loading}
-              className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               {loading ? "⏳ Actualizando..." : "🔄 Actualizar"}
             </button>
             <button
               onClick={() => setVista("app")}
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors"
+              className="flex-1 sm:flex-none px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors whitespace-nowrap"
             >
               Ir al sistema →
             </button>
@@ -212,10 +254,10 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Error */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm">
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-xs sm:text-sm break-words">
             ❌ {error}
           </div>
         )}
@@ -224,11 +266,11 @@ const Dashboard = () => {
         {loading ? (
           <div className="flex items-center justify-center h-40">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-400" />
-            <span className="ml-3 text-slate-400">Cargando KPIs...</span>
+            <span className="ml-3 text-slate-400 text-sm">Cargando KPIs...</span>
           </div>
         ) : resumen ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
               <KPICard
                 titulo="Total terneros"
                 valor={resumen.total ?? 0}
@@ -287,11 +329,11 @@ const Dashboard = () => {
             </div>
 
             {/* Gráfico de barras */}
-            <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-2">
-              <h2 className="text-sm font-semibold text-slate-300 mb-4">
+            <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 sm:p-4 mb-2">
+              <h2 className="text-sm font-semibold text-slate-300 mb-3 sm:mb-4">
                 Estado del rodeo
               </h2>
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart
                   data={datosGrafico}
                   margin={{ top: 5, right: 10, left: -20, bottom: 5 }}

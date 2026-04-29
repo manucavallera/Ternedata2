@@ -21,6 +21,13 @@ export const seccionSlice = createSlice({
             }
         },
 
+        setVistaApp: (state, { payload }) => {
+            return {
+                ...state,
+                vistaApp: payload
+            }
+        },
+
 
     }
 });
@@ -31,6 +38,7 @@ export const {
     //aqui va la carga de data
     setSeccionStatus,
     resetSeccionStatus,
+    setVistaApp,
 
 
 } = seccionSlice.actions;

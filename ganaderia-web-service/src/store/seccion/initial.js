@@ -1,5 +1,6 @@
 const initialState = {
-    stateSeccion:false
+    stateSeccion: false,
+    vistaApp: false
   };
   
   

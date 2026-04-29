@@ -7,7 +7,7 @@ import logAuthMethod from "@/utils/logAuth";
 import { useRouter, usePathname } from "next/navigation";
 import sessionLogOutMethod from "@/utils/sessionLogOut";
 import verifySession from "@/utils/verifySession";
-import { setSeccionStatus } from "@/store/seccion";
+import { setSeccionStatus, setVistaApp } from "@/store/seccion";
 import Image from "next/image";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
@@ -77,20 +77,20 @@ function Navbar() {
   }, [userPayload?.rol, userPayload?.id_establecimiento]);
 
   const onclickIngreso = () => {
-    // Si no estamos en /admin/dashboard, navegar primero
     if (pathname !== "/admin/dashboard") {
       router.push("/admin/dashboard");
     }
     dispatch(setSeccionStatus(false));
+    dispatch(setVistaApp(true));
     setIsMobileMenuOpen(false);
   };
 
   const onclickListado = () => {
-    // Si no estamos en /admin/dashboard, navegar primero
     if (pathname !== "/admin/dashboard") {
       router.push("/admin/dashboard");
     }
     dispatch(setSeccionStatus(true));
+    dispatch(setVistaApp(true));
     setIsMobileMenuOpen(false);
   };
 
