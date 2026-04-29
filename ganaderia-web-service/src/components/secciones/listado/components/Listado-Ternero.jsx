@@ -983,7 +983,6 @@ const ListadoTernero = () => {
             </div>
           </div>
         </div>
-        </div>{/* fin tabla desktop */}
 
         {/* Modal de Peso Diario Mejorado - Responsive */}
         {modalPesoDiario.isOpen && (

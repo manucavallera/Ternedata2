@@ -784,7 +784,6 @@ const ListadoTratamiento = () => {
             </div>
           </div>
         </div>
-        </div>{/* fin tabla desktop */}
 
         {/* Información adicional */}
         {!loading && tratamientos.length > 0 && (

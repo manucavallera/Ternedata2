@@ -484,7 +484,6 @@ const ListadoDiarreaTernero = () => {
             </div>
           </div>
         </div>
-        </div>{/* fin tabla desktop */}
 
         {/* FOOTER CON ESTADÍSTICAS - Responsive */}
         {diarreasTernero.length > 0 && (
