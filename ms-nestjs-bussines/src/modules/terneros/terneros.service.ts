@@ -609,7 +609,9 @@ export class TernerosService {
           qb.clone().andWhere("ternero.estado = 'Muerto'").getCount(),
           qb
             .clone()
-            .andWhere('ternero.metodo_calostrado IS NOT NULL')
+            .andWhere(
+              '(ternero.metodo_calostrado IS NOT NULL OR ternero.fecha_hora_calostrado IS NOT NULL)',
+            )
             .getCount(),
           qb
             .clone()

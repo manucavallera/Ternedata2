@@ -282,7 +282,6 @@ const Dashboard = () => {
                 valor={resumen.vivos ?? 0}
                 icono="💚"
                 color="text-emerald-400"
-                subtitulo={`${resumen.vendidos ?? 0} vendidos`}
               />
               <KPICard
                 titulo="Mortalidad (30d)"
