@@ -548,8 +548,55 @@ const ListadoTratamiento = () => {
           </div>
         </div>
 
-        {/* Tabla de Tratamientos - SIN COLUMNA APLICACIONES */}
-        <div className='overflow-x-auto -mx-3 sm:mx-0'>
+        {/* Cards — mobile */}
+        <div className='md:hidden grid gap-3 mb-4'>
+          {loading ? (
+            <div className='flex justify-center items-center py-10'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500' />
+              <span className='ml-2 text-slate-400 text-sm'>Cargando...</span>
+            </div>
+          ) : tratamientos.length === 0 ? (
+            <p className='text-center text-slate-400 py-8 text-sm'>No se encontraron tratamientos</p>
+          ) : (
+            tratamientos.map((tratamiento) => (
+              <div key={tratamiento.id_tratamiento} className='rounded-xl border border-slate-700 bg-slate-800/80 p-3 shadow'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='min-w-0 flex-1'>
+                    <p className='text-sm font-bold text-indigo-300 truncate'>{tratamiento.nombre}</p>
+                    <p className='text-xs text-slate-400 mt-0.5'>📅 {formatearFecha(tratamiento.fecha_tratamiento)}</p>
+                  </div>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getTurnoColor ? getTurnoColor(tratamiento.turno) : 'bg-slate-600 text-slate-200'}`}>
+                    {getTurnoEmoji && getTurnoEmoji(tratamiento.turno)} {tratamiento.turno}
+                  </span>
+                </div>
+                {tratamiento.descripcion && (
+                  <p className='text-xs text-slate-400 mb-2 line-clamp-2'>{tratamiento.descripcion}</p>
+                )}
+                <div className='flex flex-wrap gap-2 mb-3 text-xs'>
+                  {tratamiento.tipo_enfermedad && (
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${getTipoEnfermedadColor ? getTipoEnfermedadColor(tratamiento.tipo_enfermedad) : 'bg-slate-600 text-slate-200'}`}>
+                      {getTipoEnfermedadEmoji && getTipoEnfermedadEmoji(tratamiento.tipo_enfermedad)} {tratamiento.tipo_enfermedad}
+                    </span>
+                  )}
+                  {tratamiento.ternero && (
+                    <span className='text-green-400'>🐄 RP {tratamiento.ternero.rp_ternero}</span>
+                  )}
+                </div>
+                <div className='grid grid-cols-2 gap-2'>
+                  <button onClick={() => abrirModalEditar(tratamiento)} className='py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ✏️ Editar
+                  </button>
+                  <button onClick={() => abrirModalEliminar(tratamiento)} className='py-2 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tabla — desktop (md y arriba) */}
+        <div className='hidden md:block overflow-x-auto -mx-3 sm:mx-0'>
           <div className='inline-block min-w-full align-middle'>
             <div className='overflow-hidden'>
               <table className='w-full text-left table-auto min-w-max bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 border-separate border-spacing-0 rounded-lg shadow-2xl'>
@@ -737,6 +784,7 @@ const ListadoTratamiento = () => {
             </div>
           </div>
         </div>
+        </div>{/* fin tabla desktop */}
 
         {/* Información adicional */}
         {!loading && tratamientos.length > 0 && (

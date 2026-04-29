@@ -581,8 +581,89 @@ const ListadoTernero = () => {
             : `${total} ternero(s) encontrado(s) — página ${page} de ${totalPages}`}
         </div>
 
-        {/* Tabla Responsive - Scroll horizontal en mobile */}
-        <div className='overflow-x-auto -mx-3 sm:mx-0 shadow-2xl rounded-lg'>
+        {/* Cards — mobile */}
+        <div className='md:hidden grid gap-3 mb-4'>
+          {loading ? (
+            <div className='flex justify-center items-center py-10'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500' />
+              <span className='ml-2 text-slate-400 text-sm'>Cargando...</span>
+            </div>
+          ) : terneros.length === 0 ? (
+            <p className='text-center text-slate-400 py-8 text-sm'>No se encontraron terneros</p>
+          ) : (
+            terneros.map((ternero) => (
+              <div key={ternero.id_ternero} className='rounded-xl border border-slate-700 bg-slate-800/80 p-3 shadow'>
+                {/* Header */}
+                <div className='flex items-center justify-between mb-2'>
+                  <span className='text-lg font-extrabold text-indigo-300'>RP {ternero.rp_ternero}</span>
+                  <div className='flex gap-1.5'>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ternero.sexo === 'Macho' ? 'bg-blue-500 text-blue-900' : 'bg-pink-500 text-pink-900'}`}>
+                      {ternero.sexo}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ternero.estado === 'Vivo' ? 'bg-green-500 text-green-900' : 'bg-red-500 text-red-900'}`}>
+                      {ternero.estado}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className='grid grid-cols-3 gap-2 mb-2 text-xs'>
+                  <div className='bg-slate-700/60 rounded-lg p-2 text-center'>
+                    <p className='text-slate-400'>Días</p>
+                    <p className='font-bold text-orange-400'>{ternero.dias_desde_nacimiento ?? 0}</p>
+                  </div>
+                  <div className='bg-slate-700/60 rounded-lg p-2 text-center'>
+                    <p className='text-slate-400'>Último peso</p>
+                    <p className='font-bold text-blue-400'>{ternero.ultimo_peso ?? ternero.peso_nacer} kg</p>
+                  </div>
+                  <div className='bg-slate-700/60 rounded-lg p-2 text-center'>
+                    <p className='text-slate-400'>Gan./día</p>
+                    <p className={`font-bold ${(ternero.aumento_diario_promedio ?? 0) >= 0.8 ? 'text-emerald-400' : (ternero.aumento_diario_promedio ?? 0) >= 0.5 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {ternero.aumento_diario_promedio?.toFixed(2) ?? '—'} kg
+                    </p>
+                  </div>
+                </div>
+
+                {/* Madre + Calostrado */}
+                <div className='flex flex-wrap gap-2 mb-3 text-xs text-slate-400'>
+                  {ternero.madre && (
+                    <span>Madre: <span className='text-indigo-300 font-medium'>RP {ternero.madre.rp_madre}</span></span>
+                  )}
+                  {ternero.metodo_calostrado && (
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${ternero.metodo_calostrado === 'mamadera' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>
+                      🍼 {ternero.metodo_calostrado}
+                    </span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className='grid grid-cols-2 gap-2'>
+                  <button onClick={() => abrirModalPesoDiario(ternero)} className='py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ⚖️ Peso Diario
+                  </button>
+                  <button onClick={() => abrirModalHistorial(ternero)} className='py-2 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    📊 Historial
+                  </button>
+                  <button onClick={() => abrirModalCalostrado(ternero)} className='py-2 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🍼 Calostrado
+                  </button>
+                  <button onClick={() => abrirModalPesoOficial(ternero)} className='py-2 bg-slate-600 hover:bg-slate-500 text-white text-xs rounded-lg font-medium transition-colors'>
+                    📋 P. Oficial
+                  </button>
+                  <button onClick={() => abrirModalEditar(ternero)} className='py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ✏️ Editar
+                  </button>
+                  <button onClick={() => abrirModalEliminar(ternero)} className='py-2 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tabla — desktop (md y arriba) */}
+        <div className='hidden md:block overflow-x-auto shadow-2xl rounded-lg'>
           <div className='inline-block min-w-full align-middle'>
             <div className='overflow-hidden'>
               <table className='min-w-full text-left table-auto bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 border-separate border-spacing-0'>
@@ -902,6 +983,7 @@ const ListadoTernero = () => {
             </div>
           </div>
         </div>
+        </div>{/* fin tabla desktop */}
 
         {/* Modal de Peso Diario Mejorado - Responsive */}
         {modalPesoDiario.isOpen && (

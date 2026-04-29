@@ -251,8 +251,51 @@ const ListadoDiarreaTernero = () => {
           )}
         </div>
 
-        {/* TABLA RESPONSIVE - Scroll horizontal en mobile */}
-        <div className='overflow-x-auto max-h-[600px]'>
+        {/* Cards — mobile */}
+        <div className='md:hidden grid gap-3 mb-4 p-3'>
+          {diarreasFiltradas.length === 0 ? (
+            <p className='text-center text-slate-400 py-8 text-sm'>No hay registros de diarrea</p>
+          ) : (
+            diarreasFiltradas.map((diarrea) => (
+              <div key={diarrea.id_diarrea_ternero} className='rounded-xl border border-slate-700 bg-slate-800/80 p-3 shadow'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='flex items-center gap-2'>
+                    <span className='text-lg'>{getIconoEpisodio(diarrea.numero_episodio)}</span>
+                    <div>
+                      <p className='text-sm font-bold text-indigo-300'>Episodio #{diarrea.numero_episodio}</p>
+                      <p className='text-xs text-slate-400'>{new Date(diarrea.fecha_diarrea_ternero).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    diarrea.severidad === 'Crítica' ? 'border-red-500 bg-red-900/40 text-red-300' :
+                    diarrea.severidad === 'Severa' ? 'border-orange-500 bg-orange-900/40 text-orange-300' :
+                    diarrea.severidad === 'Moderada' ? 'border-yellow-500 bg-yellow-900/40 text-yellow-300' :
+                    'border-green-500 bg-green-900/40 text-green-300'
+                  }`}>
+                    {diarrea.severidad}
+                  </span>
+                </div>
+                {diarrea.ternero && (
+                  <p className='text-xs text-slate-400 mb-2'>🐄 RP <span className='text-green-400 font-medium'>{diarrea.ternero.rp_ternero}</span></p>
+                )}
+                {diarrea.observaciones && (
+                  <p className='text-xs text-slate-400 mb-3 line-clamp-2'>{diarrea.observaciones}</p>
+                )}
+                <div className='grid grid-cols-2 gap-2'>
+                  <button onClick={() => abrirModalEditar(diarrea)} className='py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ✏️ Editar
+                  </button>
+                  <button onClick={() => abrirModalEliminar(diarrea)} className='py-2 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tabla — desktop (md y arriba) */}
+        <div className='hidden md:block overflow-x-auto max-h-[600px]'>
           <div className='inline-block min-w-full align-middle'>
             <div className='overflow-hidden'>
               <table className='min-w-full text-left table-auto bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800'>
@@ -441,6 +484,7 @@ const ListadoDiarreaTernero = () => {
             </div>
           </div>
         </div>
+        </div>{/* fin tabla desktop */}
 
         {/* FOOTER CON ESTADÍSTICAS - Responsive */}
         {diarreasTernero.length > 0 && (

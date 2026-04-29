@@ -191,8 +191,44 @@ const ListadoEvento = () => {
             : `${eventos.length} evento(s) encontrado(s)`}
         </div>
 
-        {/* Tabla Responsive - Scroll horizontal en mobile */}
-        <div className='overflow-x-auto -mx-3 sm:mx-0 shadow-2xl rounded-lg'>
+        {/* Cards — mobile */}
+        <div className='md:hidden grid gap-3 mb-4'>
+          {loading ? (
+            <div className='flex justify-center items-center py-10'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500' />
+              <span className='ml-2 text-slate-400 text-sm'>Cargando...</span>
+            </div>
+          ) : eventos.length === 0 ? (
+            <p className='text-center text-slate-400 py-8 text-sm'>No se encontraron eventos</p>
+          ) : (
+            eventos.map((evento) => (
+              <div key={evento.id_evento} className='rounded-xl border border-slate-700 bg-slate-800/80 p-3 shadow'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div>
+                    <p className='text-xs text-slate-400'>📅 {formatearFecha(evento.fecha_evento)}</p>
+                    <p className='text-sm text-slate-200 mt-0.5 leading-snug'>{evento.observacion || 'Sin descripción'}</p>
+                  </div>
+                  <span className='text-xs text-slate-500 ml-2'>#{evento.id_evento}</span>
+                </div>
+                <div className='flex gap-3 mb-3 text-xs text-slate-400'>
+                  <span>🐄 <span className='text-green-400 font-semibold'>{evento.terneros?.length ?? 0}</span> terneros</span>
+                  <span>🐮 <span className='text-blue-400 font-semibold'>{evento.madres?.length ?? 0}</span> madres</span>
+                </div>
+                <div className='grid grid-cols-2 gap-2'>
+                  <button onClick={() => abrirModalEditar(evento)} className='py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ✏️ Editar
+                  </button>
+                  <button onClick={() => abrirModalEliminar(evento)} className='py-2 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tabla — desktop (md y arriba) */}
+        <div className='hidden md:block overflow-x-auto shadow-2xl rounded-lg'>
           <div className='inline-block min-w-full align-middle'>
             <div className='overflow-hidden'>
               <table className='min-w-full text-left table-auto bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 border-separate border-spacing-0'>
@@ -462,6 +498,7 @@ const ListadoEvento = () => {
             </div>
           </div>
         </div>
+        </div>{/* fin tabla desktop */}
 
         {/* Resumen estadístico - Responsive */}
         <div className='mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4'>

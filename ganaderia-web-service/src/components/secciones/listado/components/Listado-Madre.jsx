@@ -228,8 +228,52 @@ const ListadoMadre = () => {
           {loading ? "Cargando..." : `${total} madre(s) encontrada(s) — página ${page} de ${totalPages}`}
         </div>
 
-        {/* Tabla Responsive - Scroll horizontal en mobile */}
-        <div className='overflow-x-auto -mx-3 sm:mx-0 shadow-2xl rounded-lg'>
+        {/* Cards — mobile */}
+        <div className='md:hidden grid gap-3 mb-4'>
+          {loading ? (
+            <div className='flex justify-center items-center py-10'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500' />
+              <span className='ml-2 text-slate-400 text-sm'>Cargando...</span>
+            </div>
+          ) : madres.length === 0 ? (
+            <p className='text-center text-slate-400 py-8 text-sm'>No se encontraron madres</p>
+          ) : (
+            madres.map((madre) => (
+              <div key={madre.id_madre} className='rounded-xl border border-slate-700 bg-slate-800/80 p-3 shadow'>
+                {/* Header */}
+                <div className='flex items-center justify-between mb-2'>
+                  <div>
+                    <p className='text-base font-extrabold text-indigo-300'>{madre.nombre}</p>
+                    <p className='text-xs text-slate-400'>RP {madre.rp_madre}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${madre.estado === 'Seca' ? 'bg-green-500 text-green-900' : 'bg-blue-500 text-blue-900'}`}>
+                    {madre.estado}
+                  </span>
+                </div>
+
+                {/* Stats */}
+                <div className='flex gap-3 mb-3 text-xs text-slate-400'>
+                  <span>🐄 <span className='text-green-400 font-semibold'>{madre.terneros?.length ?? 0}</span> crías</span>
+                  <span>📋 <span className='text-purple-400 font-semibold'>{madre.eventos?.length ?? 0}</span> eventos</span>
+                  {madre.fecha_nacimiento && <span>📅 {madre.fecha_nacimiento}</span>}
+                </div>
+
+                {/* Actions */}
+                <div className='grid grid-cols-2 gap-2'>
+                  <button onClick={() => abrirModalEditar(madre)} className='py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    ✏️ Editar
+                  </button>
+                  <button onClick={() => abrirModalEliminar(madre)} className='py-2 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Tabla — desktop (md y arriba) */}
+        <div className='hidden md:block overflow-x-auto shadow-2xl rounded-lg'>
           <div className='inline-block min-w-full align-middle'>
             <div className='overflow-hidden'>
               <table className='min-w-full text-left table-auto bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 border-separate border-spacing-0'>
@@ -489,6 +533,7 @@ const ListadoMadre = () => {
             </div>
           </div>
         </div>
+        </div>{/* fin tabla desktop */}
 
         {/* Resumen estadístico - Responsive */}
         <div className='mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4'>
