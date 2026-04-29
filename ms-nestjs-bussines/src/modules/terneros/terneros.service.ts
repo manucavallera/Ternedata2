@@ -602,12 +602,11 @@ export class TernerosService {
       const hace30Dias = new Date();
       hace30Dias.setDate(hace30Dias.getDate() - 30);
 
-      const [total, vivos, muertos, vendidos, calostrados, muertosUltimos30d, bajoCrec] =
+      const [total, vivos, muertos, calostrados, muertosUltimos30d, bajoCrec] =
         await Promise.all([
-          qb.getCount(),
+          qb.clone().getCount(),
           qb.clone().andWhere("ternero.estado = 'Vivo'").getCount(),
           qb.clone().andWhere("ternero.estado = 'Muerto'").getCount(),
-          qb.clone().andWhere("ternero.estado = 'Vendido'").getCount(),
           qb
             .clone()
             .andWhere('ternero.metodo_calostrado IS NOT NULL')
@@ -617,8 +616,6 @@ export class TernerosService {
             .andWhere("ternero.estado = 'Muerto'")
             .andWhere('ternero.fecha_nacimiento >= :hace30Dias', { hace30Dias })
             .getCount(),
-          // Terneros vivos con ganancia diaria < 0.5 kg/día (bajo crecimiento)
-          // Se calcula post-fetch porque aumento_diario_promedio es campo virtual
           qb
             .clone()
             .andWhere("ternero.estado = 'Vivo'")
@@ -627,6 +624,7 @@ export class TernerosService {
             .limit(500)
             .getMany(),
         ]);
+      const vendidos = 0; // 'Vendido' no es valor válido del enum estado actual
 
       // Calcular promedios en memoria (solo los vivos que tienen datos)
       const vivosConDatos = (bajoCrec as any[]).filter((t) => {

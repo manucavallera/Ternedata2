@@ -133,12 +133,14 @@ const Dashboard = () => {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
       const res = await obtenerResumenDashboardHook(queryParams);
-      if (res?.status === 200 || res?.data) {
+      if (!res?.error && res?.status === 200 && res?.data && typeof res.data.total === "number") {
         setResumen(res.data);
       } else {
-        setError("No se pudo obtener el resumen.");
+        setResumen(null);
+        setError(res?.data?.message || "No se pudo obtener el resumen.");
       }
     } catch {
+      setResumen(null);
       setError("Error de conexión al cargar el dashboard.");
     } finally {
       setLoading(false);
@@ -169,9 +171,9 @@ const Dashboard = () => {
   // ── Datos para el gráfico ─────────────────────────────────
   const datosGrafico = resumen
     ? [
-        { name: "Vivos", cantidad: resumen.vivos, color: "#22c55e" },
-        { name: "Muertos", cantidad: resumen.muertos, color: "#ef4444" },
-        { name: "Vendidos", cantidad: resumen.vendidos, color: "#3b82f6" },
+        { name: "Vivos", cantidad: resumen.vivos ?? 0, color: "#22c55e" },
+        { name: "Muertos", cantidad: resumen.muertos ?? 0, color: "#ef4444" },
+        { name: "Vendidos", cantidad: resumen.vendidos ?? 0, color: "#3b82f6" },
       ]
     : [];
 
@@ -229,57 +231,57 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <KPICard
                 titulo="Total terneros"
-                valor={resumen.total}
+                valor={resumen.total ?? 0}
                 icono="🐄"
                 color="text-white"
               />
               <KPICard
                 titulo="Terneros vivos"
-                valor={resumen.vivos}
+                valor={resumen.vivos ?? 0}
                 icono="💚"
                 color="text-emerald-400"
-                subtitulo={`${resumen.vendidos} vendidos`}
+                subtitulo={`${resumen.vendidos ?? 0} vendidos`}
               />
               <KPICard
                 titulo="Mortalidad (30d)"
-                valor={resumen.mortalidad_ultimos_30d}
+                valor={resumen.mortalidad_ultimos_30d ?? 0}
                 icono="📉"
                 color={
-                  resumen.mortalidad_ultimos_30d > 0
+                  (resumen.mortalidad_ultimos_30d ?? 0) > 0
                     ? "text-red-400"
                     : "text-slate-300"
                 }
-                alerta={resumen.mortalidad_ultimos_30d > 0}
-                subtitulo={`Total histórico: ${resumen.muertos}`}
+                alerta={(resumen.mortalidad_ultimos_30d ?? 0) > 0}
+                subtitulo={`Total histórico: ${resumen.muertos ?? 0}`}
               />
               <KPICard
                 titulo="Ganancia promedio"
-                valor={`${resumen.promedio_ganancia_diaria_kg} kg/día`}
+                valor={`${resumen.promedio_ganancia_diaria_kg ?? 0} kg/día`}
                 icono="⚖️"
                 color={
-                  resumen.promedio_ganancia_diaria_kg >= 0.8
+                  (resumen.promedio_ganancia_diaria_kg ?? 0) >= 0.8
                     ? "text-emerald-400"
-                    : resumen.promedio_ganancia_diaria_kg >= 0.5
+                    : (resumen.promedio_ganancia_diaria_kg ?? 0) >= 0.5
                     ? "text-yellow-400"
                     : "text-red-400"
                 }
-                alerta={resumen.promedio_ganancia_diaria_kg < 0.5}
+                alerta={(resumen.promedio_ganancia_diaria_kg ?? 0) < 0.5}
               />
               <KPICard
                 titulo="Calostrados"
-                valor={`${resumen.porcentaje_calostrados}%`}
+                valor={`${resumen.porcentaje_calostrados ?? 0}%`}
                 icono="🍼"
                 color="text-blue-400"
-                subtitulo={`${resumen.calostrados} de ${resumen.total}`}
+                subtitulo={`${resumen.calostrados ?? 0} de ${resumen.total ?? 0}`}
               />
               <KPICard
                 titulo="Con bajo crecimiento"
-                valor={resumen.total_alertas}
+                valor={resumen.total_alertas ?? 0}
                 icono="⚠️"
                 color={
-                  resumen.total_alertas > 0 ? "text-red-400" : "text-slate-300"
+                  (resumen.total_alertas ?? 0) > 0 ? "text-red-400" : "text-slate-300"
                 }
-                alerta={resumen.total_alertas > 0}
+                alerta={(resumen.total_alertas ?? 0) > 0}
                 subtitulo="< 0.5 kg/día"
               />
             </div>
