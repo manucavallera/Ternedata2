@@ -42,7 +42,7 @@ export class RegisterAuthDto {
   @MaxLength(300, {
     message: 'La contraseña no puede exceder los 300 caracteres',
   })
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/, {
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).{6,}$/, {
     message:
       'La contraseña debe tener al menos 6 caracteres y contener letras y números',
   })
