@@ -81,6 +81,12 @@ export class UsersController {
     return await this.usersService.findOne(req.user.userId);
   }
 
+  @Post('me/generar-token-bot')
+  @ApiOperation({ summary: 'Generar código de vinculación para el bot de Telegram' })
+  async generarTokenBot(@Request() req) {
+    return await this.usersService.generarTokenBot(req.user.userId);
+  }
+
   @Get('by-role/:role')
   @Roles(UserRole.ADMIN, UserRole.VETERINARIO)
   @ApiOperation({ summary: 'Obtener usuarios por rol' })

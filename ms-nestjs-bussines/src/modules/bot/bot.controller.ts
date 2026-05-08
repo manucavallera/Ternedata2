@@ -311,6 +311,35 @@ export class BotController {
     }
 
     const user = await this.buscarUsuarioPorTelefono(phone);
+
+    // Detectar código de vinculación de Telegram (6 dígitos)
+    const textTrim = (text || '').trim();
+    if (/^\d{6}$/.test(textTrim)) {
+      const candidato = await this.userRepo.findOne({
+        where: { bot_link_token: textTrim },
+      });
+      if (candidato && candidato.bot_link_token_expires && candidato.bot_link_token_expires > new Date()) {
+        // Desasignar phone de cualquier otro usuario que lo tenga
+        await this.userRepo.update({ telefono: phone } as any, { telefono: null });
+        await this.userRepo.update(candidato.id, {
+          telefono: phone,
+          bot_link_token: null,
+          bot_link_token_expires: null,
+        });
+        return {
+          requiere_seleccion: false,
+          seleccion_exitosa: true,
+          mensaje: `✅ ¡Listo, ${candidato.name}! Tu Telegram quedó vinculado. Ya podés usar el bot normalmente.`,
+        };
+      } else if (candidato) {
+        return {
+          requiere_seleccion: false,
+          seleccion_exitosa: true,
+          mensaje: `⏰ El código expiró. Generá uno nuevo desde tu perfil en la app.`,
+        };
+      }
+    }
+
     if (!user) {
       return { requiere_seleccion: false, usuario_no_encontrado: true };
     }

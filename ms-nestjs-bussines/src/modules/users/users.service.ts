@@ -257,6 +257,16 @@ export class UsersService {
     return asignaciones.map((a) => a.establecimientoId);
   }
 
+  async generarTokenBot(userId: number): Promise<{ token: string; expires: Date }> {
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    await this.usersRepository.update(userId, {
+      bot_link_token: token,
+      bot_link_token_expires: expires,
+    });
+    return { token, expires };
+  }
+
   // Sincronizar establecimientos de un usuario (reemplaza todos)
   async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
     await this.userEstRepo.delete({ userId });

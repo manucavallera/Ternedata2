@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useAuthSession } from "@/hooks/auth";
+import businessApi from "@/api/bussines-api";
 
 export default function PerfilPage() {
   const { userPayload } = useSelector((state) => state.auth);
@@ -20,6 +21,11 @@ export default function PerfilPage() {
   const [formPassword, setFormPassword] = useState({ password: "", confirmar: "" });
   const [savingPassword, setSavingPassword] = useState(false);
   const [alertPassword, setAlertPassword] = useState(null);
+
+  // Vinculación Telegram
+  const [tokenBot, setTokenBot] = useState(null);
+  const [tokenExpires, setTokenExpires] = useState(null);
+  const [generandoToken, setGenerandoToken] = useState(false);
 
   useEffect(() => {
     cargarPerfil();
@@ -86,6 +92,19 @@ export default function PerfilPage() {
       setAlertPassword({ type: "success", message: "Contraseña cambiada correctamente." });
     } else {
       setAlertPassword({ type: "error", message: res.message || "Error al cambiar contraseña." });
+    }
+  };
+
+  const handleGenerarTokenBot = async () => {
+    setGenerandoToken(true);
+    try {
+      const res = await businessApi.post("/users/me/generar-token-bot");
+      setTokenBot(res.data.token);
+      setTokenExpires(new Date(res.data.expires));
+    } catch {
+      // noop
+    } finally {
+      setGenerandoToken(false);
     }
   };
 
@@ -174,6 +193,39 @@ export default function PerfilPage() {
               {savingDatos ? "Guardando..." : "Guardar cambios"}
             </button>
           </form>
+        </div>
+
+        {/* Vincular Telegram */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-1">Vincular Telegram al bot</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Generá un código y mandáselo al bot de Telegram. Expira en 10 minutos.
+          </p>
+          {tokenBot ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-center bg-indigo-50 border border-indigo-200 rounded-lg py-4">
+                <span className="text-4xl font-mono font-bold tracking-widest text-indigo-700">{tokenBot}</span>
+              </div>
+              <p className="text-xs text-gray-400 text-center">
+                Expira a las {tokenExpires?.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+              <button
+                onClick={handleGenerarTokenBot}
+                disabled={generandoToken}
+                className="w-full py-2 border border-indigo-400 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium transition-colors"
+              >
+                Generar nuevo código
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerarTokenBot}
+              disabled={generandoToken}
+              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+            >
+              {generandoToken ? "Generando..." : "Generar código"}
+            </button>
+          )}
         </div>
 
         {/* Formulario de contraseña */}
