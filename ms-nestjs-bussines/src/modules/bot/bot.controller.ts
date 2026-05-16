@@ -548,24 +548,37 @@ export class BotController {
 
     const hoy = new Date().toISOString().split('T')[0];
 
+    // Valida fecha ISO YYYY-MM-DD del body; si es futura o inválida, usa hoy
+    const parsearFecha = (valor: any): string => {
+      if (!valor) return hoy;
+      const s = String(valor).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return hoy;
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return hoy;
+      if (d > new Date()) return hoy;
+      return s;
+    };
+
     try {
       switch (accion) {
         // ──────────────────────────────────────
         case 'crear_ternero': {
           const rpTernero = parseInt(body.rp_ternero || body.caravana) || 0;
 
-          // Validar RP duplicado (solo si RP > 0)
-          if (rpTernero > 0) {
-            const yaExiste = await this.existeRpTernero(
-              rpTernero,
-              idEstablecimiento,
-            );
-            if (yaExiste) {
-              return {
-                success: false,
-                mensaje: `⚠️ Ya existe un ternero con RP ${rpTernero} en tu establecimiento. Verificá el número.`,
-              };
-            }
+          if (!rpTernero || rpTernero <= 0) {
+            return {
+              success: false,
+              mensaje: '⚠️ No se especificó el RP del ternero (o el valor no es un número válido). Decí el RP/caravana del ternero.',
+            };
+          }
+
+          // Validar RP duplicado
+          const yaExiste = await this.existeRpTernero(rpTernero, idEstablecimiento);
+          if (yaExiste) {
+            return {
+              success: false,
+              mensaje: `⚠️ Ya existe un ternero con RP ${rpTernero} en tu establecimiento. Verificá el número.`,
+            };
           }
 
           // Resolver madre si viene
@@ -594,7 +607,7 @@ export class BotController {
             peso_largado: parseFloat(body.peso_largado) || 0,
             sexo: body.sexo || 'Macho',
             estado: body.estado || 'Vivo',
-            fecha_nacimiento: hoy,
+            fecha_nacimiento: parsearFecha(body.fecha_nacimiento),
             observaciones:
               body.observaciones || `Registrado por bot (${userName})`,
             semen: body.tipo_semen || body.semen || 'Sin datos',
@@ -694,7 +707,7 @@ export class BotController {
           }
 
           const data = {
-            fecha_evento: hoy,
+            fecha_evento: parsearFecha(body.fecha_evento),
             observacion: body.observacion || 'Sin observación',
             id_ternero: terneroResult.ids,
             id_madre: madreResult.ids,
@@ -745,7 +758,7 @@ export class BotController {
             }
 
             eventosResueltos.push({
-              fecha_evento: hoy,
+              fecha_evento: parsearFecha(evt.fecha_evento),
               observacion: evt.observacion || 'Sin observación',
               id_ternero: terneroResult.ids,
               id_madre: madreResult.ids,
@@ -813,7 +826,7 @@ export class BotController {
               `Registrado por bot (${userName})`,
             tipo_enfermedad: body.tipo_enfermedad || 'General',
             turno: body.turno || 'mañana',
-            fecha_tratamiento: hoy,
+            fecha_tratamiento: parsearFecha(body.fecha_tratamiento),
             id_establecimiento: idEstablecimiento,
             id_ternero: terneroResult.id,
           };
@@ -857,7 +870,7 @@ export class BotController {
           }
 
           const data = {
-            fecha_diarrea_ternero: hoy,
+            fecha_diarrea_ternero: parsearFecha(body.fecha_diarrea_ternero || body.fecha_diarrea),
             severidad: body.severidad || 'Moderada',
             id_ternero: terneroResult.id,
             observaciones:
@@ -935,6 +948,40 @@ export class BotController {
       return this.registrar(acciones as any);
     }
 
+    // Resolver auth una sola vez para todo el lote (evitar N+1 de queries por phone)
+    let idEstablecimientoLote: number | null = null;
+    let userNameLote = 'Ganadero';
+    let nombreEstablecimientoLote = '';
+
+    if (phone) {
+      const auth = await this.autenticarPorTelefono(phone);
+      if (!auth) {
+        return {
+          success: false,
+          mensaje: `⚠️ Tu número (${phone}) no está vinculado a ninguna cuenta o no tenés establecimiento asignado.`,
+        };
+      }
+      if (auth.requiere_seleccion) {
+        const lista = this.formatearListaEstablecimientos(auth.establecimientos);
+        return {
+          success: false,
+          requiere_seleccion: true,
+          establecimientos: auth.establecimientos,
+          mensaje: `🏠 ¿En qué establecimiento querés registrar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
+        };
+      }
+      idEstablecimientoLote = auth.establecimientoId;
+      userNameLote = auth.userName;
+      const estInfo = auth.establecimientos.find(e => e.id === auth.establecimientoId);
+      if (estInfo) {
+        nombreEstablecimientoLote = estInfo.nombre;
+      } else if (idEstablecimientoLote) {
+        const est = await this.establecimientoRepo.findOne({ where: { id_establecimiento: idEstablecimientoLote } });
+        if (est) nombreEstablecimientoLote = est.nombre;
+      }
+    }
+
+    // Inyectar phone en cada accion; registrar delega al handler completo si no hay phone
     const accionesConPhone = acciones.map((a) => ({
       ...a,
       phone: a.phone || phone,
