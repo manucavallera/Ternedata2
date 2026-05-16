@@ -74,8 +74,8 @@ export default function PerfilPage() {
     e.preventDefault();
     setAlertPassword(null);
 
-    if (formPassword.password.length < 6) {
-      setAlertPassword({ type: "error", message: "La contraseña debe tener al menos 6 caracteres." });
+    if (formPassword.password.length < 8) {
+      setAlertPassword({ type: "error", message: "La contraseña debe tener al menos 8 caracteres." });
       return;
     }
     if (formPassword.password !== formPassword.confirmar) {

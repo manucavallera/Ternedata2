@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setVistaApp } from "@/store/seccion";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
@@ -146,27 +146,14 @@ const Dashboard = () => {
   const vista = vistaApp ? "app" : "dashboard";
   const setVista = (v) => dispatch(setVistaApp(v === "app"));
 
-  // ── Autenticación ─────────────────────────────────────────
-  if (status !== "authenticated" && !authPayload?.user && statusSessionUser === true) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
-        <h1 className="text-4xl font-bold text-red-400">404 | Not Found</h1>
-      </div>
-    );
-  }
-
   const sinEstablecimiento =
     userPayload?.rol === "admin" &&
     !userPayload?.id_establecimiento &&
     (!userPayload?.userEstablecimientos ||
       userPayload.userEstablecimientos.length === 0);
 
-  if (sinEstablecimiento) {
-    return <SetupEstablecimiento />;
-  }
-
   // ── Carga de KPIs ─────────────────────────────────────────
-  const cargarResumen = async () => {
+  const cargarResumen = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -187,11 +174,24 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [establecimientoActual, obtenerResumenDashboardHook, userPayload?.rol]);
 
   useEffect(() => {
     if (vista === "dashboard") cargarResumen();
-  }, [establecimientoActual, vista]);
+  }, [establecimientoActual, vista, cargarResumen]);
+
+  // ── Guards de autenticación ────────────────────────────────
+  if (status !== "authenticated" && !authPayload?.user && statusSessionUser === true) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-900">
+        <h1 className="text-4xl font-bold text-red-400">404 | Not Found</h1>
+      </div>
+    );
+  }
+
+  if (sinEstablecimiento) {
+    return <SetupEstablecimiento />;
+  }
 
   // ── Vista de formularios/listados (acceso al sistema completo) ──
   if (vista === "app") {

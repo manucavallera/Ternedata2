@@ -218,7 +218,7 @@ const ListadoTernero = () => {
     } else {
       showAlert(`✅ Ternero RP ${modalEditar.ternero.rp_ternero} actualizado`);
       setModalEditar({ isOpen: false, ternero: null });
-      cargarTernerosList();
+      cargarTerneroLista();
     }
   };
 

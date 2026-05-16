@@ -36,7 +36,9 @@ export default function AuthContextProvider({ children }) {
         try {
           const payload = JSON.parse(atob(authTokensInLocalStorage.split('.')[1]));
           if (payload.exp && payload.exp * 1000 < Date.now()) {
-            window.localStorage.clear();
+            window.localStorage.removeItem(AUTH_TOKENS_KEY);
+            window.localStorage.removeItem('token');
+            window.localStorage.removeItem('userSelected');
             initialAuthTokens = null;
           } else {
             initialAuthTokens = authTokensInLocalStorage;

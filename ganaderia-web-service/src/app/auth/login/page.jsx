@@ -44,8 +44,6 @@ const LoginContent = () => {
 
     // 1. Intentar Login
     const res = await loginHooks(userCredentials);
-    console.log("📦 Respuesta del login:", res?.data);
-
     if (res === 401 || !res?.data) {
       setUserAlert({
         status: true,

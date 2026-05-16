@@ -263,7 +263,7 @@ function Navbar() {
 
               <li>
                 <h1 className='text-white font-semibold text-xs sm:text-sm'>
-                  {`${userPayload?.name}`}
+                  {userPayload?.name}
                 </h1>
               </li>
 
