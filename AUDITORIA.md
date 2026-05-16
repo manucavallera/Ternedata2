@@ -286,10 +286,10 @@ El JSON del workflow tiene **5 API keys hardcodeadas en plaintext** (Anthropic, 
 #### [SEV-CRIT] API keys hardcodeadas en workflow n8n versionado
 - **Archivo**: `n8n-workflows/TerneData Bot v18.json`
 - **Síntoma**: el JSON contiene credenciales plaintext:
-  - Anthropic: `sk-ant-api03-zONkx...rKFA-jzbImAAA` (líneas 424 y 474).
-  - Groq: `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` (línea 356).
-  - Evolution API: `429683C4C977415CAAFCCE10F7D57E11` (líneas 309 y 687).
-  - Bot backend (`X-API-Key`): `ternedata-bot-2026-secretkey` (líneas 105, 186, 555, 587).
+  - Anthropic: `sk-ant-***REDACTED***` (líneas 424 y 474).
+  - Groq: `gsk_***REDACTED***` (línea 356).
+  - Evolution API: `***REDACTED***` (líneas 309 y 687).
+  - Bot backend (`X-API-Key`): `***REDACTED***` (líneas 105, 186, 555, 587).
   - Telegram credential ID (`A3e2KSnj4mDSQRFd`) queda en el JSON aunque el trigger esté disabled.
 - **Riesgo**: si el repo es público / forkeable / se sube a un build artifact, **las 5 claves quedan expuestas**. Anthropic y Groq pueden bloquear o cobrar consumo malicioso. Quien tenga la bot backend key puede registrar datos en cualquier establecimiento (vía `phone` válido).
 - **Fix**:
