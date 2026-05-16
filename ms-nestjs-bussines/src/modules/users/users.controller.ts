@@ -51,16 +51,16 @@ export class UsersController {
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Desactivar usuario (solo admin)' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    // ⬅️ ParseIntPipe
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    await this.usersService.verificarPertenenciaAdmin(req.user, id);
     return await this.usersService.remove(id);
   }
 
   @Put(':id/toggle-status')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Activar/Desactivar usuario (solo admin)' })
-  async toggleStatus(@Param('id', ParseIntPipe) id: number) {
-    // ⬅️ ParseIntPipe
+  async toggleStatus(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    await this.usersService.verificarPertenenciaAdmin(req.user, id);
     return await this.usersService.toggleStatus(id);
   }
 
@@ -70,8 +70,9 @@ export class UsersController {
   async changeRole(
     @Param('id', ParseIntPipe) id: number,
     @Body('rol') rol: UserRole,
+    @Request() req,
   ) {
-    // ⬅️ ParseIntPipe
+    await this.usersService.verificarPertenenciaAdmin(req.user, id);
     return await this.usersService.changeRole(id, rol);
   }
 
@@ -120,7 +121,19 @@ export class UsersController {
   async syncEstablecimientos(
     @Param('id', ParseIntPipe) id: number,
     @Body('ids') ids: number[],
+    @Request() req,
   ) {
+    const adminEstIds = [
+      req.user?.id_establecimiento,
+      ...(req.user?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
+    ].filter(Boolean);
+    const idsInvalidos = (ids || []).filter((estId) => !adminEstIds.includes(estId));
+    if (idsInvalidos.length > 0) {
+      throw new HttpException(
+        `No tenés acceso a los establecimientos: ${idsInvalidos.join(', ')}`,
+        HttpStatus.FORBIDDEN,
+      );
+    }
     await this.usersService.syncEstablecimientos(id, ids);
     return { ok: true };
   }

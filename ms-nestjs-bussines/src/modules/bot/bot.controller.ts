@@ -427,7 +427,7 @@ export class BotController {
     }
 
     // ── Autenticación por teléfono ──
-    let idEstablecimiento = body.id_establecimiento;
+    let idEstablecimiento: number | null = null; // nunca confiar en body.id_establecimiento
     let userName = 'Ganadero';
     let nombreEstablecimiento = '';
     let userEntity: UserEntity | null = null;
@@ -539,7 +539,11 @@ export class BotController {
     }
 
     if (!idEstablecimiento) {
-      idEstablecimiento = 1;
+      return {
+        success: false,
+        accion,
+        mensaje: '⚠️ No pude determinar tu establecimiento. Verificá que tu número esté registrado en el sistema.',
+      };
     }
 
     const hoy = new Date().toISOString().split('T')[0];

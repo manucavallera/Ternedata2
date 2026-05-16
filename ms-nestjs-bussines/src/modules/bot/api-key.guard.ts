@@ -16,20 +16,13 @@ export class BotApiKeyGuard implements CanActivate {
 
     const validKey = process.env.BOT_API_KEY;
 
-    console.log('🔑 Key recibida:', JSON.stringify(apiKey));
-    console.log('🔑 Key esperada:', JSON.stringify(validKey));
-
     if (!validKey) {
-      console.error('❌ BOT_API_KEY no configurada en .env');
       throw new UnauthorizedException('Bot API no configurada');
     }
 
     if (!apiKey || apiKey !== validKey) {
-      console.warn('⚠️ Bot request con API key inválida');
       throw new UnauthorizedException('API Key inválida');
     }
-
-    console.log('✅ Bot autenticado con API Key');
     return true;
   }
 }

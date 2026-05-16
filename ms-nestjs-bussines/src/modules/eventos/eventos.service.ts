@@ -190,20 +190,20 @@ export class EventosService {
         .leftJoinAndSelect('evento.terneros', 'terneros')
         .leftJoinAndSelect('evento.madres', 'madres');
 
-      if (esAdmin) {
-        const filterId = idEstablecimientoQuery || idEstablecimiento;
-        if (filterId) {
-          queryBuilder.where('evento.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento: filterId,
-          });
-        }
-      } else {
-        if (idEstablecimiento) {
-          queryBuilder.where('evento.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento,
-          });
-        }
+      const filterId = esAdmin
+        ? idEstablecimientoQuery || idEstablecimiento
+        : idEstablecimiento;
+
+      if (!filterId) {
+        throw new HttpException(
+          'Debe especificar un establecimiento',
+          HttpStatus.BAD_REQUEST,
+        );
       }
+
+      queryBuilder.where('evento.id_establecimiento = :idEstablecimiento', {
+        idEstablecimiento: filterId,
+      });
 
       return await queryBuilder.getMany();
     } catch (error) {
@@ -228,7 +228,8 @@ export class EventosService {
         .leftJoinAndSelect('evento.madres', 'madres')
         .where('evento.id_evento = :id', { id });
 
-      if (!esAdmin && idEstablecimiento) {
+      // Siempre filtrar por establecimiento para evitar cross-tenant
+      if (idEstablecimiento) {
         queryBuilder.andWhere(
           'evento.id_establecimiento = :idEstablecimiento',
           { idEstablecimiento },

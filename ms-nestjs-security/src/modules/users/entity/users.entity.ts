@@ -102,4 +102,7 @@ export class UserEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   ultimo_acceso: Date;
+
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  password_reset_jti: string;
 }

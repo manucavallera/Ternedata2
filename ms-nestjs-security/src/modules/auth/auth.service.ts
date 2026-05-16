@@ -10,6 +10,7 @@ import { UserInterface } from './interface/user.interface';
 import { UserEstablecimientoEntity } from 'src/modules/users/entity/user-establecimiento.entity';
 // 👇 1. IMPORTAMOS NODEMAILER
 import * as nodemailer from 'nodemailer';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -179,7 +180,9 @@ export class AuthService {
       return { message: 'Si el email existe, recibirás un correo en breve.' };
     }
 
-    const payload = { id: user.id, email: user.email, type: 'reset' };
+    const jti = uuidv4();
+    await this.usersRepository.update(user.id, { password_reset_jti: jti });
+    const payload = { id: user.id, email: user.email, type: 'reset', jti };
     const token = this.jwtService.sign(payload, { expiresIn: '1h' });
     const link = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
 
@@ -265,8 +268,17 @@ export class AuthService {
         throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
       }
 
+      // Verificar que el jti coincida (un solo uso)
+      if (!payload.jti || user.password_reset_jti !== payload.jti) {
+        throw new HttpException('Token ya usado o inválido', HttpStatus.BAD_REQUEST);
+      }
+
       const passwordHash = await hash(newPassword, 10);
-      await this.usersRepository.update(user.id, { password: passwordHash });
+      // Limpiar jti para invalidar este token de reset
+      await this.usersRepository.update(user.id, {
+        password: passwordHash,
+        password_reset_jti: null,
+      });
 
       return { message: 'Contraseña actualizada correctamente.' };
     } catch (error) {

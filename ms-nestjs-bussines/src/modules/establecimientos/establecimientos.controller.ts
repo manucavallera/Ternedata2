@@ -11,6 +11,7 @@ import {
   Req,
   HttpException,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { EstablecimientosService } from './establecimientos.service';
@@ -31,6 +32,17 @@ export class EstablecimientosController {
   constructor(
     private readonly establecimientosService: EstablecimientosService,
   ) {}
+
+  private verificarPertenencia(req: any, id: number): void {
+    const userEstabs = (req.user?.userEstablecimientos || []).map(
+      (ue: any) => ue.establecimientoId,
+    );
+    const puedeAcceder =
+      req.user?.id_establecimiento === id || userEstabs.includes(id);
+    if (!puedeAcceder) {
+      throw new ForbiddenException('No tenés acceso a este establecimiento');
+    }
+  }
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -94,7 +106,8 @@ export class EstablecimientosController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    this.verificarPertenencia(req, id);
     return await this.establecimientosService.findOne(id);
   }
 
@@ -103,14 +116,17 @@ export class EstablecimientosController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateEstablecimientoDto,
+    @Req() req: any,
   ) {
+    this.verificarPertenencia(req, id);
     return await this.establecimientosService.update(id, updateDto);
   }
 
   @Get(':id/equipo')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener miembros del equipo del establecimiento' })
-  async getEquipo(@Param('id', ParseIntPipe) id: number) {
+  async getEquipo(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    this.verificarPertenencia(req, id);
     return await this.establecimientosService.getEquipo(id);
   }
 
@@ -120,14 +136,17 @@ export class EstablecimientosController {
   async eliminarMiembro(
     @Param('id', ParseIntPipe) id: number,
     @Param('userId', ParseIntPipe) userId: number,
+    @Req() req: any,
   ) {
+    this.verificarPertenencia(req, id);
     await this.establecimientosService.eliminarMiembro(id, userId);
     return { message: 'Miembro eliminado correctamente' };
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    this.verificarPertenencia(req, id);
     await this.establecimientosService.remove(id);
     return { message: 'Establecimiento eliminado correctamente' };
   }

@@ -196,20 +196,20 @@ export class TernerosService {
         .leftJoinAndSelect('ternero.eventos', 'eventos');
 
       // 🧩 Multi-tenancy
-      if (esAdmin) {
-        const filterId = idEstablecimientoQuery || idEstablecimiento;
-        if (filterId) {
-          query.where('ternero.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento: filterId,
-          });
-        }
-      } else if (idEstablecimiento) {
-        query.where('ternero.id_establecimiento = :idEstablecimiento', {
-          idEstablecimiento,
-        });
-      } else {
-        this.logger.warn('Usuario sin establecimiento asignado');
+      const filterId = esAdmin
+        ? idEstablecimientoQuery || idEstablecimiento
+        : idEstablecimiento;
+
+      if (!filterId) {
+        throw new HttpException(
+          'Debe especificar un establecimiento',
+          HttpStatus.BAD_REQUEST,
+        );
       }
+
+      query.where('ternero.id_establecimiento = :idEstablecimiento', {
+        idEstablecimiento: filterId,
+      });
 
       // 🐮 Filtros opcionales
       if (sinRodeo) {
@@ -285,8 +285,8 @@ export class TernerosService {
         .leftJoinAndSelect('ternero.eventos', 'eventos')
         .where('ternero.id_ternero = :id', { id });
 
-      // Si NO es admin, validar establecimiento
-      if (!esAdmin && idEstablecimiento) {
+      // Siempre filtrar por establecimiento para evitar cross-tenant
+      if (idEstablecimiento) {
         query.andWhere('ternero.id_establecimiento = :idEstablecimiento', {
           idEstablecimiento,
         });

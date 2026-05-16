@@ -82,7 +82,10 @@ export class InvitacionesController {
   @Delete('revocar/:id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Revocar (eliminar) una invitación pendiente' })
-  async revocar(@Param('id', ParseIntPipe) id: number) {
-    return await this.invitacionesService.revocar(id);
+  async revocar(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const userEstabs = (req.user?.userEstablecimientos || []).map(
+      (ue: any) => ue.establecimientoId,
+    );
+    return await this.invitacionesService.revocar(id, req.user?.id_establecimiento, userEstabs);
   }
 }

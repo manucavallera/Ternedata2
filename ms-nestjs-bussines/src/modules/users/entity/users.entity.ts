@@ -80,7 +80,7 @@ export class UserEntity {
   @Column({ type: 'int', nullable: true })
   bot_establecimiento_id: number;
 
-  @Column({ type: 'varchar', length: 6, nullable: true })
+  @Column({ type: 'varchar', length: 8, nullable: true })
   bot_link_token: string;
 
   @Column({ type: 'timestamp', nullable: true })

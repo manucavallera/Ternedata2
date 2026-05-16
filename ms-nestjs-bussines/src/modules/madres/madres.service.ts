@@ -105,23 +105,20 @@ export class MadresService {
         .leftJoinAndSelect('madre.eventos', 'eventos');
 
       // Lógica de filtrado
-      if (esAdmin) {
-        const filterId = idEstablecimientoQuery || idEstablecimiento;
-        if (filterId) {
-          query.where('madre.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento: filterId,
-          });
-        }
-      } else {
-        // Si NO es admin, SIEMPRE filtrar por su establecimiento
-        if (idEstablecimiento) {
-          query.where('madre.id_establecimiento = :idEstablecimiento', {
-            idEstablecimiento,
-          });
-        } else {
-          this.logger.warn('Usuario no-admin sin establecimiento asignado');
-        }
+      const filterId = esAdmin
+        ? idEstablecimientoQuery || idEstablecimiento
+        : idEstablecimiento;
+
+      if (!filterId) {
+        throw new HttpException(
+          'Debe especificar un establecimiento',
+          HttpStatus.BAD_REQUEST,
+        );
       }
+
+      query.where('madre.id_establecimiento = :idEstablecimiento', {
+        idEstablecimiento: filterId,
+      });
 
       // Filtro: madres sin rodeo asignado
       if (sinRodeo) {
@@ -179,8 +176,8 @@ export class MadresService {
         .leftJoinAndSelect('madre.eventos', 'eventos')
         .where('madre.id_madre = :id', { id });
 
-      // Si NO es admin, validar establecimiento
-      if (!esAdmin && idEstablecimiento) {
+      // Siempre filtrar por establecimiento para evitar cross-tenant
+      if (idEstablecimiento) {
         query.andWhere('madre.id_establecimiento = :idEstablecimiento', {
           idEstablecimiento,
         });

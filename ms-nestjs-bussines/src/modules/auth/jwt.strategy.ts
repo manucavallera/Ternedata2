@@ -9,7 +9,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configservice.get<string>('JWT_SECRET') || 'secretKey', // Asegúrate que coincida con tu .env
+      secretOrKey: (() => {
+        const secret = configservice.get<string>('JWT_SECRET');
+        if (!secret) throw new Error('JWT_SECRET no configurado — abortando boot');
+        return secret;
+      })(),
     });
   }
 

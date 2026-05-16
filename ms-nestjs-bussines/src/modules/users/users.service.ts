@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/user.dto';
 import { UserEntity, UserRole, UserStatus } from './entity/users.entity';
@@ -257,8 +258,25 @@ export class UsersService {
     return asignaciones.map((a) => a.establecimientoId);
   }
 
+  async verificarPertenenciaAdmin(adminUser: any, targetUserId: number): Promise<void> {
+    const target = await this.usersRepository.findOne({
+      where: { id: targetUserId },
+      select: ['id', 'id_establecimiento'],
+    });
+    if (!target) return; // findOne lanzará 404 más adelante
+
+    const adminEstIds = [
+      adminUser?.id_establecimiento,
+      ...(adminUser?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
+    ].filter(Boolean);
+
+    if (target.id_establecimiento && !adminEstIds.includes(target.id_establecimiento)) {
+      throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
+    }
+  }
+
   async generarTokenBot(userId: number): Promise<{ token: string; expires: Date }> {
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8 dígitos
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
     await this.usersRepository.update(userId, {
       bot_link_token: token,

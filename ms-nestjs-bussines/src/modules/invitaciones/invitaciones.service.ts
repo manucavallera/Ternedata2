@@ -92,10 +92,16 @@ export class InvitacionesService {
     });
   }
 
-  async revocar(id: number): Promise<{ message: string }> {
+  async revocar(id: number, adminEstId: number, adminEstIds: number[]): Promise<{ message: string }> {
     const invitacion = await this.invitacionRepo.findOne({ where: { id } });
     if (!invitacion) {
       throw new HttpException('Invitación no encontrada', HttpStatus.NOT_FOUND);
+    }
+    const tieneAcceso =
+      adminEstId === invitacion.establecimientoId ||
+      adminEstIds.includes(invitacion.establecimientoId);
+    if (!tieneAcceso) {
+      throw new HttpException('No tenés acceso a esta invitación', HttpStatus.FORBIDDEN);
     }
     await this.invitacionRepo.remove(invitacion);
     return { message: 'Invitación revocada' };
