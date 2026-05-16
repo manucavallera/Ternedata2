@@ -57,9 +57,9 @@ export default function AuthContextProvider({ children }) {
   }, []); // Solo se ejecuta una vez al montar el componente
 
   const login = useCallback(function (authTokens) {
-    // ✅ Verificar que estamos en el navegador
     if (typeof window !== "undefined") {
       window.localStorage.setItem(AUTH_TOKENS_KEY, authTokens);
+      window.localStorage.setItem('token', authTokens);
     }
     setAuthTokens(authTokens);
   }, []);

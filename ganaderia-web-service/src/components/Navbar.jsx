@@ -65,12 +65,9 @@ function Navbar() {
 
   useEffect(() => {
     if (userPayload?.rol === "operario" && userPayload?.id_establecimiento) {
-      businessApi.get("/establecimientos")
+      businessApi.get(`/establecimientos/${userPayload.id_establecimiento}`)
         .then((res) => {
-          const est = res.data?.find(
-            (e) => e.id_establecimiento === userPayload.id_establecimiento
-          );
-          if (est) setNombreEstablecimiento(est.nombre);
+          if (res.data?.nombre) setNombreEstablecimiento(res.data.nombre);
         })
         .catch(() => {});
     }
