@@ -1,7 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  ArrayMinSize,
-  IsArray,
   IsDateString,
   IsEnum,
   IsInt,

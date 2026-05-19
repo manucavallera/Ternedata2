@@ -1064,8 +1064,8 @@ export class BotController {
 
     // Resolver auth una sola vez para todo el lote (evitar N+1 de queries por phone)
     let idEstablecimientoLote: number | null = null;
-    let userNameLote = 'Ganadero';
-    let nombreEstablecimientoLote = '';
+    let _userNameLote = 'Ganadero';
+    let _nombreEstablecimientoLote = '';
 
     if (phone) {
       const auth = await this.autenticarPorTelefono(phone);
@@ -1085,13 +1085,13 @@ export class BotController {
         };
       }
       idEstablecimientoLote = auth.establecimientoId;
-      userNameLote = auth.userName;
+      _userNameLote = auth.userName;
       const estInfo = auth.establecimientos.find(e => e.id === auth.establecimientoId);
       if (estInfo) {
-        nombreEstablecimientoLote = estInfo.nombre;
+        _nombreEstablecimientoLote = estInfo.nombre;
       } else if (idEstablecimientoLote) {
         const est = await this.establecimientoRepo.findOne({ where: { id_establecimiento: idEstablecimientoLote } });
-        if (est) nombreEstablecimientoLote = est.nombre;
+        if (est) _nombreEstablecimientoLote = est.nombre;
       }
     }
 

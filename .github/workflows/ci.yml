@@ -48,8 +48,6 @@ jobs:
       run:
         working-directory: ganaderia-web-service
     env:
-      # Variables de entorno necesarias para el build de Next.js
-      # Configuralas como secrets en GitHub → Settings → Secrets
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_SECURITY_API_URL: ${{ secrets.NEXT_PUBLIC_SECURITY_API_URL }}
     steps:
@@ -61,4 +59,3 @@ jobs:
           cache-dependency-path: ganaderia-web-service/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm run lint

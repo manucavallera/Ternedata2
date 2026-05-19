@@ -7,7 +7,6 @@ import {
 } from 'typeorm';
 import { UserEntity } from './users.entity';
 import { Establecimiento } from '../../establecimientos/entities/establecimiento.entity';
-import { RolEstablecimiento } from '../../invitaciones/roles.enum';
 
 @Entity('user_establecimientos')
 export class UserEstablecimientoEntity {

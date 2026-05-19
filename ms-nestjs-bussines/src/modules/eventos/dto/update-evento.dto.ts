@@ -1,7 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateEventoDto } from './create-evento.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsDate, IsDateString, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateEventoDto extends PartialType(CreateEventoDto) {
     

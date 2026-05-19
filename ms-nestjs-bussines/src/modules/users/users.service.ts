@@ -112,7 +112,7 @@ export class UsersService {
 
   // Eliminar usuario (soft delete - cambiar a inactivo)
   async remove(id: number): Promise<{ message: string }> {
-    const user = await this.findOne(id);
+    const _user = await this.findOne(id);
 
     // Cambiar estado a inactivo en lugar de eliminar
     await this.usersRepository.update(id, {

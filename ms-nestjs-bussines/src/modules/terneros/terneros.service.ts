@@ -276,7 +276,7 @@ export class TernerosService {
   async findOne(
     id: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<TerneroEntity> {
     try {
       const query = this.terneroRepository
@@ -367,9 +367,9 @@ export class TernerosService {
       }
 
       const {
-        fecha_nacimiento,
-        fecha_hora_calostrado,
-        id_madre,
+        fecha_nacimiento: _fecha_nacimiento,
+        fecha_hora_calostrado: _fecha_hora_calostrado,
+        id_madre: _id_madre,
         ...otrosCampos
       } = updateTerneroDto;
       Object.assign(ternero, otrosCampos);
@@ -546,7 +546,7 @@ export class TernerosService {
     peso: number,
     idEstablecimiento: number | null,
     esAdmin: boolean,
-    observaciones?: string,
+    _observaciones?: string,
   ): Promise<TerneroEntity> {
     try {
       const ternero = await this.findOne(id, idEstablecimiento, esAdmin);

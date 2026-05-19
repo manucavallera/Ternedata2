@@ -167,7 +167,7 @@ export class MadresService {
   async findOne(
     id: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<MadreEntity> {
     try {
       const query = this.madreRepository

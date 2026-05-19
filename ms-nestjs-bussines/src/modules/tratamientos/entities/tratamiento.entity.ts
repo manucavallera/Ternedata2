@@ -4,7 +4,6 @@ import { TerneroEntity } from 'src/modules/terneros/entities/ternero.entity';
 import {
   Column,
   Entity,
-  OneToMany,
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,

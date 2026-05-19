@@ -143,7 +143,7 @@ export class RodeosService {
     idEstablecimiento: number | null,
     esAdmin: boolean,
   ): Promise<void> {
-    const rodeo = await this.findOne(id, idEstablecimiento, esAdmin);
+    const _rodeo = await this.findOne(id, idEstablecimiento, esAdmin);
 
     // Verificar si tiene terneros asignados
     const countQuery = await this.rodeosRepository.query(

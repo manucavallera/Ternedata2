@@ -219,7 +219,7 @@ export class EventosService {
   async findOne(
     id: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<EventoEntity> {
     try {
       const queryBuilder = this.eventoRepository
