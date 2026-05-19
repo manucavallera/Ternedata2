@@ -433,6 +433,14 @@ export class BotController {
   async registrar(@Body() body: BotRequestBody) {
     console.log('🤖 Bot Request recibido:', JSON.stringify(body, null, 2));
 
+    const NORMALIZAR_ACCION: Record<string, string> = {
+      crearrodeo: 'crear_rodeo', crearternero: 'crear_ternero', crearmadre: 'crear_madre',
+      crearevento: 'crear_evento', creartratamiento: 'crear_tratamiento', creardiarrea: 'crear_diarrea',
+      asignarrodeo: 'asignar_rodeo', moverrodeo: 'mover_rodeo', cambiarestablecimiento: 'cambiar_establecimiento',
+      consultarresumen: 'consultar_resumen',
+    };
+    if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
+
     const { accion, phone } = body;
 
     if (!accion) {
