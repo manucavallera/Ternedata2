@@ -49,7 +49,8 @@ interface BotRequestBody {
     | 'consultar_resumen'
     | 'asignar_rodeo'
     | 'mover_rodeo'
-    | 'crear_rodeo';
+    | 'crear_rodeo'
+    | 'registrar_peso';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -437,7 +438,7 @@ export class BotController {
       crearrodeo: 'crear_rodeo', crearternero: 'crear_ternero', crearmadre: 'crear_madre',
       crearevento: 'crear_evento', creartratamiento: 'crear_tratamiento', creardiarrea: 'crear_diarrea',
       asignarrodeo: 'asignar_rodeo', moverrodeo: 'mover_rodeo', cambiarestablecimiento: 'cambiar_establecimiento',
-      consultarresumen: 'consultar_resumen',
+      consultarresumen: 'consultar_resumen', registrarpeso: 'registrar_peso',
     };
     if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
 
@@ -1044,6 +1045,52 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'registrar_peso': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          const peso = parseFloat(body.peso) || 0;
+
+          if (!rpTernero || rpTernero <= 0) {
+            return { success: false, mensaje: '⚠️ No se especificó el RP del ternero.' };
+          }
+          if (!peso || peso <= 0) {
+            return { success: false, mensaje: '⚠️ No se especificó el peso (en kg).' };
+          }
+
+          const ternero = await this.terneroRepo.findOne({
+            where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
+          });
+          if (!ternero) {
+            return { success: false, mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.` };
+          }
+
+          const fechaNac = new Date(ternero.fecha_nacimiento);
+          const hoyDate = new Date();
+          const diasVida = Math.floor((hoyDate.getTime() - fechaNac.getTime()) / (1000 * 60 * 60 * 24));
+
+          let columna: string;
+          let etiqueta: string;
+          if (diasVida <= 7) {
+            columna = 'peso_nacer'; etiqueta = 'Nacimiento';
+          } else if (diasVida <= 22) {
+            columna = 'peso_15d'; etiqueta = '15 días';
+          } else if (diasVida <= 37) {
+            columna = 'peso_30d'; etiqueta = '30 días';
+          } else if (diasVida <= 52) {
+            columna = 'peso_45d'; etiqueta = '45 días';
+          } else {
+            columna = 'peso_largado'; etiqueta = 'Largado';
+          }
+
+          await this.terneroRepo.update(ternero.id_ternero, { [columna]: peso } as any);
+
+          return {
+            success: true,
+            accion: 'registrar_peso',
+            mensaje: `✅ Peso registrado\n🐄 Ternero RP: ${rpTernero}\n⚖️ Peso: ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
         default:
           throw new HttpException(
             {
@@ -1061,6 +1108,7 @@ export class BotController {
                 'asignar_rodeo',
                 'mover_rodeo',
                 'crear_rodeo',
+                'registrar_peso',
               ],
             },
             HttpStatus.BAD_REQUEST,
