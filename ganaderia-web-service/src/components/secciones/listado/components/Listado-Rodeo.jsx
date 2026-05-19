@@ -849,7 +849,7 @@ const ListadoRodeo = () => {
                             onChange={() => toggleSeleccion(t.id_ternero)}
                           />
                           <div className='text-sm'>
-                            <div className='font-medium text-gray-800'>#{t.id_ternero} — {t.nombre || "Ternero"}</div>
+                            <div className='font-medium text-gray-800'>RP {t.rp_ternero} — {t.nombre || "Ternero"}</div>
                             <div className='text-gray-500'>{t.estado} · Peso: {t.peso_nacer || "-"} kg</div>
                           </div>
                         </label>
@@ -882,7 +882,7 @@ const ListadoRodeo = () => {
                             onChange={() => toggleSeleccion(t.id_ternero)}
                           />
                           <div className='text-sm'>
-                            <div className='font-medium text-gray-800'>#{t.id_ternero} — {t.nombre || "Ternero"}</div>
+                            <div className='font-medium text-gray-800'>RP {t.rp_ternero} — {t.nombre || "Ternero"}</div>
                             <div className='text-gray-500'>{t.estado} · Peso: {t.peso_nacer || "-"} kg</div>
                           </div>
                         </label>
