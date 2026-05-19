@@ -50,7 +50,11 @@ interface BotRequestBody {
     | 'asignar_rodeo'
     | 'mover_rodeo'
     | 'crear_rodeo'
-    | 'registrar_peso';
+    | 'registrar_peso'
+    | 'consultar_ternero'
+    | 'actualizar_estado_ternero'
+    | 'consultar_rodeo'
+    | 'cambiar_perfil';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -439,6 +443,8 @@ export class BotController {
       crearevento: 'crear_evento', creartratamiento: 'crear_tratamiento', creardiarrea: 'crear_diarrea',
       asignarrodeo: 'asignar_rodeo', moverrodeo: 'mover_rodeo', cambiarestablecimiento: 'cambiar_establecimiento',
       consultarresumen: 'consultar_resumen', registrarpeso: 'registrar_peso',
+      consultarternero: 'consultar_ternero', actualizarestadoternero: 'actualizar_estado_ternero',
+      consultarrodeo: 'consultar_rodeo', cambiarperfil: 'cambiar_perfil',
     };
     if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
 
@@ -1091,6 +1097,126 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'consultar_ternero': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+
+          const t = await this.terneroRepo.findOne({
+            where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
+            relations: ['rodeo'],
+          });
+          if (!t) return { success: false, mensaje: `⚠️ No existe ternero RP ${rpTernero} en tu establecimiento.` };
+
+          const fechaNac = new Date(t.fecha_nacimiento);
+          const diasVida = Math.floor((new Date().getTime() - fechaNac.getTime()) / (1000 * 60 * 60 * 24));
+          const ultimoPeso = t.peso_largado || t.peso_45d || t.peso_30d || t.peso_15d || t.peso_nacer || 0;
+
+          const lineas = [
+            `🐄 Ternero RP *${t.rp_ternero}*`,
+            `📊 Estado: ${t.estado}`,
+            `⚧ Sexo: ${t.sexo}`,
+            `📅 Nacimiento: ${t.fecha_nacimiento} (${diasVida} días)`,
+            `⚖️ Último peso: ${ultimoPeso} kg`,
+            t.rodeo ? `🏟️ Rodeo: ${t.rodeo.nombre}` : `🏟️ Rodeo: sin asignar`,
+            nombreEstablecimiento ? `🏠 Campo: ${nombreEstablecimiento}` : '',
+          ].filter(Boolean);
+
+          return { success: true, accion: 'consultar_ternero', mensaje: lineas.join('\n') };
+        }
+
+        // ──────────────────────────────────────
+        case 'actualizar_estado_ternero': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+
+          const estadoNuevo = String(body.estado || '').trim();
+          if (!['Vivo', 'Muerto'].includes(estadoNuevo)) {
+            return { success: false, mensaje: '⚠️ Estado inválido. Usá: Vivo o Muerto.' };
+          }
+
+          const t = await this.terneroRepo.findOne({
+            where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
+          });
+          if (!t) return { success: false, mensaje: `⚠️ No existe ternero RP ${rpTernero} en tu establecimiento.` };
+
+          await this.terneroRepo.update(t.id_ternero, { estado: estadoNuevo } as any);
+
+          return {
+            success: true,
+            accion: 'actualizar_estado_ternero',
+            mensaje: `✅ Ternero RP ${rpTernero} actualizado a *${estadoNuevo}*${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'consultar_rodeo': {
+          const nombreRodeoQ = String(body.nombre_rodeo || body.rodeo || '').trim();
+          if (!nombreRodeoQ) return { success: false, mensaje: '⚠️ Indicá el nombre del rodeo.' };
+
+          const rodeo = await this.rodeosRepo.createQueryBuilder('r')
+            .where('r.id_establecimiento = :id', { id: idEstablecimiento })
+            .andWhere('LOWER(r.nombre) LIKE :nombre', { nombre: `%${nombreRodeoQ.toLowerCase()}%` })
+            .getOne();
+
+          if (!rodeo) return { success: false, mensaje: `⚠️ No encontré el rodeo "${nombreRodeoQ}".` };
+
+          const terneros = await this.terneroRepo.find({
+            where: { id_rodeo: rodeo.id_rodeo, id_establecimiento: idEstablecimiento },
+            select: ['rp_ternero', 'sexo', 'estado', 'peso_nacer'],
+          });
+
+          if (!terneros.length) {
+            return { success: true, accion: 'consultar_rodeo', mensaje: `🏟️ Rodeo *${rodeo.nombre}* — sin terneros asignados.` };
+          }
+
+          const lista = terneros.map(t => `  • RP ${t.rp_ternero} (${t.sexo}, ${t.estado})`).join('\n');
+          return {
+            success: true,
+            accion: 'consultar_rodeo',
+            mensaje: `🏟️ Rodeo *${rodeo.nombre}* — ${terneros.length} ternero(s):\n${lista}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'cambiar_perfil': {
+          const email = String(body.email || '').trim().toLowerCase();
+          const password = String(body.password || body.contrasena || '').trim();
+
+          if (!email || !password) {
+            return { success: false, mensaje: '⚠️ Necesito tu email y contraseña. Ejemplo: "cambiar perfil email@x.com micontraseña"' };
+          }
+
+          const nuevoUser = await this.userRepo.findOne({ where: { email } });
+          if (!nuevoUser) return { success: false, mensaje: '⚠️ No existe una cuenta con ese email.' };
+
+          const { compare } = await import('bcrypt');
+          const valida = await compare(password, nuevoUser.password);
+          if (!valida) return { success: false, mensaje: '⚠️ Contraseña incorrecta.' };
+
+          // Liberar teléfono del usuario anterior
+          if (phone) {
+            const telefonoNorm = phone.replace(/[\s\-\+]/g, '');
+            await this.userRepo
+              .createQueryBuilder()
+              .update()
+              .set({ telefono: null })
+              .where('telefono IN (:...variantes)', {
+                variantes: [telefonoNorm, telefonoNorm.replace(/^54/, ''), `54${telefonoNorm}`],
+              })
+              .andWhere('id != :id', { id: nuevoUser.id })
+              .execute();
+
+            await this.userRepo.update(nuevoUser.id, { telefono: telefonoNorm } as any);
+          }
+
+          return {
+            success: true,
+            accion: 'cambiar_perfil',
+            mensaje: `✅ Perfil cambiado. Ahora sos *${nuevoUser.name}* (${nuevoUser.rol}).${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
         default:
           throw new HttpException(
             {
@@ -1109,6 +1235,10 @@ export class BotController {
                 'mover_rodeo',
                 'crear_rodeo',
                 'registrar_peso',
+                'consultar_ternero',
+                'actualizar_estado_ternero',
+                'consultar_rodeo',
+                'cambiar_perfil',
               ],
             },
             HttpStatus.BAD_REQUEST,
