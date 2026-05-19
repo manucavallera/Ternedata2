@@ -23,6 +23,7 @@ import { TratamientoEntity } from '../tratamientos/entities/tratamiento.entity';
 import { UserEntity } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { Establecimiento } from '../establecimientos/entities/establecimiento.entity';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { Establecimiento } from '../establecimientos/entities/establecimiento.en
       UserEntity,
       UserEstablecimientoEntity,
       Establecimiento,
+      Rodeos,
     ]),
   ],
   controllers: [BotController],

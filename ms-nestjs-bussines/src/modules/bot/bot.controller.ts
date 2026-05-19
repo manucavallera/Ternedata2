@@ -20,9 +20,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
 import { MadreEntity } from '../madres/entities/madre.entity';
+import { EventoEntity } from '../eventos/entities/evento.entity';
+import { DiarreaTerneroEntity } from '../diarrea-terneros/entities/diarrea-ternero.entity';
+import { TratamientoEntity } from '../tratamientos/entities/tratamiento.entity';
 import { UserEntity } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { Establecimiento } from '../establecimientos/entities/establecimiento.entity';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 
 // ─────────────────────────────────────────────
 // Body unificado que recibe del flow de n8n
@@ -41,7 +45,10 @@ interface BotRequestBody {
     | 'crear_tratamiento'
     | 'crear_diarrea'
     | 'seleccionar_establecimiento'
-    | 'cambiar_establecimiento';
+    | 'cambiar_establecimiento'
+    | 'consultar_resumen'
+    | 'asignar_rodeo'
+    | 'mover_rodeo';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -66,12 +73,20 @@ export class BotController {
     private readonly terneroRepo: Repository<TerneroEntity>,
     @InjectRepository(MadreEntity)
     private readonly madreRepo: Repository<MadreEntity>,
+    @InjectRepository(EventoEntity)
+    private readonly eventoRepo: Repository<EventoEntity>,
+    @InjectRepository(DiarreaTerneroEntity)
+    private readonly diarreaRepo: Repository<DiarreaTerneroEntity>,
+    @InjectRepository(TratamientoEntity)
+    private readonly tratamientoRepo: Repository<TratamientoEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstRepo: Repository<UserEstablecimientoEntity>,
     @InjectRepository(Establecimiento)
     private readonly establecimientoRepo: Repository<Establecimiento>,
+    @InjectRepository(Rodeos)
+    private readonly rodeosRepo: Repository<Rodeos>,
   ) {}
 
   // ─────────────────────────────────────────────
@@ -890,6 +905,102 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'consultar_resumen': {
+          const periodo = body.periodo || 'semana';
+          const desde = new Date();
+          if (periodo === 'hoy') {
+            desde.setHours(0, 0, 0, 0);
+          } else if (periodo === 'semana') {
+            desde.setDate(desde.getDate() - 7);
+          } else {
+            desde.setMonth(desde.getMonth() - 1);
+          }
+          const desdeStr = desde.toISOString().split('T')[0];
+
+          const [ternerosVivos, ternerosNuevos, madresTotales, cantEventos, cantTratamientos, cantDiarreas] =
+            await Promise.all([
+              this.terneroRepo.count({ where: { id_establecimiento: idEstablecimiento, estado: 'Vivo' } }),
+              this.terneroRepo.createQueryBuilder('t')
+                .where('t.id_establecimiento = :id', { id: idEstablecimiento })
+                .andWhere('t.fecha_nacimiento >= :desde', { desde: desdeStr })
+                .getCount(),
+              this.madreRepo.count({ where: { id_establecimiento: idEstablecimiento } }),
+              this.eventoRepo.createQueryBuilder('e')
+                .where('e.id_establecimiento = :id', { id: idEstablecimiento })
+                .andWhere('e.fecha_evento >= :desde', { desde: desdeStr })
+                .getCount(),
+              this.tratamientoRepo.createQueryBuilder('t')
+                .where('t.id_establecimiento = :id', { id: idEstablecimiento })
+                .andWhere('t.fecha_tratamiento >= :desde', { desde: desdeStr })
+                .getCount(),
+              this.diarreaRepo.createQueryBuilder('d')
+                .where('d.id_establecimiento = :id', { id: idEstablecimiento })
+                .andWhere('d.fecha_diarrea_ternero >= :desde', { desde: desdeStr })
+                .getCount(),
+            ]);
+
+          const periodoLabel = periodo === 'hoy' ? 'hoy' : periodo === 'semana' ? 'esta semana' : 'este mes';
+          const mensaje = [
+            `📊 *Resumen ${periodoLabel}*${nombreEstablecimiento ? ` — ${nombreEstablecimiento}` : ''}`,
+            ``,
+            `🐄 Terneros vivos: ${ternerosVivos}`,
+            `🐣 Terneros nacidos ${periodoLabel}: ${ternerosNuevos}`,
+            `🐮 Madres totales: ${madresTotales}`,
+            `📋 Eventos registrados: ${cantEventos}`,
+            `💊 Tratamientos aplicados: ${cantTratamientos}`,
+            `🩺 Casos de diarrea: ${cantDiarreas}`,
+          ].join('\n');
+
+          return { success: true, accion: 'consultar_resumen', mensaje };
+        }
+
+        // ──────────────────────────────────────
+        case 'asignar_rodeo':
+        case 'mover_rodeo': {
+          const rps: number[] = Array.isArray(body.rp_terneros)
+            ? body.rp_terneros.map(Number)
+            : body.rp_ternero
+              ? [Number(body.rp_ternero)]
+              : [];
+
+          if (!rps.length) {
+            return { success: false, mensaje: '⚠️ No se especificaron terneros. Decí el RP o los RPs.' };
+          }
+
+          const nombreRodeo = String(body.nombre_rodeo || body.rodeo || '').trim();
+          if (!nombreRodeo) {
+            return { success: false, mensaje: '⚠️ No se especificó el rodeo destino.' };
+          }
+
+          const rodeo = await this.rodeosRepo.createQueryBuilder('r')
+            .where('r.id_establecimiento = :id', { id: idEstablecimiento })
+            .andWhere('LOWER(r.nombre) LIKE :nombre', { nombre: `%${nombreRodeo.toLowerCase()}%` })
+            .andWhere('r.estado = :estado', { estado: 'activo' })
+            .getOne();
+
+          if (!rodeo) {
+            return { success: false, mensaje: `⚠️ No encontré el rodeo "${nombreRodeo}" en tu establecimiento.` };
+          }
+
+          const { ids: terneroIds, errores } = await this.resolverTerneroIdsEstricto(rps, idEstablecimiento);
+
+          if (terneroIds.length === 0) {
+            return { success: false, mensaje: `⚠️ No se encontraron los terneros:\n${errores.join('\n')}` };
+          }
+
+          await this.rodeosRepo.query(
+            `UPDATE terneros SET id_rodeo = $1 WHERE id_ternero = ANY($2) AND id_establecimiento = $3`,
+            [rodeo.id_rodeo, terneroIds, idEstablecimiento],
+          );
+
+          let mensaje = `✅ ${accion === 'mover_rodeo' ? 'Movido' : 'Asignado'} al rodeo *${rodeo.nombre}*\n🐄 RP(s): ${rps.join(', ')}`;
+          if (errores.length > 0) mensaje += `\n⚠️ No encontrados:\n${errores.join('\n')}`;
+          if (nombreEstablecimiento) mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
+
+          return { success: true, accion, mensaje };
+        }
+
+        // ──────────────────────────────────────
         default:
           throw new HttpException(
             {
@@ -903,6 +1014,9 @@ export class BotController {
                 'crear_diarrea',
                 'seleccionar_establecimiento',
                 'cambiar_establecimiento',
+                'consultar_resumen',
+                'asignar_rodeo',
+                'mover_rodeo',
               ],
             },
             HttpStatus.BAD_REQUEST,
