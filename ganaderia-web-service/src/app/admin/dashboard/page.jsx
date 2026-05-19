@@ -174,7 +174,8 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [establecimientoActual, obtenerResumenDashboardHook, userPayload?.rol]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [establecimientoActual, userPayload?.rol]);
 
   useEffect(() => {
     if (vista === "dashboard") cargarResumen();
