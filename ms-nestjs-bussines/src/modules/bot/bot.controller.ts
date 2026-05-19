@@ -48,7 +48,8 @@ interface BotRequestBody {
     | 'cambiar_establecimiento'
     | 'consultar_resumen'
     | 'asignar_rodeo'
-    | 'mover_rodeo';
+    | 'mover_rodeo'
+    | 'crear_rodeo';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -1001,6 +1002,40 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'crear_rodeo': {
+          if (userEntity?.rol !== 'admin') {
+            return { success: false, mensaje: '⛔ Solo el administrador puede crear rodeos.' };
+          }
+
+          const nombreRodeoNuevo = String(body.nombre_rodeo || body.nombre || '').trim();
+          if (!nombreRodeoNuevo) {
+            return { success: false, mensaje: '⚠️ Indicá el nombre del rodeo a crear.' };
+          }
+
+          const existe = await this.rodeosRepo.findOne({
+            where: { nombre: nombreRodeoNuevo, id_establecimiento: idEstablecimiento },
+          });
+          if (existe) {
+            return { success: false, mensaje: `⚠️ Ya existe un rodeo llamado "${nombreRodeoNuevo}" en ${nombreEstablecimiento}.` };
+          }
+
+          const nuevoRodeo = this.rodeosRepo.create({
+            nombre: nombreRodeoNuevo,
+            descripcion: String(body.descripcion || '').trim() || null,
+            tipo: String(body.tipo || '').trim() || null,
+            estado: 'activo',
+            id_establecimiento: idEstablecimiento,
+          });
+          await this.rodeosRepo.save(nuevoRodeo);
+
+          return {
+            success: true,
+            accion: 'crear_rodeo',
+            mensaje: `✅ Rodeo *${nombreRodeoNuevo}* creado en ${nombreEstablecimiento}.`,
+          };
+        }
+
+        // ──────────────────────────────────────
         default:
           throw new HttpException(
             {
@@ -1017,6 +1052,7 @@ export class BotController {
                 'consultar_resumen',
                 'asignar_rodeo',
                 'mover_rodeo',
+                'crear_rodeo',
               ],
             },
             HttpStatus.BAD_REQUEST,
