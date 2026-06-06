@@ -15,6 +15,7 @@ import { adaptarPayload } from './webhook/adaptador';
 import { ClaudeService } from './webhook/claude.service';
 import { AudioService } from './webhook/audio.service';
 import { MessagingService } from './webhook/messaging.service';
+import { DedupeService } from './webhook/dedupe.service';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
@@ -77,6 +78,7 @@ export class BotController {
     private readonly claudeService: ClaudeService,
     private readonly audioService: AudioService,
     private readonly messagingService: MessagingService,
+    private readonly dedupeService: DedupeService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -434,24 +436,49 @@ export class BotController {
   }
 
   // ════════════════════════════════════════════
-  // WEBHOOK (MIGRACIÓN n8n → NestJS) — Etapa 1: shadow mode
-  // n8n manda una copia cruda del payload acá. Por ahora solo
-  // loguea y devuelve 200. No afecta el flujo real (n8n sigue
-  // respondiendo al usuario). Acá se irá moviendo, etapa por
-  // etapa: adaptador → Claude → audio/Groq → envío de respuesta.
+  // WEBHOOK unificado del bot (Telegram / WhatsApp-Evolution).
+  // Responde 200 al instante y procesa en background: si tardáramos
+  // (Claude + registrar + envío ~3-5s) Telegram reintenta el update y
+  // duplicaría el registro. Dedupe por update_id / messageId evita
+  // reprocesar el mismo mensaje. WEBHOOK_MODE='live' ejecuta y responde;
+  // 'shadow' (default) solo parsea y loguea (procesa sincrónico para
+  // poder inspeccionar el resultado en la respuesta HTTP).
   // ════════════════════════════════════════════
   @Post('webhook')
   @ApiOperation({
-    summary: 'Webhook unificado del bot (en migración desde n8n)',
+    summary: 'Webhook unificado del bot (Telegram / WhatsApp)',
     description:
-      'Shadow mode: recibe el payload crudo de Telegram/WhatsApp para ir migrando el flujo de n8n al backend. No responde al usuario todavía.',
+      'Recibe el payload crudo, deduplica, responde 200 al instante y procesa el mensaje en background.',
   })
   async webhook(@Body() body: any) {
-    // WEBHOOK_MODE: 'shadow' (default) parsea y loguea sin escribir DB ni
-    // responder (n8n sigue siendo el dueño). 'live' ejecuta todo el flujo
-    // y responde al usuario — solo al hacer el switch y apagar n8n.
-    const MODE = process.env.WEBHOOK_MODE === 'live' ? 'live' : 'shadow';
-    const esLive = MODE === 'live';
+    const esLive = process.env.WEBHOOK_MODE === 'live';
+
+    // Dedupe: mismo update reintentado por Telegram/Evolution → ignorar.
+    const clave = this.dedupeService.extraerClave(body);
+    if (this.dedupeService.esDuplicado(clave)) {
+      console.log('♻️ [webhook] duplicado ignorado:', clave);
+      return { ok: true, duplicado: true };
+    }
+
+    // Live: responder 200 ya y procesar en background (evita reintentos).
+    if (esLive) {
+      this.procesarMensaje(body, true).catch((err) =>
+        console.error('❌ [webhook] error async:', err?.message || err),
+      );
+      return { ok: true };
+    }
+
+    // Shadow: sincrónico, devuelve el detalle para diagnóstico.
+    return this.procesarMensaje(body, false);
+  }
+
+  /**
+   * Pipeline del bot: adaptar → verificar estado → transcribir (audio) →
+   * Claude → registrar/registrar-lote → responder. En shadow no escribe
+   * ni responde (solo loguea y devuelve el parseo).
+   */
+  private async procesarMensaje(body: any, esLive: boolean): Promise<any> {
+    const MODE = esLive ? 'live' : 'shadow';
 
     const msg = adaptarPayload(body);
     if (!msg) {

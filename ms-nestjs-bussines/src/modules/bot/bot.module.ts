@@ -6,6 +6,7 @@ import { BotApiKeyGuard } from './api-key.guard';
 import { ClaudeService } from './webhook/claude.service';
 import { AudioService } from './webhook/audio.service';
 import { MessagingService } from './webhook/messaging.service';
+import { DedupeService } from './webhook/dedupe.service';
 
 // TypeORM
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -49,6 +50,7 @@ import { Rodeos } from '../rodeos/entities/rodeos.entity';
     ClaudeService,
     AudioService,
     MessagingService,
+    DedupeService,
     TernerosService,
     MadresService,
     EventosService,

@@ -31,7 +31,9 @@ export class TerneroEntity {
   @Column({ type: 'enum', enum: ['Macho', 'Hembra'] })
   sexo: string;
 
-  @Column({ type: 'enum', enum: ['Vivo', 'Muerto'] })
+  // varchar (no enum): los estados los acota el prompt de Claude
+  // (Vivo/Muerto/Vendido). Enum estricto rompía con valores nuevos.
+  @Column({ type: 'varchar' })
   estado: string;
 
   @Column({ type: 'float', nullable: false })

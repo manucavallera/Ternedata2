@@ -28,7 +28,9 @@ export class MadreEntity {
   @Column({ nullable: true, type: 'integer' })
   rp_madre: number;
 
-  @Column({ type: 'enum', enum: ['Seca', 'En Tambo'] })
+  // varchar (no enum): los estados los acota el prompt de Claude
+  // (En Tambo/Seca/Preñada/Vendida). Enum estricto rompía con valores nuevos.
+  @Column({ type: 'varchar' })
   estado: string;
 
   @Column({ nullable: true, type: 'varchar' })
