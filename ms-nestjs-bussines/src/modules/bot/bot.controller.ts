@@ -427,6 +427,27 @@ export class BotController {
   }
 
   // ════════════════════════════════════════════
+  // WEBHOOK (MIGRACIÓN n8n → NestJS) — Etapa 1: shadow mode
+  // n8n manda una copia cruda del payload acá. Por ahora solo
+  // loguea y devuelve 200. No afecta el flujo real (n8n sigue
+  // respondiendo al usuario). Acá se irá moviendo, etapa por
+  // etapa: adaptador → Claude → audio/Groq → envío de respuesta.
+  // ════════════════════════════════════════════
+  @Post('webhook')
+  @ApiOperation({
+    summary: 'Webhook unificado del bot (en migración desde n8n)',
+    description:
+      'Shadow mode: recibe el payload crudo de Telegram/WhatsApp para ir migrando el flujo de n8n al backend. No responde al usuario todavía.',
+  })
+  async webhook(@Body() body: any) {
+    console.log(
+      '📥 [webhook shadow] payload recibido:',
+      JSON.stringify(body, null, 2),
+    );
+    return { ok: true, etapa: 'shadow', recibido: true };
+  }
+
+  // ════════════════════════════════════════════
   // ENDPOINT UNIFICADO — n8n manda todo acá
   // ════════════════════════════════════════════
   @Post('registrar')
@@ -535,6 +556,71 @@ export class BotController {
         accion: 'seleccionar_establecimiento',
         mensaje: `✅ Listo! Registrando en *${elegido.nombre}*.\nAhora podés enviar tus datos.`,
         establecimiento: elegido,
+      };
+    }
+
+    // ── Cambio de perfil (login por email+password → reasigna teléfono) ──
+    // Se maneja ANTES de resolver el establecimiento, porque el campo del
+    // usuario nuevo no tiene nada que ver con el del usuario anterior.
+    if (accion === 'cambiar_perfil') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || body.contrasena || '').trim();
+
+      if (!email || !password) {
+        return { success: false, mensaje: '⚠️ Necesito tu email y contraseña. Ejemplo: "cambiar perfil email@x.com micontraseña"' };
+      }
+
+      const nuevoUser = await this.userRepo.findOne({ where: { email } });
+      if (!nuevoUser) return { success: false, mensaje: '⚠️ No existe una cuenta con ese email.' };
+
+      const { compare } = await import('bcrypt');
+      const valida = await compare(password, nuevoUser.password);
+      if (!valida) return { success: false, mensaje: '⚠️ Contraseña incorrecta.' };
+
+      // Liberar teléfono del usuario anterior y asignarlo al nuevo
+      if (phone) {
+        const telefonoNorm = phone.replace(/[\s\-\+]/g, '');
+        await this.userRepo
+          .createQueryBuilder()
+          .update()
+          .set({ telefono: null })
+          .where('telefono IN (:...variantes)', {
+            variantes: [telefonoNorm, telefonoNorm.replace(/^54/, ''), `54${telefonoNorm}`],
+          })
+          .andWhere('id != :id', { id: nuevoUser.id })
+          .execute();
+
+        await this.userRepo.update(nuevoUser.id, { telefono: telefonoNorm } as any);
+      }
+
+      const encabezado = `✅ Perfil cambiado. Ahora sos *${nuevoUser.name}* (${nuevoUser.rol}).`;
+
+      // Resolver el establecimiento del NUEVO usuario (auto-switch de campo)
+      const auth = await this.autenticarPorTelefono(phone);
+      if (!auth) {
+        return { success: true, accion: 'cambiar_perfil', mensaje: `${encabezado}\n⚠️ No tenés ningún establecimiento asignado. Pedile al administrador que te asigne uno.` };
+      }
+      if (auth.requiere_seleccion) {
+        const lista = this.formatearListaEstablecimientos(auth.establecimientos);
+        return {
+          success: true,
+          accion: 'cambiar_perfil',
+          requiere_seleccion: true,
+          establecimientos: auth.establecimientos,
+          mensaje: `${encabezado}\n🏠 ¿En qué establecimiento querés registrar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
+        };
+      }
+
+      let nombreNuevoEst = auth.establecimientos.find(e => e.id === auth.establecimientoId)?.nombre;
+      if (!nombreNuevoEst && auth.establecimientoId) {
+        const est = await this.establecimientoRepo.findOne({ where: { id_establecimiento: auth.establecimientoId } });
+        if (est) nombreNuevoEst = est.nombre;
+      }
+
+      return {
+        success: true,
+        accion: 'cambiar_perfil',
+        mensaje: `${encabezado}${nombreNuevoEst ? '\n🏠 Campo: ' + nombreNuevoEst : ''}`,
       };
     }
 
@@ -1178,44 +1264,6 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
-        case 'cambiar_perfil': {
-          const email = String(body.email || '').trim().toLowerCase();
-          const password = String(body.password || body.contrasena || '').trim();
-
-          if (!email || !password) {
-            return { success: false, mensaje: '⚠️ Necesito tu email y contraseña. Ejemplo: "cambiar perfil email@x.com micontraseña"' };
-          }
-
-          const nuevoUser = await this.userRepo.findOne({ where: { email } });
-          if (!nuevoUser) return { success: false, mensaje: '⚠️ No existe una cuenta con ese email.' };
-
-          const { compare } = await import('bcrypt');
-          const valida = await compare(password, nuevoUser.password);
-          if (!valida) return { success: false, mensaje: '⚠️ Contraseña incorrecta.' };
-
-          // Liberar teléfono del usuario anterior
-          if (phone) {
-            const telefonoNorm = phone.replace(/[\s\-\+]/g, '');
-            await this.userRepo
-              .createQueryBuilder()
-              .update()
-              .set({ telefono: null })
-              .where('telefono IN (:...variantes)', {
-                variantes: [telefonoNorm, telefonoNorm.replace(/^54/, ''), `54${telefonoNorm}`],
-              })
-              .andWhere('id != :id', { id: nuevoUser.id })
-              .execute();
-
-            await this.userRepo.update(nuevoUser.id, { telefono: telefonoNorm } as any);
-          }
-
-          return {
-            success: true,
-            accion: 'cambiar_perfil',
-            mensaje: `✅ Perfil cambiado. Ahora sos *${nuevoUser.name}* (${nuevoUser.rol}).${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
-          };
-        }
-
         // ──────────────────────────────────────
         default:
           throw new HttpException(
