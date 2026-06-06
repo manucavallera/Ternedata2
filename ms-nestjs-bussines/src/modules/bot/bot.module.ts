@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { BotController } from './bot.controller';
 import { BotApiKeyGuard } from './api-key.guard';
 import { ClaudeService } from './webhook/claude.service';
+import { AudioService } from './webhook/audio.service';
+import { MessagingService } from './webhook/messaging.service';
 
 // TypeORM
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -45,6 +47,8 @@ import { Rodeos } from '../rodeos/entities/rodeos.entity';
   providers: [
     BotApiKeyGuard,
     ClaudeService,
+    AudioService,
+    MessagingService,
     TernerosService,
     MadresService,
     EventosService,

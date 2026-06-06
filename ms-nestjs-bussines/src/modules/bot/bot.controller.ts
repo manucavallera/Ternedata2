@@ -13,6 +13,8 @@ import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import { BotApiKeyGuard } from './api-key.guard';
 import { adaptarPayload } from './webhook/adaptador';
 import { ClaudeService } from './webhook/claude.service';
+import { AudioService } from './webhook/audio.service';
+import { MessagingService } from './webhook/messaging.service';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
@@ -73,6 +75,8 @@ interface BotRequestBody {
 export class BotController {
   constructor(
     private readonly claudeService: ClaudeService,
+    private readonly audioService: AudioService,
+    private readonly messagingService: MessagingService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -443,40 +447,84 @@ export class BotController {
       'Shadow mode: recibe el payload crudo de Telegram/WhatsApp para ir migrando el flujo de n8n al backend. No responde al usuario todavía.',
   })
   async webhook(@Body() body: any) {
-    // ── Etapa 2: crudo → adaptador → Claude → loguea. SIN escribir DB.
-    // (no se llama a registrar todavía: n8n ya registra, evitamos duplicar)
-    const msg = adaptarPayload(body);
+    // WEBHOOK_MODE: 'shadow' (default) parsea y loguea sin escribir DB ni
+    // responder (n8n sigue siendo el dueño). 'live' ejecuta todo el flujo
+    // y responde al usuario — solo al hacer el switch y apagar n8n.
+    const MODE = process.env.WEBHOOK_MODE === 'live' ? 'live' : 'shadow';
+    const esLive = MODE === 'live';
 
+    const msg = adaptarPayload(body);
     if (!msg) {
       console.log('📥 [webhook] descartado (eco/grupo/status/tipo no soportado)');
-      return { ok: true, etapa: 'shadow', descartado: true };
+      return { ok: true, modo: MODE, descartado: true };
     }
-
     console.log(
-      `📥 [webhook] ${msg._origen} | ${msg.phone} | ${msg.type} | "${msg.text ?? ''}"`,
+      `📥 [webhook:${MODE}] ${msg._origen} | ${msg.phone} | ${msg.type} | "${msg.text ?? ''}"`,
     );
 
-    if (msg.type === 'audio') {
-      // Etapa 3: transcripción Groq todavía no migrada
-      console.log('🎙️ [webhook] audio recibido — transcripción no migrada (Etapa 3)');
-      return { ok: true, etapa: 'shadow', tipo: 'audio', pendiente: 'transcripcion' };
+    // 1) Verificar estado (selección de establecimiento / vinculación TG).
+    //    Mismo orden que n8n: corre con el texto actual (null en audio).
+    const estado: any = await this.estado(msg.phone, msg.text ?? '');
+    if (estado?.mensaje) {
+      console.log('🏠 [webhook] estado terminal:', estado.mensaje);
+      if (esLive) {
+        await this.messagingService.responder(msg._origen, msg.phone, estado.mensaje);
+      }
+      return { ok: true, modo: MODE, estado: estado.mensaje };
     }
 
-    if (msg.type === 'text' && msg.text) {
+    // 2) Resolver texto (transcribir si es audio).
+    let texto = msg.text || '';
+    if (msg.type === 'audio') {
       try {
-        const parsed = await this.claudeService.parsearMensaje(msg.text, msg.phone);
-        console.log(
-          '🧠 [webhook] Claude parseó:',
-          JSON.stringify(parsed, null, 2),
-        );
-        return { ok: true, etapa: 'shadow', parsed };
+        texto = await this.audioService.transcribirMensaje(msg);
+        console.log(`🎙️ [webhook] transcripción: "${texto}"`);
       } catch (err: any) {
-        console.error('❌ [webhook] error parseando:', err.message);
-        return { ok: true, etapa: 'shadow', error: err.message };
+        console.error('❌ [webhook] error transcribiendo:', err.message);
+        if (esLive) {
+          await this.messagingService.responder(
+            msg._origen,
+            msg.phone,
+            '❌ No pude procesar el audio. Probá de nuevo o escribime el mensaje.',
+          );
+        }
+        return { ok: true, modo: MODE, error: 'transcripcion: ' + err.message };
       }
     }
+    if (!texto) return { ok: true, modo: MODE, recibido: true };
 
-    return { ok: true, etapa: 'shadow', recibido: true };
+    // 3) Parsear con Claude.
+    let parsed: any;
+    try {
+      parsed = await this.claudeService.parsearMensaje(texto, msg.phone);
+      console.log('🧠 [webhook] Claude parseó:', JSON.stringify(parsed, null, 2));
+    } catch (err: any) {
+      console.error('❌ [webhook] error parseando:', err.message);
+      if (esLive) {
+        await this.messagingService.responder(
+          msg._origen,
+          msg.phone,
+          '❌ No entendí el mensaje. Probá reformularlo.',
+        );
+      }
+      return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
+    }
+
+    // SHADOW: hasta acá. No escribe DB ni responde (evita duplicar con n8n).
+    if (!esLive) {
+      return { ok: true, modo: 'shadow', parsed };
+    }
+
+    // 4) LIVE: ejecutar la(s) acción(es) in-process.
+    const resultado: any = parsed._esLote
+      ? await this.registrarLote({ acciones: parsed.acciones, phone: msg.phone })
+      : await this.registrar(parsed as BotRequestBody);
+
+    // 5) Responder al usuario.
+    const mensaje =
+      resultado?.mensaje || '❌ Error inesperado al procesar el registro.';
+    await this.messagingService.responder(msg._origen, msg.phone, mensaje);
+    return { ok: true, modo: 'live', mensaje };
   }
 
   // ════════════════════════════════════════════
