@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BotController } from './bot.controller';
 import { BotApiKeyGuard } from './api-key.guard';
+import { ClaudeService } from './webhook/claude.service';
 
 // TypeORM
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -43,6 +44,7 @@ import { Rodeos } from '../rodeos/entities/rodeos.entity';
   controllers: [BotController],
   providers: [
     BotApiKeyGuard,
+    ClaudeService,
     TernerosService,
     MadresService,
     EventosService,

@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import { BotApiKeyGuard } from './api-key.guard';
+import { adaptarPayload } from './webhook/adaptador';
+import { ClaudeService } from './webhook/claude.service';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
@@ -70,6 +72,7 @@ interface BotRequestBody {
 @Controller('bot')
 export class BotController {
   constructor(
+    private readonly claudeService: ClaudeService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -440,10 +443,39 @@ export class BotController {
       'Shadow mode: recibe el payload crudo de Telegram/WhatsApp para ir migrando el flujo de n8n al backend. No responde al usuario todavía.',
   })
   async webhook(@Body() body: any) {
+    // ── Etapa 2: crudo → adaptador → Claude → loguea. SIN escribir DB.
+    // (no se llama a registrar todavía: n8n ya registra, evitamos duplicar)
+    const msg = adaptarPayload(body);
+
+    if (!msg) {
+      console.log('📥 [webhook] descartado (eco/grupo/status/tipo no soportado)');
+      return { ok: true, etapa: 'shadow', descartado: true };
+    }
+
     console.log(
-      '📥 [webhook shadow] payload recibido:',
-      JSON.stringify(body, null, 2),
+      `📥 [webhook] ${msg._origen} | ${msg.phone} | ${msg.type} | "${msg.text ?? ''}"`,
     );
+
+    if (msg.type === 'audio') {
+      // Etapa 3: transcripción Groq todavía no migrada
+      console.log('🎙️ [webhook] audio recibido — transcripción no migrada (Etapa 3)');
+      return { ok: true, etapa: 'shadow', tipo: 'audio', pendiente: 'transcripcion' };
+    }
+
+    if (msg.type === 'text' && msg.text) {
+      try {
+        const parsed = await this.claudeService.parsearMensaje(msg.text, msg.phone);
+        console.log(
+          '🧠 [webhook] Claude parseó:',
+          JSON.stringify(parsed, null, 2),
+        );
+        return { ok: true, etapa: 'shadow', parsed };
+      } catch (err: any) {
+        console.error('❌ [webhook] error parseando:', err.message);
+        return { ok: true, etapa: 'shadow', error: err.message };
+      }
+    }
+
     return { ok: true, etapa: 'shadow', recibido: true };
   }
 
