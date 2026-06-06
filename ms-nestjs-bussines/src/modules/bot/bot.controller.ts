@@ -1022,7 +1022,8 @@ export class BotController {
               body.observaciones ||
               `Registrado por bot (${userName})`,
             tipo_enfermedad: body.tipo_enfermedad || 'General',
-            turno: body.turno || 'mañana',
+            // El enum de la DB usa 'mañana' (con ñ); Claude manda 'manana'.
+            turno: /tarde|noche|pm/i.test(body.turno || '') ? 'tarde' : 'mañana',
             fecha_tratamiento: parsearFecha(body.fecha_tratamiento),
             id_establecimiento: idEstablecimiento,
             id_ternero: terneroResult.id,
