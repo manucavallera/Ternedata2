@@ -1422,6 +1422,55 @@ export class BotController {
   // ════════════════════════════════════════════
   // ENDPOINT LOTE — múltiples acciones de un mensaje
   // ════════════════════════════════════════════
+  // Etiqueta amigable de cada acción para los mensajes de error del lote.
+  private etiquetaAccion(accion: string): string {
+    const ETIQUETAS: Record<string, string> = {
+      crear_tratamiento: 'tratamiento',
+      crear_diarrea: 'diarrea',
+      crear_evento: 'evento',
+      registrar_peso: 'registro de peso',
+      actualizar_estado_ternero: 'cambio de estado',
+      asignar_rodeo: 'asignación de rodeo',
+      mover_rodeo: 'movimiento de rodeo',
+    };
+    return ETIQUETAS[accion] || accion;
+  }
+
+  /**
+   * Pre-chequeo del lote: para una acción, indica si exige un ternero EXISTENTE
+   * y qué RPs referencia. Las acciones que CREAN un ternero (crear_ternero) no
+   * entran acá. crear_evento valida los RPs que tenga pero no los exige (puede
+   * ser un evento de madre).
+   */
+  private rpsTerneroRequeridos(accion: BotRequestBody): {
+    exigirRp: boolean;
+    rps: number[];
+  } {
+    const aArray = (v: any): number[] =>
+      (Array.isArray(v) ? v : v != null ? [v] : [])
+        .map((x) => parseInt(x))
+        .filter((n) => n > 0);
+
+    switch (accion.accion) {
+      case 'crear_tratamiento':
+      case 'crear_diarrea':
+        return { exigirRp: true, rps: aArray(accion.id_ternero) };
+      case 'registrar_peso':
+      case 'actualizar_estado_ternero':
+        return { exigirRp: true, rps: aArray(accion.rp_ternero) };
+      case 'asignar_rodeo':
+      case 'mover_rodeo':
+        return {
+          exigirRp: true,
+          rps: aArray(accion.rp_terneros ?? accion.rp_ternero),
+        };
+      case 'crear_evento':
+        return { exigirRp: false, rps: aArray(accion.id_ternero) };
+      default:
+        return { exigirRp: false, rps: [] };
+    }
+  }
+
   @Post('registrar-lote')
   @ApiOperation({
     summary: 'Procesa múltiples acciones de un solo mensaje',
@@ -1478,6 +1527,42 @@ export class BotController {
       ...a,
       phone: a.phone || phone,
     }));
+
+    // ── Pre-validación: todo-o-nada liviano ──
+    // Si alguna acción del lote referencia un ternero inexistente o le falta el
+    // RP, abortamos TODO el lote ANTES de escribir nada. Así evitamos dejar
+    // datos a medias (ej: diarrea registrada pero el tratamiento falla).
+    // Solo aplica cuando hay establecimiento resuelto (flujo real del bot).
+    if (idEstablecimientoLote) {
+      const fallos: string[] = [];
+      for (const accion of accionesConPhone) {
+        const { exigirRp, rps } = this.rpsTerneroRequeridos(accion);
+        if (exigirRp && rps.length === 0) {
+          fallos.push(
+            `• ${this.etiquetaAccion(accion.accion)}: falta el RP del ternero`,
+          );
+          continue;
+        }
+        for (const rp of rps) {
+          const res = await this.resolverTerneroIdEstricto(
+            rp,
+            idEstablecimientoLote,
+          );
+          if ('error' in res) {
+            fallos.push(`• ${this.etiquetaAccion(accion.accion)}: ${res.error}`);
+          }
+        }
+      }
+      if (fallos.length > 0) {
+        return {
+          success: false,
+          abortado: true,
+          total: acciones.length,
+          exitosos: 0,
+          mensaje: `⚠️ No registré nada para no dejar datos a medias.\n\n${fallos.join('\n')}\n\nCorregí y mandalo de nuevo.`,
+        };
+      }
+    }
 
     const resultados: any[] = [];
     const mensajes: string[] = [];
