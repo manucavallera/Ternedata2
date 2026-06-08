@@ -12,6 +12,7 @@ const ACCIONES_VALIDAS = [
   'cambiar_establecimiento', 'consultar_resumen', 'asignar_rodeo', 'mover_rodeo',
   'crear_rodeo', 'registrar_peso', 'consultar_ternero', 'actualizar_estado_ternero',
   'consultar_rodeo', 'cambiar_perfil', 'registrar_calostrado',
+  'consultar_madre', 'actualizar_estado_madre',
 ];
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -47,7 +48,7 @@ export class ClaudeService {
       '8. Peso (peso_nacer/peso_nacimiento/peso) → siempre campo peso_nacimiento.\n' +
       '9. Semen/toro/pajuela/tipo_semen → campo tipo_semen. Sin dato → N/A.\n' +
       '10. Estado ternero: default Vivo. murió/muerto/falleció → Muerto. vendido → Vendido.\n' +
-      '11. Estado madre: default En Tambo. seca → Seca. preñada/tacto positivo → Preñada. vendida → Vendida.\n' +
+      '11. Estado madre: default En Tambo. seca → Seca. preñada/tacto positivo → Preñada. vendida → Vendida. murió/muerta → Muerta. Para "vaca/madre" usá actualizar_estado_madre (rp_madre); para "ternero" usá actualizar_estado_ternero (rp_ternero).\n' +
       '12. Severidad diarrea: leve/poca → Leve. moderada/regular → Moderada. grave/fuerte/severa → Severa. crítica/muy grave → Critica.\n' +
       '13. El campo id_madre en crear_ternero es el RP de la madre, NO su ID interno.\n' +
       '14. NUNCA incluyas el campo id_establecimiento en el JSON — el backend lo resuelve automáticamente.\n' +
@@ -65,6 +66,8 @@ export class ClaudeService {
       'registrar_peso CUANDO pesa peso ternero pesaje kg pesar: {"accion":"registrar_peso","rp_ternero":0,"peso":0}\n' +
       'registrar_calostrado CUANDO calostro calostrado calostre encalostrar le di calostro tomo calostro mamadera sonda brix: {"accion":"registrar_calostrado","rp_ternero":0,"metodo_calostrado":"sonda","litros_calostrado":0,"grado_brix":0,"observaciones_calostrado":""}\n' +
       'consultar_ternero CUANDO como esta el ternero info ternero ver ternero consultar ternero: {"accion":"consultar_ternero","rp_ternero":0}\n' +
+      'consultar_madre CUANDO como esta la madre info madre ver madre consultar madre datos de la vaca: {"accion":"consultar_madre","rp_madre":0}\n' +
+      'actualizar_estado_madre CUANDO la vaca madre quedo preñada preñada seca se seco vendi la vaca vaca murio: {"accion":"actualizar_estado_madre","rp_madre":0,"estado":"Preñada"}\n' +
       'actualizar_estado_ternero CUANDO murio se murio fallecio muerto mato: {"accion":"actualizar_estado_ternero","rp_ternero":0,"estado":"Muerto"}\n' +
       'consultar_rodeo CUANDO que tiene el rodeo terneros del rodeo ver rodeo listar rodeo: {"accion":"consultar_rodeo","nombre_rodeo":"nombre"}\n' +
       'cambiar_perfil CUANDO cambiar usuario cambiar perfil login otro usuario soy otro: {"accion":"cambiar_perfil","email":"email@x.com","password":"contraseña"}\n' +

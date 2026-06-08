@@ -60,7 +60,9 @@ interface BotRequestBody {
     | 'actualizar_estado_ternero'
     | 'consultar_rodeo'
     | 'cambiar_perfil'
-    | 'registrar_calostrado';
+    | 'registrar_calostrado'
+    | 'consultar_madre'
+    | 'actualizar_estado_madre';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -575,6 +577,7 @@ export class BotController {
       consultarternero: 'consultar_ternero', actualizarestadoternero: 'actualizar_estado_ternero',
       consultarrodeo: 'consultar_rodeo', cambiarperfil: 'cambiar_perfil',
       registrarcalostrado: 'registrar_calostrado',
+      consultarmadre: 'consultar_madre', actualizarestadomadre: 'actualizar_estado_madre',
     };
     if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
 
@@ -1283,12 +1286,27 @@ export class BotController {
             columna = 'peso_largado'; etiqueta = 'Largado';
           }
 
-          await this.terneroRepo.update(ternero.id_ternero, { [columna]: peso } as any);
+          // Además de la columna hito, guardamos cada pesaje en el historial
+          // (columna `estimativo`, formato "fecha:peso|...") para no perder
+          // pesajes — sobre todo pasados los 52 días, donde antes todo pisaba
+          // peso_largado.
+          const fechaHoy = new Date().toISOString().split('T')[0];
+          const nuevoPesaje = `${fechaHoy}:${peso}`;
+          const estimativoNuevo =
+            ternero.estimativo && ternero.estimativo.trim() !== ''
+              ? `${ternero.estimativo}|${nuevoPesaje}`
+              : nuevoPesaje;
+          const totalPesajes = estimativoNuevo.split('|').length;
+
+          await this.terneroRepo.update(ternero.id_ternero, {
+            [columna]: peso,
+            estimativo: estimativoNuevo,
+          } as any);
 
           return {
             success: true,
             accion: 'registrar_peso',
-            mensaje: `✅ Peso registrado\n🐄 Ternero RP: ${rpTernero}\n⚖️ Peso: ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Peso registrado\n🐄 Ternero RP: ${rpTernero}\n⚖️ Peso: ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}\n📈 Pesajes totales: ${totalPesajes}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
           };
         }
 
@@ -1385,12 +1403,23 @@ export class BotController {
           const diasVida = Math.floor((new Date().getTime() - fechaNac.getTime()) / (1000 * 60 * 60 * 24));
           const ultimoPeso = t.peso_largado || t.peso_45d || t.peso_30d || t.peso_15d || t.peso_nacer || 0;
 
+          // Evolución de pesajes desde el historial (columna estimativo).
+          const histPesajes = (t.estimativo || '')
+            .split('|')
+            .filter(Boolean)
+            .map((p) => parseFloat(p.split(':')[1]))
+            .filter((n) => !isNaN(n));
+          const lineaPesajes = histPesajes.length
+            ? `📈 Pesajes (${histPesajes.length}): ${histPesajes.slice(-4).join(' → ')} kg`
+            : '';
+
           const lineas = [
             `🐄 Ternero RP *${t.rp_ternero}*`,
             `📊 Estado: ${t.estado}`,
             `⚧ Sexo: ${t.sexo}`,
             `📅 Nacimiento: ${t.fecha_nacimiento} (${diasVida} días)`,
             `⚖️ Último peso: ${ultimoPeso} kg`,
+            lineaPesajes,
             t.rodeo ? `🏟️ Rodeo: ${t.rodeo.nombre}` : `🏟️ Rodeo: sin asignar`,
             nombreEstablecimiento ? `🏠 Campo: ${nombreEstablecimiento}` : '',
           ].filter(Boolean);
@@ -1419,6 +1448,58 @@ export class BotController {
             success: true,
             accion: 'actualizar_estado_ternero',
             mensaje: `✅ Ternero RP ${rpTernero} actualizado a *${estadoNuevo}*${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'consultar_madre': {
+          const rpMadre = parseInt(body.rp_madre) || 0;
+          if (!rpMadre) return { success: false, mensaje: '⚠️ Indicá el RP de la madre.' };
+
+          const m = await this.madreRepo.findOne({
+            where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
+          });
+          if (!m) return { success: false, mensaje: `⚠️ No existe la madre RP ${rpMadre} en tu establecimiento.` };
+
+          const crias = await this.terneroRepo
+            .createQueryBuilder('t')
+            .where('t.id_madre = :idMadre', { idMadre: m.id_madre })
+            .andWhere('t.id_establecimiento = :est', { est: idEstablecimiento })
+            .getCount();
+
+          const lineas = [
+            `🐮 Madre RP *${m.rp_madre}*`,
+            m.nombre && m.nombre !== 'Sin nombre' ? `🏷️ Nombre: ${m.nombre}` : '',
+            `📊 Estado: ${m.estado}`,
+            `🐄 Crías registradas: ${crias}`,
+            nombreEstablecimiento ? `🏠 Campo: ${nombreEstablecimiento}` : '',
+          ].filter(Boolean);
+
+          return { success: true, accion: 'consultar_madre', mensaje: lineas.join('\n') };
+        }
+
+        // ──────────────────────────────────────
+        case 'actualizar_estado_madre': {
+          const rpMadre = parseInt(body.rp_madre) || 0;
+          if (!rpMadre) return { success: false, mensaje: '⚠️ Indicá el RP de la madre.' };
+
+          const estadoNuevo = String(body.estado || '').trim();
+          const ESTADOS_MADRE = ['En Tambo', 'Seca', 'Preñada', 'Vendida', 'Muerta'];
+          if (!ESTADOS_MADRE.includes(estadoNuevo)) {
+            return { success: false, mensaje: `⚠️ Estado inválido. Usá: ${ESTADOS_MADRE.join(', ')}.` };
+          }
+
+          const m = await this.madreRepo.findOne({
+            where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
+          });
+          if (!m) return { success: false, mensaje: `⚠️ No existe la madre RP ${rpMadre} en tu establecimiento.` };
+
+          await this.madreRepo.update(m.id_madre, { estado: estadoNuevo } as any);
+
+          return {
+            success: true,
+            accion: 'actualizar_estado_madre',
+            mensaje: `✅ Madre RP ${rpMadre} actualizada a *${estadoNuevo}*${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
           };
         }
 
@@ -1476,6 +1557,8 @@ export class BotController {
                 'consultar_rodeo',
                 'cambiar_perfil',
                 'registrar_calostrado',
+                'consultar_madre',
+                'actualizar_estado_madre',
               ],
             },
             HttpStatus.BAD_REQUEST,
