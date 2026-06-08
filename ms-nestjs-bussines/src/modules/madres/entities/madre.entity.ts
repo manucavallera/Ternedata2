@@ -28,8 +28,8 @@ export class MadreEntity {
   @Column({ nullable: true, type: 'integer' })
   rp_madre: number;
 
-  // varchar (no enum): los estados los acota el prompt de Claude
-  // (En Tambo/Seca/Preñada/Vendida). Enum estricto rompía con valores nuevos.
+  // varchar (no enum): el sistema solo maneja 'Seca' y 'En Tambo'.
+  // (La preñez es un evento de tacto, NO un estado de madre.)
   @Column({ type: 'varchar' })
   estado: string;
 

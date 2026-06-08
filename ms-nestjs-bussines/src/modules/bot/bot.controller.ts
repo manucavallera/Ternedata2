@@ -234,7 +234,7 @@ export class BotController {
   private async resolverTerneroIdEstricto(
     rp: number,
     idEstablecimiento: number,
-  ): Promise<{ id: number } | { error: string }> {
+  ): Promise<{ id: number; estado: string } | { error: string }> {
     if (!rp || rp === 0) {
       return { error: 'No se especificó el RP del ternero' };
     }
@@ -243,9 +243,19 @@ export class BotController {
     });
     if (ternero) {
       console.log(`🔍 RP ternero ${rp} → id_ternero ${ternero.id_ternero}`);
-      return { id: ternero.id_ternero };
+      return { id: ternero.id_ternero, estado: ternero.estado };
     }
     return { error: `No existe el ternero RP ${rp} en tu establecimiento` };
+  }
+
+  // Bloquea escrituras de salud (diarrea/tratamiento/peso/calostrado) sobre
+  // animales en estado terminal (Muerto/Vendido). Devuelve el mensaje de
+  // bloqueo o null si está habilitado.
+  private bloqueoPorEstadoTerminal(rp: number, estado: string): string | null {
+    if (estado === 'Muerto' || estado === 'Vendido') {
+      return `⚠️ El ternero RP ${rp} está *${estado}*. No registré nada. Si fue un error, primero actualizá su estado a Vivo.`;
+    }
+    return null;
   }
 
   private async resolverMadreIdEstricto(
@@ -1046,6 +1056,11 @@ export class BotController {
               mensaje: `⚠️ ${terneroResult.error}. No se registró el tratamiento.`,
             };
           }
+          const bloqueoTrat = this.bloqueoPorEstadoTerminal(
+            rpTernero,
+            terneroResult.estado,
+          );
+          if (bloqueoTrat) return { success: false, mensaje: bloqueoTrat };
 
           const data = {
             nombre: body.nombre || body.medicamento || 'Tratamiento sin nombre',
@@ -1098,6 +1113,11 @@ export class BotController {
               mensaje: `⚠️ ${terneroResult.error}. No se registró la diarrea.`,
             };
           }
+          const bloqueoDiarrea = this.bloqueoPorEstadoTerminal(
+            rpTernero,
+            terneroResult.estado,
+          );
+          if (bloqueoDiarrea) return { success: false, mensaje: bloqueoDiarrea };
 
           const data = {
             fecha_diarrea_ternero: parsearFecha(body.fecha_diarrea_ternero || body.fecha_diarrea),
@@ -1267,6 +1287,8 @@ export class BotController {
           if (!ternero) {
             return { success: false, mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.` };
           }
+          const bloqueoPeso = this.bloqueoPorEstadoTerminal(rpTernero, ternero.estado);
+          if (bloqueoPeso) return { success: false, mensaje: bloqueoPeso };
 
           const fechaNac = new Date(ternero.fecha_nacimiento);
           const hoyDate = new Date();
@@ -1330,6 +1352,8 @@ export class BotController {
               mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.`,
             };
           }
+          const bloqueoCal = this.bloqueoPorEstadoTerminal(rpTernero, ternero.estado);
+          if (bloqueoCal) return { success: false, mensaje: bloqueoCal };
 
           // Método: el enum DB es 'sonda' | 'mamadera'. Normalizamos por las dudas.
           const metodoRaw = String(
@@ -1484,9 +1508,11 @@ export class BotController {
           if (!rpMadre) return { success: false, mensaje: '⚠️ Indicá el RP de la madre.' };
 
           const estadoNuevo = String(body.estado || '').trim();
-          const ESTADOS_MADRE = ['En Tambo', 'Seca', 'Preñada', 'Vendida', 'Muerta'];
+          // El sistema solo maneja Seca / En Tambo para madres (la preñez es un
+          // evento de tacto, NO un estado de madre).
+          const ESTADOS_MADRE = ['Seca', 'En Tambo'];
           if (!ESTADOS_MADRE.includes(estadoNuevo)) {
-            return { success: false, mensaje: `⚠️ Estado inválido. Usá: ${ESTADOS_MADRE.join(', ')}.` };
+            return { success: false, mensaje: `⚠️ Estado inválido. La madre solo puede ser: ${ESTADOS_MADRE.join(' o ')}.` };
           }
 
           const m = await this.madreRepo.findOne({
