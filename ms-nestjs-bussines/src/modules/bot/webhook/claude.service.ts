@@ -11,7 +11,7 @@ const ACCIONES_VALIDAS = [
   'crear_tratamiento', 'crear_diarrea', 'seleccionar_establecimiento',
   'cambiar_establecimiento', 'consultar_resumen', 'asignar_rodeo', 'mover_rodeo',
   'crear_rodeo', 'registrar_peso', 'consultar_ternero', 'actualizar_estado_ternero',
-  'consultar_rodeo', 'cambiar_perfil',
+  'consultar_rodeo', 'cambiar_perfil', 'registrar_calostrado',
 ];
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -50,7 +50,8 @@ export class ClaudeService {
       '11. Estado madre: default En Tambo. seca → Seca. preñada/tacto positivo → Preñada. vendida → Vendida.\n' +
       '12. Severidad diarrea: leve/poca → Leve. moderada/regular → Moderada. grave/fuerte/severa → Severa. crítica/muy grave → Critica.\n' +
       '13. El campo id_madre en crear_ternero es el RP de la madre, NO su ID interno.\n' +
-      '14. NUNCA incluyas el campo id_establecimiento en el JSON — el backend lo resuelve automáticamente.\n\n' +
+      '14. NUNCA incluyas el campo id_establecimiento en el JSON — el backend lo resuelve automáticamente.\n' +
+      '15. Método calostrado: sonda/sondaje → sonda. mamadera/mamila/biberón/teta → mamadera. Sin dato → omití el campo. grado_brix solo si lo dicen (número).\n\n' +
       '=== ACCIONES ===\n' +
       'crear_ternero CUANDO nacio pario parto cria ternero nuevo nacio hoy vaca pario tuvo cria: {"accion":"crear_ternero","rp_ternero":0,"peso_nacimiento":0,"sexo":"Macho","estado":"Vivo","fecha_nacimiento":"YYYY-MM-DD","observaciones":"","tipo_semen":"N/A","id_madre":null}\n' +
       'crear_madre CUANDO ingrese vaca compre madre nueva vaca entro vaca registrar madre: {"accion":"crear_madre","rp_madre":0,"nombre":"Sin nombre","estado":"En Tambo","observaciones":""}\n' +
@@ -62,6 +63,7 @@ export class ClaudeService {
       'mover_rodeo CUANDO mover a rodeo cambiar de rodeo pasar al grupo pasarlo a otro: {"accion":"mover_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo destino"}\n' +
       'crear_rodeo CUANDO crear rodeo nuevo grupo nuevo lote nuevo: {"accion":"crear_rodeo","nombre_rodeo":"nombre","descripcion":"opcional","tipo":"opcional"}\n' +
       'registrar_peso CUANDO pesa peso ternero pesaje kg pesar: {"accion":"registrar_peso","rp_ternero":0,"peso":0}\n' +
+      'registrar_calostrado CUANDO calostro calostrado calostre encalostrar le di calostro tomo calostro mamadera sonda brix: {"accion":"registrar_calostrado","rp_ternero":0,"metodo_calostrado":"sonda","litros_calostrado":0,"grado_brix":0,"observaciones_calostrado":""}\n' +
       'consultar_ternero CUANDO como esta el ternero info ternero ver ternero consultar ternero: {"accion":"consultar_ternero","rp_ternero":0}\n' +
       'actualizar_estado_ternero CUANDO murio se murio fallecio muerto mato: {"accion":"actualizar_estado_ternero","rp_ternero":0,"estado":"Muerto"}\n' +
       'consultar_rodeo CUANDO que tiene el rodeo terneros del rodeo ver rodeo listar rodeo: {"accion":"consultar_rodeo","nombre_rodeo":"nombre"}\n' +

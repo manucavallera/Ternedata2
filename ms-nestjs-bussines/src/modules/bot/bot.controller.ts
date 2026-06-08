@@ -59,7 +59,8 @@ interface BotRequestBody {
     | 'consultar_ternero'
     | 'actualizar_estado_ternero'
     | 'consultar_rodeo'
-    | 'cambiar_perfil';
+    | 'cambiar_perfil'
+    | 'registrar_calostrado';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -573,6 +574,7 @@ export class BotController {
       consultarresumen: 'consultar_resumen', registrarpeso: 'registrar_peso',
       consultarternero: 'consultar_ternero', actualizarestadoternero: 'actualizar_estado_ternero',
       consultarrodeo: 'consultar_rodeo', cambiarperfil: 'cambiar_perfil',
+      registrarcalostrado: 'registrar_calostrado',
     };
     if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
 
@@ -1291,6 +1293,84 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'registrar_calostrado': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero || rpTernero <= 0) {
+            return {
+              success: false,
+              mensaje:
+                '⚠️ No se especificó el RP del ternero para el calostrado.',
+            };
+          }
+
+          const ternero = await this.terneroRepo.findOne({
+            where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
+          });
+          if (!ternero) {
+            return {
+              success: false,
+              mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.`,
+            };
+          }
+
+          // Método: el enum DB es 'sonda' | 'mamadera'. Normalizamos por las dudas.
+          const metodoRaw = String(
+            body.metodo_calostrado || body.metodo || '',
+          ).toLowerCase();
+          let metodo: string | null = null;
+          if (/sonda/.test(metodoRaw)) metodo = 'sonda';
+          else if (/mamadera|mamila|biber|teta/.test(metodoRaw))
+            metodo = 'mamadera';
+
+          const litros =
+            parseFloat(body.litros_calostrado ?? body.litros) || null;
+          const gradoBrix = parseFloat(body.grado_brix ?? body.brix) || null;
+
+          const updateData: any = {
+            fecha_hora_calostrado: body.fecha_hora_calostrado
+              ? new Date(body.fecha_hora_calostrado)
+              : new Date(),
+            observaciones_calostrado:
+              body.observaciones_calostrado ||
+              body.observaciones ||
+              `Registrado por bot (${userName})`,
+          };
+          if (metodo) updateData.metodo_calostrado = metodo;
+          if (litros !== null) updateData.litros_calostrado = litros;
+          if (gradoBrix !== null) updateData.grado_brix = gradoBrix;
+
+          await this.terneroRepo.update(ternero.id_ternero, updateData);
+
+          // Calidad por grado Brix (misma escala que evaluarCalidadCalostro de la entity).
+          const brixFinal =
+            gradoBrix ??
+            (ternero.grado_brix ? Number(ternero.grado_brix) : null);
+          let calidad = 'No medido';
+          if (brixFinal) {
+            if (brixFinal >= 22) calidad = 'Excelente';
+            else if (brixFinal >= 18) calidad = 'Bueno';
+            else if (brixFinal >= 15) calidad = 'Regular';
+            else calidad = 'Bajo';
+          }
+
+          const lineas = [
+            '✅ Calostrado registrado',
+            `🐄 Ternero RP: ${rpTernero}`,
+          ];
+          if (metodo) lineas.push(`🍼 Método: ${metodo}`);
+          if (litros !== null) lineas.push(`🥛 Litros: ${litros} L`);
+          if (brixFinal) lineas.push(`📈 Brix: ${brixFinal} (${calidad})`);
+          if (nombreEstablecimiento)
+            lineas.push(`🏠 Campo: ${nombreEstablecimiento}`);
+
+          return {
+            success: true,
+            accion: 'registrar_calostrado',
+            mensaje: lineas.join('\n'),
+          };
+        }
+
+        // ──────────────────────────────────────
         case 'consultar_ternero': {
           const rpTernero = parseInt(body.rp_ternero) || 0;
           if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
@@ -1395,6 +1475,7 @@ export class BotController {
                 'actualizar_estado_ternero',
                 'consultar_rodeo',
                 'cambiar_perfil',
+                'registrar_calostrado',
               ],
             },
             HttpStatus.BAD_REQUEST,
@@ -1534,6 +1615,15 @@ export class BotController {
     // datos a medias (ej: diarrea registrada pero el tratamiento falla).
     // Solo aplica cuando hay establecimiento resuelto (flujo real del bot).
     if (idEstablecimientoLote) {
+      // RPs que se CREAN dentro de este mismo lote (crear_ternero): no exigir
+      // que ya existan — la acción de creación corre antes en el loop.
+      const rpsCreadosEnLote = new Set<number>(
+        accionesConPhone
+          .filter((a) => a.accion === 'crear_ternero')
+          .map((a) => parseInt((a as any).rp_ternero))
+          .filter((n) => n > 0),
+      );
+
       const fallos: string[] = [];
       for (const accion of accionesConPhone) {
         const { exigirRp, rps } = this.rpsTerneroRequeridos(accion);
@@ -1544,6 +1634,7 @@ export class BotController {
           continue;
         }
         for (const rp of rps) {
+          if (rpsCreadosEnLote.has(rp)) continue; // se crea en este lote
           const res = await this.resolverTerneroIdEstricto(
             rp,
             idEstablecimientoLote,
