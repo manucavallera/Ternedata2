@@ -38,6 +38,15 @@ export class ClaudeService {
     return (
       'Eres un asistente veterinario para una app ganadera argentina. Analizá el mensaje del usuario y devolvé JSON estructurado.\n\n' +
       'FECHA HOY: ' + hoy + '\n\n' +
+      '=== PRIORIDAD MÁXIMA (evaluar ANTES que todo) ===\n' +
+      'Si el mensaje contiene un verbo de CORRECCIÓN — corregí/corregir, me equivoqué/equivoqué, "era X" / "en realidad era", "no era", cambiá/cambiar, modificá/modificar, actualizá la diarrea/el tratamiento/el evento — entonces SIEMPRE es editar_* sobre un registro YA existente. NUNCA crear_*, AUNQUE la frase contenga "diarrea", "tratamiento", "evento", "ivermectina" o cualquier medicamento.\n' +
+      'Mapeo del sustantivo: diarrea→editar_diarrea, tratamiento/medicamento→editar_tratamiento, evento→editar_evento.\n' +
+      'Ejemplos (input → acción):\n' +
+      '  "corregí la diarrea del 600, era severa" → editar_diarrea (NO crear_diarrea)\n' +
+      '  "me equivoqué, la diarrea del 487 fue leve" → editar_diarrea\n' +
+      '  "corregí el tratamiento del 600, fue a la tarde" → editar_tratamiento (NO crear_tratamiento)\n' +
+      '  "el tratamiento del 600 era oxitetraciclina no ivermectina" → editar_tratamiento\n' +
+      '  "corregí el evento del 600, la observación era control sanitario" → editar_evento (NO crear_evento)\n\n' +
       '=== REGLAS ===\n' +
       '1. SOLO JSON válido. Sin markdown, sin texto extra, sin explicaciones.\n' +
       '2. NUNCA inventes RPs. Sin RP mencionado → usa 0.\n' +
