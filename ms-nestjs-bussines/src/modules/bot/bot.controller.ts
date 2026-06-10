@@ -378,7 +378,7 @@ export class BotController {
         return {
           requiere_seleccion: false,
           seleccion_exitosa: true,
-          mensaje: `⏰ El código expiró. Generá uno nuevo desde tu perfil en la app.`,
+          mensaje: `⏰ Ese código ya no sirve. Generá uno nuevo desde la app.`,
         };
       }
     }
@@ -525,7 +525,7 @@ export class BotController {
           await this.messagingService.responder(
             msg._origen,
             msg.phone,
-            '❌ No pude procesar el audio. Probá de nuevo o escribime el mensaje.',
+            '🎙️ No pude escuchar bien el audio. Grabalo de nuevo o escribime lo que querés registrar.',
           );
         }
         return { ok: true, modo: MODE, error: 'transcripcion: ' + err.message };
@@ -544,7 +544,7 @@ export class BotController {
         await this.messagingService.responder(
           msg._origen,
           msg.phone,
-          '❌ No entendí el mensaje. Probá reformularlo.',
+          'No entendí bien. Probá de nuevo o escribilo diferente.',
         );
       }
       return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
@@ -562,7 +562,7 @@ export class BotController {
 
     // 5) Responder al usuario.
     const mensaje =
-      resultado?.mensaje || '❌ Error inesperado al procesar el registro.';
+      resultado?.mensaje || 'Algo salió mal. Probá de nuevo.';
     await this.messagingService.responder(msg._origen, msg.phone, mensaje);
     return { ok: true, modo: 'live', mensaje };
   }
@@ -611,7 +611,7 @@ export class BotController {
       if (!userEntity) {
         return {
           success: false,
-          mensaje: `⚠️ Tu número (${phone}) no está vinculado a ninguna cuenta. Pedile al administrador que cargue tu celular en el sistema.`,
+          mensaje: `⚠️ Tu número no está registrado. Pedile al encargado que te agregue al sistema.`,
         };
       }
       userName = userEntity.name;
@@ -715,7 +715,7 @@ export class BotController {
         await this.userRepo.update(nuevoUser.id, { telefono: telefonoNorm } as any);
       }
 
-      const encabezado = `✅ Perfil cambiado. Ahora sos *${nuevoUser.name}* (${nuevoUser.rol}).`;
+      const encabezado = `✅ ¡Listo! Entraste como *${nuevoUser.name}*.`;
 
       // Resolver el establecimiento del NUEVO usuario (auto-switch de campo)
       const auth = await this.autenticarPorTelefono(phone);
@@ -752,7 +752,7 @@ export class BotController {
       if (!auth) {
         return {
           success: false,
-          mensaje: `⚠️ No tenés ningún establecimiento asignado. Contactá al administrador.`,
+          mensaje: `⚠️ No tenés ningún campo asignado. Pedile al encargado que te asigne uno.`,
         };
       }
 
@@ -857,7 +857,7 @@ export class BotController {
           console.log('🐮 Creando ternero:', data);
           const ternero = await this.ternerosService.create(data as any);
 
-          let mensaje = `✅ Ternero registrado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
+          let mensaje = `✅ Ternero anotado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
           if (data.semen && data.semen !== 'Sin datos') mensaje += `\n🧬 Semen: ${data.semen}`;
           if (body.id_madre && !idMadre) {
             mensaje += `\n⚠️ Madre RP ${body.id_madre} no encontrada, registrado sin madre.`;
@@ -906,7 +906,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_madre',
-            mensaje: `✅ Madre registrada\n📋 RP: ${data.rp_madre}\n🐄 Nombre: ${data.nombre}\n📊 Estado: ${data.estado}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Madre anotada\n📋 RP: ${data.rp_madre}\n🐄 Nombre: ${data.nombre}\n📊 Estado: ${data.estado}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: madre,
           };
         }
@@ -959,7 +959,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_evento',
-            mensaje: `✅ Evento registrado: "${data.observacion}"${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Evento anotado: "${data.observacion}"${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: evento,
           };
         }
@@ -1084,7 +1084,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_tratamiento',
-            mensaje: `✅ Tratamiento registrado\n💊 ${data.nombre}\n🐄 Ternero RP: ${rpTernero}\n🏥 Tipo: ${data.tipo_enfermedad}\n⏰ Turno: ${data.turno}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Tratamiento anotado\n💊 ${data.nombre}\n🐄 Ternero RP: ${rpTernero}\n🏥 Tipo: ${data.tipo_enfermedad}\n⏰ Turno: ${data.turno}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: tratamiento,
           };
         }
@@ -1134,7 +1134,7 @@ export class BotController {
           return {
             success: true,
             accion: 'crear_diarrea',
-            mensaje: `✅ Diarrea registrada\n🐄 Ternero RP: ${rpTernero}\n🔴 Severidad: ${data.severidad}\n📋 Episodio #${diarrea.numero_episodio}\n📅 Fecha: ${data.fecha_diarrea_ternero}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Diarrea anotada\n🐄 Ternero RP: ${rpTernero}\n🔴 Severidad: ${data.severidad}\n📋 Episodio #${diarrea.numero_episodio}\n📅 Fecha: ${data.fecha_diarrea_ternero}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
             data: diarrea,
           };
         }
@@ -1328,7 +1328,7 @@ export class BotController {
           return {
             success: true,
             accion: 'registrar_peso',
-            mensaje: `✅ Peso registrado\n🐄 Ternero RP: ${rpTernero}\n⚖️ Peso: ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}\n📈 Pesajes totales: ${totalPesajes}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Peso anotado\n🐄 Ternero RP: ${rpTernero}\n⚖️ ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}\n📈 Pesajes totales: ${totalPesajes}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
           };
         }
 
@@ -1396,7 +1396,7 @@ export class BotController {
           }
 
           const lineas = [
-            '✅ Calostrado registrado',
+            '✅ Calostrado anotado',
             `🐄 Ternero RP: ${rpTernero}`,
           ];
           if (metodo) lineas.push(`🍼 Método: ${metodo}`);
@@ -1604,7 +1604,7 @@ export class BotController {
       return {
         success: false,
         accion,
-        mensaje: `❌ Error al procesar "${accion}": ${errorMsg}`,
+        mensaje: `Algo salió mal. Probá de nuevo o avisale al encargado si sigue pasando.`,
       };
     }
   }
@@ -1689,7 +1689,7 @@ export class BotController {
       if (!auth) {
         return {
           success: false,
-          mensaje: `⚠️ Tu número (${phone}) no está vinculado a ninguna cuenta o no tenés establecimiento asignado.`,
+          mensaje: `⚠️ Tu número no está registrado o no tenés campo asignado. Pedile al encargado que te agregue.`,
         };
       }
       if (auth.requiere_seleccion) {
