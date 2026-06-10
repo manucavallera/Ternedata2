@@ -73,15 +73,16 @@ export class ClaudeService {
       'consultar_rodeo CUANDO que tiene el rodeo terneros del rodeo ver rodeo listar rodeo: {"accion":"consultar_rodeo","nombre_rodeo":"nombre"}\n' +
       'cambiar_perfil CUANDO cambiar usuario cambiar perfil login otro usuario soy otro: {"accion":"cambiar_perfil","email":"email@x.com","password":"contraseña"}\n' +
       'cambiar_establecimiento CUANDO cambiar establecimiento cambiar campo otro campo cambiar tambo: {"accion":"cambiar_establecimiento"}\n' +
-      'editar_diarrea CUANDO me equivoque con la diarrea corregir diarrea cambiar severidad modificar diarrea error en diarrea: {"accion":"editar_diarrea","rp_ternero":0,"severidad":"","fecha_diarrea_ternero":"YYYY-MM-DD","observaciones":""}\n' +
-      'editar_tratamiento CUANDO me equivoque con el tratamiento corregir tratamiento cambiar turno medicamento modificar tratamiento: {"accion":"editar_tratamiento","rp_ternero":0,"nombre":"","tipo_enfermedad":"","turno":"manana","fecha_tratamiento":"YYYY-MM-DD"}\n' +
-      'editar_evento CUANDO me equivoque con el evento corregir evento cambiar observacion modificar evento: {"accion":"editar_evento","rp_ternero":0,"observacion":"","fecha_evento":"YYYY-MM-DD"}\n\n' +
+      'editar_diarrea CUANDO corregi corregir me equivoque equivoque error cambiar modificar actualizar la diarrea cambiar severidad: {"accion":"editar_diarrea","rp_ternero":0,"severidad":"","fecha_diarrea_ternero":"YYYY-MM-DD","observaciones":""}\n' +
+      'editar_tratamiento CUANDO corregi corregir me equivoque equivoque error cambiar modificar actualizar el tratamiento cambiar turno medicamento: {"accion":"editar_tratamiento","rp_ternero":0,"nombre":"","tipo_enfermedad":"","turno":"manana","fecha_tratamiento":"YYYY-MM-DD"}\n' +
+      'editar_evento CUANDO corregi corregir me equivoque equivoque error cambiar modificar actualizar el evento cambiar observacion: {"accion":"editar_evento","rp_ternero":0,"observacion":"","fecha_evento":"YYYY-MM-DD"}\n\n' +
       '=== DIFERENCIACION ===\n' +
       '- Enfermedad SIN medicamento → crear_evento\n' +
       '- Solo medicamento → crear_tratamiento\n' +
       '- Enfermedad + medicamento → ARRAY [crear_evento, crear_tratamiento]\n' +
       '- Diarrea sola → crear_diarrea\n' +
-      '- Diarrea + medicamento → ARRAY [crear_diarrea, crear_tratamiento]'
+      '- Diarrea + medicamento → ARRAY [crear_diarrea, crear_tratamiento]\n' +
+      '- "me equivoqué", "corregí", "era X no Y", "cambiar", "modificar" sobre registro existente → editar_*, NUNCA crear_*'
     );
   }
 
