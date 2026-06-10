@@ -62,7 +62,10 @@ interface BotRequestBody {
     | 'cambiar_perfil'
     | 'registrar_calostrado'
     | 'consultar_madre'
-    | 'actualizar_estado_madre';
+    | 'actualizar_estado_madre'
+    | 'editar_diarrea'
+    | 'editar_tratamiento'
+    | 'editar_evento';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -588,6 +591,7 @@ export class BotController {
       consultarrodeo: 'consultar_rodeo', cambiarperfil: 'cambiar_perfil',
       registrarcalostrado: 'registrar_calostrado',
       consultarmadre: 'consultar_madre', actualizarestadomadre: 'actualizar_estado_madre',
+      editardiarrea: 'editar_diarrea', editartratamiento: 'editar_tratamiento', editarevento: 'editar_evento',
     };
     if (body.accion && NORMALIZAR_ACCION[body.accion]) body.accion = NORMALIZAR_ACCION[body.accion] as any;
 
@@ -1559,6 +1563,156 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'editar_diarrea': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+
+          const terneroResult = await this.resolverTerneroIdEstricto(rpTernero, idEstablecimiento);
+          if ('error' in terneroResult) {
+            return { success: false, mensaje: `⚠️ ${terneroResult.error}` };
+          }
+
+          const lastDiarrea = await this.diarreaRepo
+            .createQueryBuilder('d')
+            .leftJoin('d.ternero', 't')
+            .where('t.id_ternero = :id', { id: terneroResult.id })
+            .andWhere('d.id_establecimiento = :est', { est: idEstablecimiento })
+            .orderBy('d.numero_episodio', 'DESC')
+            .getOne();
+
+          if (!lastDiarrea) {
+            return { success: false, mensaje: `⚠️ El ternero RP ${rpTernero} no tiene diarreas registradas.` };
+          }
+
+          const cambiosDiarrea: Record<string, any> = {};
+          if (body.severidad) cambiosDiarrea.severidad = body.severidad;
+          if (body.fecha_diarrea_ternero) cambiosDiarrea.fecha_diarrea_ternero = parsearFecha(body.fecha_diarrea_ternero);
+          if (body.observaciones != null) cambiosDiarrea.observaciones = body.observaciones;
+
+          if (!Object.keys(cambiosDiarrea).length) {
+            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (severidad, fecha u observaciones).' };
+          }
+
+          await this.diarreaRepo.update(lastDiarrea.id_diarrea_ternero, cambiosDiarrea);
+
+          const lineasDiarrea = [
+            `✅ Diarrea del ternero RP ${rpTernero} corregida (episodio #${lastDiarrea.numero_episodio})`,
+          ];
+          if (cambiosDiarrea.severidad) lineasDiarrea.push(`🔴 Severidad: ${cambiosDiarrea.severidad}`);
+          if (cambiosDiarrea.fecha_diarrea_ternero) lineasDiarrea.push(`📅 Fecha: ${cambiosDiarrea.fecha_diarrea_ternero}`);
+          if (nombreEstablecimiento) lineasDiarrea.push(`🏠 Campo: ${nombreEstablecimiento}`);
+
+          return { success: true, accion: 'editar_diarrea', mensaje: lineasDiarrea.join('\n') };
+        }
+
+        // ──────────────────────────────────────
+        case 'editar_tratamiento': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+
+          const terneroResult = await this.resolverTerneroIdEstricto(rpTernero, idEstablecimiento);
+          if ('error' in terneroResult) {
+            return { success: false, mensaje: `⚠️ ${terneroResult.error}` };
+          }
+
+          const lastTratamiento = await this.tratamientoRepo
+            .createQueryBuilder('tr')
+            .leftJoin('tr.ternero', 't')
+            .where('t.id_ternero = :id', { id: terneroResult.id })
+            .andWhere('tr.id_establecimiento = :est', { est: idEstablecimiento })
+            .orderBy('tr.fecha_tratamiento', 'DESC')
+            .getOne();
+
+          if (!lastTratamiento) {
+            return { success: false, mensaje: `⚠️ El ternero RP ${rpTernero} no tiene tratamientos registrados.` };
+          }
+
+          const cambiosTrat: Record<string, any> = {};
+          if (body.nombre) cambiosTrat.nombre = body.nombre;
+          if (body.tipo_enfermedad) cambiosTrat.tipo_enfermedad = body.tipo_enfermedad;
+          if (body.turno) cambiosTrat.turno = /tarde|noche|pm/i.test(body.turno) ? 'tarde' : 'mañana';
+          if (body.fecha_tratamiento) cambiosTrat.fecha_tratamiento = parsearFecha(body.fecha_tratamiento);
+          if (body.descripcion || body.observaciones) cambiosTrat.descripcion = body.descripcion || body.observaciones;
+
+          if (!Object.keys(cambiosTrat).length) {
+            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (medicamento, tipo, turno o fecha).' };
+          }
+
+          await this.tratamientoRepo.update(lastTratamiento.id_tratamiento, cambiosTrat);
+
+          const lineasTrat = [
+            `✅ Tratamiento del ternero RP ${rpTernero} corregido`,
+          ];
+          if (cambiosTrat.nombre) lineasTrat.push(`💊 Medicamento: ${cambiosTrat.nombre}`);
+          if (cambiosTrat.tipo_enfermedad) lineasTrat.push(`🏥 Tipo: ${cambiosTrat.tipo_enfermedad}`);
+          if (cambiosTrat.turno) lineasTrat.push(`⏰ Turno: ${cambiosTrat.turno}`);
+          if (cambiosTrat.fecha_tratamiento) lineasTrat.push(`📅 Fecha: ${cambiosTrat.fecha_tratamiento}`);
+          if (nombreEstablecimiento) lineasTrat.push(`🏠 Campo: ${nombreEstablecimiento}`);
+
+          return { success: true, accion: 'editar_tratamiento', mensaje: lineasTrat.join('\n') };
+        }
+
+        // ──────────────────────────────────────
+        case 'editar_evento': {
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          const rpMadre = parseInt(body.rp_madre) || 0;
+
+          if (!rpTernero && !rpMadre) {
+            return { success: false, mensaje: '⚠️ Indicá el RP del ternero o la madre.' };
+          }
+
+          let lastEvento: EventoEntity | null = null;
+
+          if (rpTernero) {
+            const terneroResult = await this.resolverTerneroIdEstricto(rpTernero, idEstablecimiento);
+            if ('error' in terneroResult) {
+              return { success: false, mensaje: `⚠️ ${terneroResult.error}` };
+            }
+            lastEvento = await this.eventoRepo
+              .createQueryBuilder('e')
+              .innerJoin('e.terneros', 't')
+              .where('t.id_ternero = :id', { id: terneroResult.id })
+              .andWhere('e.id_establecimiento = :est', { est: idEstablecimiento })
+              .orderBy('e.fecha_evento', 'DESC')
+              .getOne();
+          } else {
+            const madreResult = await this.resolverMadreIdEstricto(rpMadre, idEstablecimiento);
+            if ('error' in madreResult) {
+              return { success: false, mensaje: `⚠️ ${madreResult.error}` };
+            }
+            lastEvento = await this.eventoRepo
+              .createQueryBuilder('e')
+              .innerJoin('e.madres', 'm')
+              .where('m.id_madre = :id', { id: madreResult.id })
+              .andWhere('e.id_establecimiento = :est', { est: idEstablecimiento })
+              .orderBy('e.fecha_evento', 'DESC')
+              .getOne();
+          }
+
+          if (!lastEvento) {
+            const label = rpTernero ? `ternero RP ${rpTernero}` : `madre RP ${rpMadre}`;
+            return { success: false, mensaje: `⚠️ El ${label} no tiene eventos registrados.` };
+          }
+
+          const cambiosEvento: Record<string, any> = {};
+          if (body.observacion) cambiosEvento.observacion = body.observacion;
+          if (body.fecha_evento) cambiosEvento.fecha_evento = parsearFecha(body.fecha_evento);
+
+          if (!Object.keys(cambiosEvento).length) {
+            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (observación o fecha).' };
+          }
+
+          await this.eventoRepo.update(lastEvento.id_evento, cambiosEvento);
+
+          const lineasEvento = [`✅ Evento corregido`];
+          if (cambiosEvento.observacion) lineasEvento.push(`📋 Descripción: ${cambiosEvento.observacion}`);
+          if (cambiosEvento.fecha_evento) lineasEvento.push(`📅 Fecha: ${cambiosEvento.fecha_evento}`);
+          if (nombreEstablecimiento) lineasEvento.push(`🏠 Campo: ${nombreEstablecimiento}`);
+
+          return { success: true, accion: 'editar_evento', mensaje: lineasEvento.join('\n') };
+        }
+
+        // ──────────────────────────────────────
         // ──────────────────────────────────────
         default:
           throw new HttpException(
@@ -1585,6 +1739,9 @@ export class BotController {
                 'registrar_calostrado',
                 'consultar_madre',
                 'actualizar_estado_madre',
+                'editar_diarrea',
+                'editar_tratamiento',
+                'editar_evento',
               ],
             },
             HttpStatus.BAD_REQUEST,
