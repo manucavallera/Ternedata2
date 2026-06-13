@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InvitacionesService } from './invitaciones.service';
-import { RolEstablecimiento } from '../invitaciones/roles.enum';
+import { CrearInvitacionDto } from './dto/crear-invitacion.dto';
 // Asegúrate que la ruta al Guard sea correcta (a veces está en modules/auth o shared)
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -31,7 +31,7 @@ export class InvitacionesController {
   @ApiOperation({ summary: 'Invitar usuario por email' })
   async crear(
     @Param('establecimientoId', ParseIntPipe) id: number,
-    @Body() body: { email: string; rol: RolEstablecimiento },
+    @Body() body: CrearInvitacionDto,
     @Req() req: any,
   ) {
     // H10: el admin solo puede invitar a establecimientos a los que pertenece

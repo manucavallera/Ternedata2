@@ -157,6 +157,21 @@ export class InvitacionesService {
     if (new Date() > invitacion.expiracion)
       throw new HttpException('Link expirado', HttpStatus.BAD_REQUEST);
 
+    // 1.b. Si la invitación está dirigida a un email, solo ese usuario puede aceptarla
+    // (evita que un link filtrado lo use otra persona, p.ej. tomando un rol de dueño)
+    if (invitacion.email) {
+      const user = await this.usersService.findOne(userId);
+      const mismoEmail =
+        user?.email?.toLowerCase().trim() ===
+        invitacion.email.toLowerCase().trim();
+      if (!mismoEmail) {
+        throw new HttpException(
+          'Esta invitación es para otro email. Iniciá sesión con la cuenta invitada.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+    }
+
     // 2. Validar si ya es miembro
     const existe = await this.userEstablecimientoRepo.findOne({
       where: { userId, establecimientoId: invitacion.establecimientoId },
