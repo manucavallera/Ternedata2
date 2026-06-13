@@ -92,7 +92,18 @@ const ListadoMadre = () => {
   };
 
   const guardarEdicion = async () => {
-    const res = await patchMadreHook(modalEditar.madre.id_madre, formEditar);
+    const payload = {
+      nombre: formEditar.nombre,
+      estado: formEditar.estado,
+      observaciones: formEditar.observaciones,
+    };
+    if (formEditar.rp_madre !== '' && formEditar.rp_madre != null) {
+      payload.rp_madre = Number(formEditar.rp_madre);
+    }
+    if (formEditar.fecha_nacimiento) {
+      payload.fecha_nacimiento = formEditar.fecha_nacimiento;
+    }
+    const res = await patchMadreHook(modalEditar.madre.id_madre, payload);
     if (res?.error || (res?.status && res.status >= 400)) {
       showAlert(`❌ Error al editar madre (${res?.status})`, 'error');
     } else {

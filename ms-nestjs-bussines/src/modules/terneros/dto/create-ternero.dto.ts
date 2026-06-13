@@ -45,19 +45,19 @@ export class CreateTerneroDto {
   @ApiProperty({ description: 'Peso a los 15 días en kg', example: 42.5 })
   @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   peso_15d: number;
 
   @ApiProperty({ description: 'Peso a los 30 días en kg', example: 51.3 })
   @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   peso_30d: number;
 
   @ApiProperty({ description: 'Peso a los 45 días en kg', example: 60.1 })
   @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   peso_45d: number;
 
   @ApiProperty({ description: 'Peso al ser largado en kg', example: 80.0 })
