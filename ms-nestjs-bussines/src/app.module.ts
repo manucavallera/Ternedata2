@@ -41,7 +41,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
         username: configService.get<string>('database.username'),
         password: configService.get<string>('database.password'),
         database: configService.get<string>('database.name'),
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: false, // NUNCA true: bussines comparte la tabla users con security; synchronize dropeaba password_reset_jti y rompía el login
         autoLoadEntities: true,
         ssl: false, // Forzá que siempre sea false para Ternedata por ahora
       }),
