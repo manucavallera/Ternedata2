@@ -82,5 +82,23 @@ export const useAuthSession = () => {
         }
     };
 
-    return { loginHooks, registroHooks, forgotPasswordHook, resetPasswordHook, getProfileHook, updateProfileHook };
+    const verifyEmailHook = async (token) => {
+        try {
+            const { data } = await securityApi.post(`/auth/verify-email`, { token });
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, status: error.response?.status, message: error.response?.data?.message };
+        }
+    };
+
+    const resendVerificationHook = async (email) => {
+        try {
+            const { data } = await securityApi.post(`/auth/resend-verification`, { email });
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, status: error.response?.status };
+        }
+    };
+
+    return { loginHooks, registroHooks, forgotPasswordHook, resetPasswordHook, getProfileHook, updateProfileHook, verifyEmailHook, resendVerificationHook };
 };

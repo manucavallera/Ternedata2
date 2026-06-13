@@ -105,4 +105,9 @@ export class UserEntity {
 
   @Column({ type: 'varchar', length: 36, nullable: true })
   password_reset_jti: string;
+
+  // Verificación de email. default true -> usuarios existentes quedan verificados.
+  // El registro nuevo lo setea en false hasta que confirman por mail.
+  @Column({ type: 'boolean', default: true })
+  email_verificado: boolean;
 }

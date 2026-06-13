@@ -75,10 +75,102 @@ export class AuthService {
       rol,
       id_establecimiento: null,
       ...(telefono ? { telefono } : {}),
+      email_verificado: false, // hasta que confirme por mail
     };
 
     const newUser = await this.usersRepository.save(userObject);
-    return newUser;
+
+    // Enviar mail de verificación (no bloquea el registro si el mail falla)
+    await this.enviarMailVerificacion(newUser.id, newUser.email, newUser.name);
+
+    return {
+      message:
+        'Registro exitoso. Te enviamos un email para verificar tu cuenta. Revisá tu casilla (y spam).',
+      email: newUser.email,
+    };
+  }
+
+  // =================================================================
+  // VERIFICACIÓN DE EMAIL
+  // =================================================================
+  private async enviarMailVerificacion(
+    userId: number,
+    email: string,
+    nombre: string,
+  ): Promise<void> {
+    const token = this.jwtService.sign(
+      { id: userId, email, type: 'verify' },
+      { expiresIn: '24h' },
+    );
+    const link = `${process.env.FRONTEND_URL}/auth/verify-email?token=${token}`;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+      tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"Ternedata App 🐮" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: '✅ Verificá tu cuenta - Ternedata',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #4F46E5;">¡Bienvenido a Ternedata!</h2>
+            <p>Hola <strong>${nombre}</strong>,</p>
+            <p>Confirmá tu email para activar la cuenta:</p>
+            <a href="${link}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
+              Verificar mi cuenta
+            </a>
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">Este link expira en 24 horas. Si no creaste esta cuenta, ignorá este email.</p>
+          </div>
+        `,
+      });
+      this.logger.log(`Mail de verificación enviado a ${email}`);
+    } catch (error) {
+      this.logger.error(`Error enviando verificación a ${email}`, error);
+    }
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token);
+    } catch {
+      throw new HttpException(
+        'Link inválido o expirado. Pedí uno nuevo.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (payload.type !== 'verify') {
+      throw new HttpException('Token inválido', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.id },
+    });
+    if (!user) {
+      throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
+    }
+    if (user.email_verificado) {
+      return { message: 'Tu cuenta ya estaba verificada. Podés iniciar sesión.' };
+    }
+
+    await this.usersRepository.update(user.id, { email_verificado: true });
+    return { message: 'Email verificado. Ya podés iniciar sesión.' };
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const msgGenerico = {
+      message: 'Si la cuenta existe y no está verificada, te enviamos un nuevo email.',
+    };
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user || user.email_verificado) {
+      return msgGenerico; // no revelamos si existe ni su estado
+    }
+    await this.enviarMailVerificacion(user.id, user.email, user.name);
+    return msgGenerico;
   }
 
   // =================================================================
@@ -99,6 +191,12 @@ export class AuthService {
     const passwordValid = await compare(password, user.password);
     if (!passwordValid)
       throw new HttpException('Contraseña incorrecta', HttpStatus.UNAUTHORIZED);
+
+    if (user.email_verificado === false)
+      throw new HttpException(
+        'Verificá tu email antes de entrar. Te enviamos un correo al registrarte.',
+        HttpStatus.FORBIDDEN,
+      );
 
     const payload = {
       id: user.id,

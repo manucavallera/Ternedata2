@@ -49,6 +49,19 @@ export class AuthController {
     return this.AuthService.refreshToken(req.user.id);
   }
 
+  @Post('/verify-email')
+  @ApiOperation({ summary: 'Verificar email con token de registro' })
+  async verifyEmail(@Body() body: { token: string }) {
+    return this.AuthService.verifyEmail(body.token);
+  }
+
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('/resend-verification')
+  @ApiOperation({ summary: 'Reenviar email de verificación' })
+  async resendVerification(@Body() body: { email: string }) {
+    return this.AuthService.resendVerification(body.email);
+  }
+
   @Post('/forgot-password')
   @ApiOperation({ summary: 'Solicitar recuperación de contraseña por email' })
   async forgotPassword(@Body() body: { email: string }) {

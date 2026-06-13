@@ -44,7 +44,13 @@ const LoginContent = () => {
 
     // 1. Intentar Login
     const res = await loginHooks(userCredentials);
-    if (res === 401 || !res?.data) {
+    if (res === 403) {
+      setUserAlert({
+        status: true,
+        verify: true,
+        message: "Verificá tu email antes de entrar. Revisá tu casilla (y spam).",
+      });
+    } else if (res === 401 || !res?.data) {
       setUserAlert({
         status: true,
         message: "ERROR: Credenciales incorrectas",
@@ -217,6 +223,14 @@ const LoginContent = () => {
             {userAlert?.status && (
               <p className='bg-red-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2'>
                 {userAlert?.message}
+                {userAlert?.verify && (
+                  <>
+                    {" "}
+                    <a href='/auth/verify-email' className='underline'>
+                      Reenviar verificación
+                    </a>
+                  </>
+                )}
               </p>
             )}
           </form>
