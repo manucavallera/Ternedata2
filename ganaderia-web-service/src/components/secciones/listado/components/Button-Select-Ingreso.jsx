@@ -19,12 +19,12 @@ const ButtonSelectListado = ({ setStep }) => {
       {buttons.map(({ label, fullLabel, step }) => (
         <ul
           key={step}
-          className='border-green-600 hover:border-green-400 hover:bg-green-600 group flex-1 sm:flex-none -skew-x-[30deg] transform border mb-2 sm:mb-3 md:mb-4 hover:shadow-xl hover:scale-105 transition-all duration-300 min-w-[80px] sm:min-w-[110px]'
+          onClick={() => handleNext(step)}
+          className='border-green-600 hover:border-green-400 hover:bg-green-600 group flex-1 sm:flex-none -skew-x-[30deg] transform border mb-2 sm:mb-3 md:mb-4 hover:shadow-xl hover:scale-105 transition-all duration-300 min-w-[80px] sm:min-w-[110px] cursor-pointer'
         >
           <li className='m-2 sm:m-3 md:m-4 skew-x-[30deg] transform bg-transparent px-3 sm:px-6 md:px-9 py-2 sm:py-3 md:py-4 text-center first-letter:uppercase cursor-pointer'>
             <b
               className='block text-xs sm:text-sm md:text-lg group-hover:text-white'
-              onClick={() => handleNext(step)}
             >
               <span className='sm:hidden'>{label}</span>
               <span className='hidden sm:inline'>{fullLabel || label}</span>
