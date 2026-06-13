@@ -190,7 +190,7 @@ function Navbar() {
 
         {/* === COLUMNA CENTRAL: Logo + TerneData (siempre visible y centrado) === */}
         <div
-          className='flex items-center justify-center group cursor-pointer'
+          className='flex items-center justify-center group cursor-pointer min-w-0'
           onClick={() => {
             if (status === "authenticated") {
               if (pathname !== "/admin/dashboard") router.push("/admin/dashboard");
@@ -206,7 +206,7 @@ function Navbar() {
             width={40}
             height={40}
           />
-          <h1 className='text-xl sm:text-2xl md:text-3xl font-black tracking-widest brand-shimmer transition-all duration-300 group-hover:tracking-[0.2em] select-none uppercase'>
+          <h1 className='hidden sm:block text-lg md:text-2xl lg:text-3xl font-black tracking-wide md:tracking-widest brand-shimmer transition-all duration-300 group-hover:tracking-[0.2em] select-none uppercase truncate'>
             TerneData
           </h1>
         </div>
@@ -225,7 +225,7 @@ function Navbar() {
             </>
           ) : (
             <ul className='hidden lg:flex gap-x-2 xl:gap-x-4 items-center'>
-              <li className='hidden xl:block'>
+              <li className='hidden 2xl:block'>
                 <EstablecimientoBadge />
               </li>
 
@@ -259,7 +259,7 @@ function Navbar() {
               )}
 
               <li>
-                <h1 className='text-white font-semibold text-xs sm:text-sm'>
+                <h1 className='text-white font-semibold text-xs sm:text-sm truncate max-w-[120px]'>
                   {userPayload?.name}
                 </h1>
               </li>
