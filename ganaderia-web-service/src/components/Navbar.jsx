@@ -127,9 +127,9 @@ function Navbar() {
         }
       `}</style>
 
-      <div className='grid grid-cols-3 items-center gap-2'>
+      <div className='flex items-center justify-between gap-2'>
         {/* === COLUMNA IZQUIERDA: Menú navegación / Botón Home === */}
-        <div className='flex items-center gap-2 min-w-0'>
+        <div className='flex flex-1 items-center gap-2 min-w-0'>
           {status === "authenticated" && statusSession !== false ? (
             <>
               {/* Botones principales - Desktop */}
@@ -190,7 +190,7 @@ function Navbar() {
 
         {/* === COLUMNA CENTRAL: Logo + TerneData (siempre visible y centrado) === */}
         <div
-          className='flex items-center justify-center group cursor-pointer min-w-0'
+          className='flex shrink-0 items-center justify-center group cursor-pointer'
           onClick={() => {
             if (status === "authenticated") {
               if (pathname !== "/admin/dashboard") router.push("/admin/dashboard");
@@ -212,7 +212,7 @@ function Navbar() {
         </div>
 
         {/* === COLUMNA DERECHA: Auth / Info usuario === */}
-        <div className='flex items-center justify-end gap-x-2 min-w-0'>
+        <div className='flex flex-1 items-center justify-end gap-x-2 min-w-0'>
           {status === "checking" ||
           (status !== "authenticated" && statusSession === false) ? (
             <>
