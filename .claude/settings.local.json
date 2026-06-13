@@ -19,7 +19,22 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git commit *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk git *)",
+      "Bash(rtk read *)",
+      "Bash(python3 -c ' *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk next *)",
+      "Bash(wait)",
+      "Bash(rtk tsc *)",
+      "Bash(python3 *)",
+      "Bash(rtk find *)",
+      "Bash(rtk wc *)",
+      "Bash(rtk curl *)",
+      "Bash(curl -sS \"https://api.telegram.org/bot8480539771:AAFgaocEpKnitMCVBUf49JKCb84NeBOqYg4/getWebhookInfo\")",
+      "Bash(rtk proxy *)"
     ]
   }
 }
