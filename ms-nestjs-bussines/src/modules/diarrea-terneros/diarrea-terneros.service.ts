@@ -199,7 +199,7 @@ export class DiarreaTernerosService {
         .orderBy('diarrea.numero_episodio', 'ASC');
 
       // Filtrar por establecimiento (solo si NO es admin)
-      if (!esAdmin && idEstablecimiento) {
+      if (idEstablecimiento) {
         queryBuilder.andWhere(
           'diarrea.id_establecimiento = :idEstablecimiento',
           { idEstablecimiento },
@@ -247,7 +247,7 @@ export class DiarreaTernerosService {
         .orderBy('diarrea.fecha_diarrea_ternero', 'DESC');
 
       // Filtrar por establecimiento (solo si NO es admin)
-      if (!esAdmin && idEstablecimiento) {
+      if (idEstablecimiento) {
         queryBuilder.andWhere(
           'diarrea.id_establecimiento = :idEstablecimiento',
           { idEstablecimiento },
@@ -313,7 +313,7 @@ export class DiarreaTernerosService {
         .where('diarrea.id_diarrea_ternero = :id', { id });
 
       // Filtrar por establecimiento (solo si NO es admin)
-      if (!esAdmin && idEstablecimiento) {
+      if (idEstablecimiento) {
         queryBuilder.andWhere(
           'diarrea.id_establecimiento = :idEstablecimiento',
           { idEstablecimiento },

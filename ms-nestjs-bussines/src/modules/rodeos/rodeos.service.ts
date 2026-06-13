@@ -64,7 +64,7 @@ export class RodeosService {
       throw new NotFoundException(`Rodeo con ID ${id} no encontrado`);
     }
 
-    if (!esAdmin && rodeo.id_establecimiento !== idEstablecimiento) {
+    if (rodeo.id_establecimiento !== idEstablecimiento) {
       throw new ForbiddenException('No tienes acceso a este rodeo');
     }
 
@@ -78,17 +78,14 @@ export class RodeosService {
     esAdmin: boolean,
   ): Promise<Rodeos> {
     // Validar que el usuario puede crear en ese establecimiento
-    if (!esAdmin) {
-      if (!idEstablecimiento) {
-        throw new ForbiddenException(
-          'Usuario no tiene establecimiento asignado',
-        );
-      }
-      if (createRodeoDto.id_establecimiento !== idEstablecimiento) {
-        throw new ForbiddenException(
-          'No puedes crear rodeos en otro establecimiento',
-        );
-      }
+    // (siempre acotado al seleccionado, también para admin)
+    if (!idEstablecimiento) {
+      throw new ForbiddenException('Usuario no tiene establecimiento asignado');
+    }
+    if (createRodeoDto.id_establecimiento !== idEstablecimiento) {
+      throw new ForbiddenException(
+        'No puedes crear rodeos en otro establecimiento',
+      );
     }
 
     const nuevoRodeo = this.rodeosRepository.create(createRodeoDto);
@@ -104,9 +101,8 @@ export class RodeosService {
   ): Promise<Rodeos> {
     const rodeo = await this.findOne(id, idEstablecimiento, esAdmin);
 
-    // Verificar que no intente cambiar de establecimiento si no es admin
+    // Nadie puede mover un rodeo a otro establecimiento (tampoco admin)
     if (
-      !esAdmin &&
       updateRodeoDto.id_establecimiento &&
       updateRodeoDto.id_establecimiento !== idEstablecimiento
     ) {
@@ -244,22 +240,22 @@ export class RodeosService {
       throw new BadRequestException('No se enviaron terneros para asignar');
     }
 
-    // Validar multi-tenancy
-    if (!esAdmin && !idEstablecimiento) {
+    // Validar multi-tenancy: siempre acotado al establecimiento (incluido admin)
+    if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
 
     const placeholders = ids_terneros.map((_, i) => `$${i + 2}`).join(',');
-    const params = [id_rodeo, ...ids_terneros];
+    const params = [id_rodeo, ...ids_terneros, idEstablecimiento];
 
     await this.rodeosRepository.query(
       `
     UPDATE terneros
     SET id_rodeo = $1
     WHERE id_ternero IN (${placeholders})
-    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    AND id_establecimiento = $${params.length}
     `,
-      esAdmin ? params : [...params, idEstablecimiento],
+      params,
     );
 
     return { message: 'Terneros asignados correctamente', ids_terneros };
@@ -276,12 +272,12 @@ export class RodeosService {
       throw new BadRequestException('No se enviaron terneros para desasignar');
     }
 
-    if (!esAdmin && !idEstablecimiento) {
+    if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
 
     const placeholders = ids_terneros.map((_, i) => `$${i + 2}`).join(',');
-    const params = [id_rodeo, ...ids_terneros];
+    const params = [id_rodeo, ...ids_terneros, idEstablecimiento];
 
     await this.rodeosRepository.query(
       `
@@ -289,9 +285,9 @@ export class RodeosService {
     SET id_rodeo = NULL
     WHERE id_rodeo = $1
     AND id_ternero IN (${placeholders})
-    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    AND id_establecimiento = $${params.length}
     `,
-      esAdmin ? params : [...params, idEstablecimiento],
+      params,
     );
 
     return { message: 'Terneros desasignados correctamente', ids_terneros };
@@ -308,21 +304,21 @@ export class RodeosService {
       throw new BadRequestException('No se enviaron madres para asignar');
     }
 
-    if (!esAdmin && !idEstablecimiento) {
+    if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
 
     const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
-    const params = [id_rodeo, ...ids_madres];
+    const params = [id_rodeo, ...ids_madres, idEstablecimiento];
 
     await this.rodeosRepository.query(
       `
     UPDATE madres
     SET id_rodeo = $1
     WHERE id_madre IN (${placeholders})
-    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    AND id_establecimiento = $${params.length}
     `,
-      esAdmin ? params : [...params, idEstablecimiento],
+      params,
     );
 
     return { message: 'Madres asignadas correctamente', ids_madres };
@@ -339,12 +335,12 @@ export class RodeosService {
       throw new BadRequestException('No se enviaron madres para desasignar');
     }
 
-    if (!esAdmin && !idEstablecimiento) {
+    if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
 
     const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
-    const params = [id_rodeo, ...ids_madres];
+    const params = [id_rodeo, ...ids_madres, idEstablecimiento];
 
     await this.rodeosRepository.query(
       `
@@ -352,9 +348,9 @@ export class RodeosService {
     SET id_rodeo = NULL
     WHERE id_rodeo = $1
     AND id_madre IN (${placeholders})
-    ${!esAdmin ? 'AND id_establecimiento = $' + (params.length + 1) : ''}
+    AND id_establecimiento = $${params.length}
     `,
-      esAdmin ? params : [...params, idEstablecimiento],
+      params,
     );
 
     return { message: 'Madres desasignadas correctamente', ids_madres };

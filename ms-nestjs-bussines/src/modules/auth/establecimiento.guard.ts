@@ -35,32 +35,47 @@ export class EstablecimientoGuard implements CanActivate {
       throw new UnauthorizedException('Usuario no autenticado');
     }
 
-    // 1. Si es ADMIN, pasa con su establecimiento (no null)
-    if (user.rol === 'admin') {
-      request.id_establecimiento = user.id_establecimiento || null;
-      request.es_admin = true;
-      return true;
+    // Establecimientos a los que el usuario REALMENTE tiene acceso:
+    // su principal + los que aceptó por invitación. Nadie ve fuera de esto,
+    // sea admin o no (todo dueño se registra como admin, así que "admin" NO
+    // significa superusuario global).
+    const permitidos: number[] = Array.from(
+      new Set(
+        [
+          user.id_establecimiento,
+          ...(user.userEstablecimientos || []).map(
+            (ue: any) => ue.establecimientoId,
+          ),
+        ].filter((v) => v !== null && v !== undefined),
+      ),
+    );
+
+    // El front puede pedir cambiar de campo (EstablecimientoSelector) por
+    // query o body. Solo se permite si ese campo está en la lista del usuario.
+    const pedido =
+      request.query?.id_establecimiento ?? request.body?.id_establecimiento;
+    const pedidoId =
+      pedido !== undefined && pedido !== null && pedido !== ''
+        ? parseInt(pedido, 10)
+        : null;
+
+    if (pedidoId !== null && !permitidos.includes(pedidoId)) {
+      throw new ForbiddenException('No tenés acceso a ese establecimiento');
     }
 
-    // 2. LOGICA INTELIGENTE: Determinar el ID del establecimiento
-    let establecimientoId = user.id_establecimiento;
+    // ID efectivo: el pedido (ya validado) o el principal o el primero disponible
+    const efectivo =
+      pedidoId ?? user.id_establecimiento ?? permitidos[0] ?? null;
 
-    // Si no tiene ID principal, pero tiene invitaciones aceptadas, usamos la primera
-    if (!establecimientoId && user.userEstablecimientos?.length > 0) {
-      establecimientoId = user.userEstablecimientos[0].establecimientoId;
-      console.log('🔄 Redirigiendo a granja invitada:', establecimientoId);
-    }
-
-    // 3. Verificación Final
-    if (!establecimientoId) {
+    if (!efectivo) {
       throw new ForbiddenException(
         'Usuario sin establecimiento asignado ni invitaciones activas.',
       );
     }
 
-    // Inyectamos el ID decidido en el request para que lo usen los servicios (Madres, etc.)
-    request.id_establecimiento = establecimientoId;
-    request.es_admin = false;
+    request.id_establecimiento = efectivo;
+    request.establecimientos_permitidos = permitidos;
+    request.es_admin = user.rol === 'admin';
 
     return true;
   }

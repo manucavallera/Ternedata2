@@ -63,24 +63,10 @@ export class ResumenSaludService {
     });
 
     try {
-      // Determinar el ID de establecimiento a usar para el filtrado
-      let idEstablecimientoFiltro: number | null = null;
-
-      if (esAdmin) {
-        // Si es admin Y tiene query param, usar ese
-        idEstablecimientoFiltro = idEstablecimientoQuery;
-        console.log(
-          idEstablecimientoQuery
-            ? `✅ Admin filtrando por establecimiento: ${idEstablecimientoQuery}`
-            : '✅ Admin viendo TODOS los establecimientos',
-        );
-      } else {
-        // Si NO es admin, usar su establecimiento
-        idEstablecimientoFiltro = idEstablecimiento;
-        console.log(
-          `✅ Usuario no-admin, filtrando por su establecimiento: ${idEstablecimiento}`,
-        );
-      }
+      // Siempre acotar al establecimiento seleccionado (validado por el guard).
+      // No existe vista "ver todos": permitía fuga cross-tenant para admin.
+      const idEstablecimientoFiltro: number | null =
+        idEstablecimientoQuery || idEstablecimiento;
 
       // 1. Datos básicos de terneros (filtrados por establecimiento)
       const queryTerneros =

@@ -261,7 +261,8 @@ export class MadresService {
     try {
       const query = this.madreRepository.createQueryBuilder('madre');
 
-      if (!esAdmin && idEstablecimiento) {
+      // Siempre acotar al establecimiento (también admin)
+      if (idEstablecimiento) {
         query.where('madre.id_establecimiento = :idEstablecimiento', {
           idEstablecimiento,
         });
