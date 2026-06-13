@@ -580,19 +580,19 @@ const ListadoMadre = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Nombre</label>
                   <input type='text' value={formEditar.nombre}
                     onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>RP</label>
                   <input type='number' value={formEditar.rp_madre}
                     onChange={(e) => setFormEditar({ ...formEditar, rp_madre: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Estado</label>
                   <select value={formEditar.estado}
                     onChange={(e) => setFormEditar({ ...formEditar, estado: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500'>
                     <option value='Seca'>Seca</option>
                     <option value='En Tambo'>En Tambo</option>
                   </select>
@@ -601,14 +601,14 @@ const ListadoMadre = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha de nacimiento</label>
                   <input type='date' value={formEditar.fecha_nacimiento}
                     onChange={(e) => setFormEditar({ ...formEditar, fecha_nacimiento: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Observaciones</label>
                   <textarea value={formEditar.observaciones}
                     onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
                     rows={2}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
               </div>
               <div className='flex gap-3 mt-4'>

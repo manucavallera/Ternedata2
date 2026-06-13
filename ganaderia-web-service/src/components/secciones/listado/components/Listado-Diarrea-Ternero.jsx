@@ -533,13 +533,13 @@ const ListadoDiarreaTernero = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha</label>
                   <input type='date' value={formEditar.fecha_diarrea_ternero}
                     onChange={(e) => setFormEditar({ ...formEditar, fecha_diarrea_ternero: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Severidad</label>
                   <select value={formEditar.severidad}
                     onChange={(e) => setFormEditar({ ...formEditar, severidad: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500'>
                     <option value='Leve'>Leve</option>
                     <option value='Moderada'>Moderada</option>
                     <option value='Severa'>Severa</option>
@@ -551,7 +551,7 @@ const ListadoDiarreaTernero = () => {
                   <textarea value={formEditar.observaciones}
                     onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
                     rows={2}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
               </div>
               <div className='flex gap-3 mt-4'>

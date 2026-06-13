@@ -537,14 +537,14 @@ const ListadoEvento = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Fecha del evento</label>
                   <input type='date' value={formEditar.fecha_evento}
                     onChange={(e) => setFormEditar({ ...formEditar, fecha_evento: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Observación</label>
                   <textarea value={formEditar.observacion}
                     onChange={(e) => setFormEditar({ ...formEditar, observacion: e.target.value })}
                     rows={3}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
               </div>
               <div className='flex gap-3 mt-4'>

@@ -1559,7 +1559,7 @@ const ListadoTernero = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Estado</label>
                   <select value={formEditar.estado}
                     onChange={(e) => setFormEditar({ ...formEditar, estado: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500'>
                     <option value='Vivo'>Vivo</option>
                     <option value='Muerto'>Muerto</option>
                   </select>
@@ -1568,7 +1568,7 @@ const ListadoTernero = () => {
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Sexo</label>
                   <select value={formEditar.sexo}
                     onChange={(e) => setFormEditar({ ...formEditar, sexo: e.target.value })}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'>
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500'>
                     <option value='Macho'>Macho</option>
                     <option value='Hembra'>Hembra</option>
                   </select>
@@ -1578,14 +1578,14 @@ const ListadoTernero = () => {
                   <input type='text' value={formEditar.semen}
                     onChange={(e) => setFormEditar({ ...formEditar, semen: e.target.value })}
                     placeholder='Ej: Angus 1234'
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>Observaciones</label>
                   <textarea value={formEditar.observaciones}
                     onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
                     rows={2}
-                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+                    className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' />
                 </div>
               </div>
               <div className='flex gap-3 mt-4'>
