@@ -358,9 +358,9 @@ export class BotController {
 
     const user = await this.buscarUsuarioPorTelefono(phone);
 
-    // Detectar código de vinculación de Telegram (6 dígitos)
+    // Detectar código de vinculación de Telegram (8 dígitos, ver generarTokenBot)
     const textTrim = (text || '').trim();
-    if (/^\d{6}$/.test(textTrim)) {
+    if (/^\d{8}$/.test(textTrim)) {
       const candidato = await this.userRepo.findOne({
         where: { bot_link_token: textTrim },
       });
