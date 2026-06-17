@@ -862,7 +862,7 @@ export class BotController {
           const ternero = await this.ternerosService.create(data as any);
 
           let mensaje = `✅ Ternero anotado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
-          if (data.semen && data.semen !== 'Sin datos') mensaje += `\n🧬 Semen: ${data.semen}`;
+          if (data.semen && data.semen !== 'Sin datos' && data.semen !== 'N/A') mensaje += `\n🧬 Semen: ${data.semen}`;
           if (body.id_madre && !idMadre) {
             mensaje += `\n⚠️ Madre RP ${body.id_madre} no encontrada, registrado sin madre.`;
           }

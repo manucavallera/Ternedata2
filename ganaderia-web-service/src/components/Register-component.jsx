@@ -82,7 +82,7 @@ const Registercomponent = () => {
       } else {
         const mensajeExito = tokenParaEnviar
           ? "✅ ¡REGISTRO Y ACTIVACIÓN EXITOSA! Redirigiendo..."
-          : "✅ REGISTRO EXITOSO. Redirigiendo al login...";
+          : "✅ ¡Registro exitoso! Te enviamos un correo para verificar tu email. Revisá tu casilla (y la carpeta de spam) y confirmá antes de iniciar sesión.";
 
         const dataAlert = {
           status: true,
@@ -90,6 +90,9 @@ const Registercomponent = () => {
         };
         setuserAlert(dataAlert);
 
+        // Con token de invitación la cuenta queda activa → al login enseguida.
+        // Sin token hay que verificar el email primero: damos más tiempo para
+        // leer el aviso antes de redirigir.
         setTimeout(() => {
           // Si había token de invitación, lo pasamos al login en la URL
           // para que se procese automáticamente después del login
@@ -98,7 +101,7 @@ const Registercomponent = () => {
           } else {
             window.location.href = "/auth/login";
           }
-        }, 3000);
+        }, tokenParaEnviar ? 3000 : 6000);
       }
     } else {
       const dataAlert = {

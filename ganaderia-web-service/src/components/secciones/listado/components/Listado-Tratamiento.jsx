@@ -401,12 +401,11 @@ const ListadoTratamiento = () => {
 
   // Formatear fecha
   const formatearFecha = (fecha) => {
+    if (!fecha) return "Sin fecha";
     try {
-      return new Date(fecha).toLocaleDateString("es-AR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      // Sin new Date(): evita el corrimiento de -1 día por timezone (UTC vs AR).
+      const [year, month, day] = fecha.split("T")[0].split("-");
+      return `${day}/${month}/${year}`;
     } catch {
       return fecha;
     }

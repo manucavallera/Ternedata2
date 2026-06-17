@@ -165,6 +165,19 @@ const ListadoDiarreaTernero = () => {
     return "📊";
   };
 
+  // Formatea desde el string sin pasar por new Date(): evita el corrimiento
+  // de -1 día por timezone (UTC vs AR) que mostraba la fecha anterior.
+  const formatearFecha = (fecha) => {
+    if (!fecha) return "Sin fecha";
+    try {
+      const [year, month, day] = fecha.split("T")[0].split("-");
+      const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+      return `${parseInt(day)} ${meses[parseInt(month) - 1]} ${year}`;
+    } catch {
+      return fecha;
+    }
+  };
+
   if (cargando) {
     return (
       <div className='flex items-center justify-center min-h-screen bg-gray-100'>
@@ -263,7 +276,7 @@ const ListadoDiarreaTernero = () => {
                     <span className='text-lg'>{getIconoEpisodio(diarrea.numero_episodio)}</span>
                     <div>
                       <p className='text-sm font-bold text-indigo-300'>Episodio #{diarrea.numero_episodio}</p>
-                      <p className='text-xs text-slate-400'>{new Date(diarrea.fecha_diarrea_ternero).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      <p className='text-xs text-slate-400'>{formatearFecha(diarrea.fecha_diarrea_ternero)}</p>
                     </div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
@@ -365,13 +378,7 @@ const ListadoDiarreaTernero = () => {
                     {/* COLUMNA FECHA */}
                     <td className='px-4 py-3 border-b border-slate-700'>
                       <p className='text-sm font-medium'>
-                        {new Date(
-                          diarrea.fecha_diarrea_ternero
-                        ).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {formatearFecha(diarrea.fecha_diarrea_ternero)}
                       </p>
                     </td>
 
@@ -590,9 +597,7 @@ const ListadoDiarreaTernero = () => {
                   </p>
                   <p className='text-sm text-gray-600'>
                     📅 Fecha:{" "}
-                    {new Date(
-                      modalEliminar.diarrea?.fecha_diarrea_ternero
-                    ).toLocaleDateString("es-ES")}
+                    {formatearFecha(modalEliminar.diarrea?.fecha_diarrea_ternero)}
                   </p>
                   <p className='text-sm text-gray-600'>
                     ⚠️ Severidad: {modalEliminar.diarrea?.severidad}
