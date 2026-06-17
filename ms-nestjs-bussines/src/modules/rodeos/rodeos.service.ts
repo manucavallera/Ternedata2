@@ -51,7 +51,7 @@ export class RodeosService {
   async findOne(
     id: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<any> {
     const rodeo = await this.rodeosRepository
       .createQueryBuilder('rodeo')
@@ -75,7 +75,7 @@ export class RodeosService {
   async create(
     createRodeoDto: CreateRodeoDto,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<Rodeos> {
     // Validar que el usuario puede crear en ese establecimiento
     // (siempre acotado al seleccionado, también para admin)
@@ -234,7 +234,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_terneros: number[],
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ) {
     if (!ids_terneros?.length) {
       throw new BadRequestException('No se enviaron terneros para asignar');
@@ -266,7 +266,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_terneros: number[],
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ) {
     if (!ids_terneros?.length) {
       throw new BadRequestException('No se enviaron terneros para desasignar');
@@ -298,7 +298,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_madres: number[],
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ) {
     if (!ids_madres?.length) {
       throw new BadRequestException('No se enviaron madres para asignar');
@@ -329,7 +329,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_madres: number[],
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ) {
     if (!ids_madres?.length) {
       throw new BadRequestException('No se enviaron madres para desasignar');

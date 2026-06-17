@@ -189,7 +189,7 @@ export class DiarreaTernerosService {
   async findByTerneroId(
     id_ternero: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<DiarreaTerneroEntity[]> {
     try {
       const queryBuilder = this.diarreaRepository
@@ -231,7 +231,7 @@ export class DiarreaTernerosService {
   async getEstadisticasTernero(
     id_ternero: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<{
     total_episodios: number;
     ultimo_episodio: Date;
@@ -304,7 +304,7 @@ export class DiarreaTernerosService {
   async findOne(
     id: number,
     idEstablecimiento: number | null,
-    esAdmin: boolean,
+    _esAdmin: boolean,
   ): Promise<DiarreaTerneroEntity> {
     try {
       const queryBuilder = this.diarreaRepository

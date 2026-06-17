@@ -257,7 +257,7 @@ export class MadresService {
   // ============================================================
   // ESTADÍSTICAS POR ESTABLECIMIENTO
   // ============================================================
-  async getEstadisticas(idEstablecimiento: number | null, esAdmin: boolean) {
+  async getEstadisticas(idEstablecimiento: number | null, _esAdmin: boolean) {
     try {
       const query = this.madreRepository.createQueryBuilder('madre');
 
