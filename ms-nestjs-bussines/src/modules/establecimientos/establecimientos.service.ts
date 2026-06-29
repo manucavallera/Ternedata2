@@ -155,7 +155,30 @@ export class EstablecimientosService {
 
   async remove(id: number): Promise<void> {
     const establecimiento = await this.findOne(id);
+    // Limpiar relaciones de equipo antes de borrar: la FK de user_establecimientos
+    // no tiene ON DELETE CASCADE, así que un remove directo lanzaba 500 (siempre
+    // existe al menos la relación del creador). Las invitaciones sí cascadean.
+    await this.userEstablecimientoRepository.delete({ establecimientoId: id });
     await this.establecimientoRepository.remove(establecimiento);
+  }
+
+  // Chequea pertenencia contra la DB (no contra el JWT, que queda congelado en
+  // el login y no refleja establecimientos creados/asignados en la misma sesión).
+  async usuarioPertenece(
+    userId: number,
+    establecimientoId: number,
+  ): Promise<boolean> {
+    const rel = await this.userEstablecimientoRepository.findOne({
+      where: { userId, establecimientoId },
+    });
+    return !!rel;
+  }
+
+  async toggleEstado(id: number): Promise<Establecimiento> {
+    const establecimiento = await this.findOne(id);
+    establecimiento.estado =
+      establecimiento.estado === 'activo' ? 'inactivo' : 'activo';
+    return await this.establecimientoRepository.save(establecimiento);
   }
 
   async getEstadisticas() {

@@ -65,7 +65,8 @@ export class TratamientosService {
       // Crear tratamiento con establecimiento
       const resCreateTratamiento = this.tratamientoRepository.create({
         nombre: createTratamientoDto.nombre,
-        descripcion: createTratamientoDto.descripcion,
+        // Columna NOT NULL: si no viene descripción, guardar string vacío
+        descripcion: createTratamientoDto.descripcion ?? '',
         tipo_enfermedad: createTratamientoDto.tipo_enfermedad,
         turno: createTratamientoDto.turno,
         fecha_tratamiento: new Date(createTratamientoDto.fecha_tratamiento),
@@ -148,7 +149,7 @@ export class TratamientosService {
           // Crear el tratamiento con establecimiento
           const nuevoTratamiento = this.tratamientoRepository.create({
             nombre: tratamientoData.nombre,
-            descripcion: tratamientoData.descripcion,
+            descripcion: tratamientoData.descripcion ?? '',
             tipo_enfermedad: tratamientoData.tipo_enfermedad,
             turno: tratamientoData.turno,
             fecha_tratamiento: new Date(tratamientoData.fecha_tratamiento),

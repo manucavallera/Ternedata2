@@ -97,6 +97,7 @@ export class MadresService {
     page: number = 1,
     limit: number = 20,
     search?: string | null,
+    estado?: string | null,
   ): Promise<any> {
     try {
       const query = this.madreRepository
@@ -136,6 +137,11 @@ export class MadresService {
           '(LOWER(madre.nombre) LIKE LOWER(:search) OR CAST(madre.rp_madre AS TEXT) LIKE :search)',
           { search: `%${search}%` },
         );
+      }
+
+      // Filtro: estado (chip del listado)
+      if (estado) {
+        query.andWhere('madre.estado = :estado', { estado });
       }
 
       const [madres, total] = await query

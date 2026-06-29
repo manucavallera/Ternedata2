@@ -93,6 +93,7 @@ export class DiarreaTernerosController {
   async findAll(
     @Req() req: any,
     @Query('id_establecimiento') idEstablecimientoQuery?: string,
+    @Query('severidad') severidadQuery?: string,
   ) {
     const establecimientoFiltro = idEstablecimientoQuery
       ? parseInt(idEstablecimientoQuery, 10)
@@ -110,6 +111,7 @@ export class DiarreaTernerosController {
       req.id_establecimiento,
       req.es_admin,
       establecimientoFiltro,
+      severidadQuery || null,
     );
   }
 

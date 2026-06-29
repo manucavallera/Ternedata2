@@ -88,10 +88,11 @@ export class CreateTerneroDto {
   @ApiProperty({
     description: 'Observaciones sobre el ternero',
     example: 'Buen desarrollo y crecimiento',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  observaciones: string;
+  observaciones?: string;
 
   @ApiProperty({
     description: 'Fecha de nacimiento del ternero',
@@ -104,18 +105,20 @@ export class CreateTerneroDto {
   @ApiProperty({
     description: 'Tipo de semen utilizado',
     example: 'Semen Angus Premium A123',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  semen: string;
+  semen?: string;
 
   @ApiProperty({
     description: 'ID de la madre a la que pertenece el ternero',
     example: 1,
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
-  id_madre: number;
+  id_madre?: number;
 
   // ⬅️ NUEVO: Establecimiento
   @ApiProperty({ example: 1, required: false })
