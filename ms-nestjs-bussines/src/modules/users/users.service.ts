@@ -264,13 +264,21 @@ export class UsersService {
       select: ['id', 'id_establecimiento'],
     });
     if (!target) return; // findOne lanzará 404 más adelante
+    if (!target.id_establecimiento) return;
 
     const adminEstIds = [
       adminUser?.id_establecimiento,
       ...(adminUser?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
     ].filter(Boolean);
 
-    if (target.id_establecimiento && !adminEstIds.includes(target.id_establecimiento)) {
+    if (adminEstIds.includes(target.id_establecimiento)) return;
+
+    // Fallback a DB: cubre establecimientos creados/asignados después de
+    // emitido el JWT (array de arriba viene congelado del token de login).
+    const enDb = await this.userEstRepo.findOne({
+      where: { userId: adminUser?.userId, establecimientoId: target.id_establecimiento },
+    });
+    if (!enDb) {
       throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
     }
   }

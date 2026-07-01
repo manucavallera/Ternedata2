@@ -92,14 +92,27 @@ export class InvitacionesService {
     });
   }
 
-  async revocar(id: number, adminEstId: number, adminEstIds: number[]): Promise<{ message: string }> {
+  async revocar(
+    id: number,
+    userId: number,
+    adminEstId: number,
+    adminEstIds: number[],
+  ): Promise<{ message: string }> {
     const invitacion = await this.invitacionRepo.findOne({ where: { id } });
     if (!invitacion) {
       throw new HttpException('Invitación no encontrada', HttpStatus.NOT_FOUND);
     }
-    const tieneAcceso =
+    // Camino barato (JWT) + fallback a DB para establecimientos
+    // creados/asignados después de emitido el token.
+    let tieneAcceso =
       adminEstId === invitacion.establecimientoId ||
       adminEstIds.includes(invitacion.establecimientoId);
+    if (!tieneAcceso) {
+      const enDb = await this.userEstablecimientoRepo.findOne({
+        where: { userId, establecimientoId: invitacion.establecimientoId },
+      });
+      tieneAcceso = !!enDb;
+    }
     if (!tieneAcceso) {
       throw new HttpException('No tenés acceso a esta invitación', HttpStatus.FORBIDDEN);
     }

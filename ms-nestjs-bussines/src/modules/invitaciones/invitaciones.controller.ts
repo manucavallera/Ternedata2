@@ -95,6 +95,11 @@ export class InvitacionesController {
     const userEstabs = (req.user?.userEstablecimientos || []).map(
       (ue: any) => ue.establecimientoId,
     );
-    return await this.invitacionesService.revocar(id, req.user?.id_establecimiento, userEstabs);
+    return await this.invitacionesService.revocar(
+      id,
+      req.user?.userId,
+      req.user?.id_establecimiento,
+      userEstabs,
+    );
   }
 }
