@@ -127,7 +127,13 @@ export class UsersController {
       req.user?.id_establecimiento,
       ...(req.user?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
     ].filter(Boolean);
-    const idsInvalidos = (ids || []).filter((estId) => !adminEstIds.includes(estId));
+    let idsInvalidos = (ids || []).filter((estId) => !adminEstIds.includes(estId));
+    if (idsInvalidos.length > 0) {
+      // Fallback a DB: cubre establecimientos creados/asignados después de
+      // emitido el JWT (adminEstIds arriba viene congelado del login).
+      const enDb = await this.usersService.getEstablecimientos(req.user?.userId);
+      idsInvalidos = idsInvalidos.filter((estId) => !enDb.includes(estId));
+    }
     if (idsInvalidos.length > 0) {
       throw new HttpException(
         `No tenés acceso a los establecimientos: ${idsInvalidos.join(', ')}`,
