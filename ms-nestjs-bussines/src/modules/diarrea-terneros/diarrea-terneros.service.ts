@@ -128,6 +128,7 @@ export class DiarreaTernerosService {
     idEstablecimiento: number | null,
     esAdmin: boolean,
     idEstablecimientoQuery?: number | null, // ⬅️ NUEVO PARÁMETRO
+    severidad?: string | null,
   ): Promise<DiarreaTerneroEntity[]> {
     try {
       console.log(
@@ -170,6 +171,11 @@ export class DiarreaTernerosService {
         } else {
           console.warn('⚠️ Usuario no-admin sin establecimiento asignado');
         }
+      }
+
+      // Filtro por severidad (chip del listado mobile/web)
+      if (severidad) {
+        queryBuilder.andWhere('diarrea.severidad = :severidad', { severidad });
       }
 
       const diarreas = await queryBuilder.getMany();

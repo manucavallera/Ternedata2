@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -33,13 +34,21 @@ export class EstablecimientosController {
     private readonly establecimientosService: EstablecimientosService,
   ) {}
 
-  private verificarPertenencia(req: any, id: number): void {
+  private async verificarPertenencia(req: any, id: number): Promise<void> {
+    if (req.user?.rol === 'super_admin') return;
+    // Primero el camino barato: el token ya apunta a ese establecimiento o lo
+    // lista. Si no, consultamos la DB (cubre establecimientos creados/asignados
+    // después de emitido el JWT).
     const userEstabs = (req.user?.userEstablecimientos || []).map(
       (ue: any) => ue.establecimientoId,
     );
-    const puedeAcceder =
-      req.user?.id_establecimiento === id || userEstabs.includes(id);
-    if (!puedeAcceder) {
+    if (req.user?.id_establecimiento === id || userEstabs.includes(id)) return;
+
+    const enDb = await this.establecimientosService.usuarioPertenece(
+      req.user?.userId,
+      id,
+    );
+    if (!enDb) {
       throw new ForbiddenException('No tenés acceso a este establecimiento');
     }
   }
@@ -107,7 +116,7 @@ export class EstablecimientosController {
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    this.verificarPertenencia(req, id);
+    await this.verificarPertenencia(req, id);
     return await this.establecimientosService.findOne(id);
   }
 
@@ -118,15 +127,23 @@ export class EstablecimientosController {
     @Body() updateDto: UpdateEstablecimientoDto,
     @Req() req: any,
   ) {
-    this.verificarPertenencia(req, id);
+    await this.verificarPertenencia(req, id);
     return await this.establecimientosService.update(id, updateDto);
+  }
+
+  @Patch(':id/toggle-estado')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Activar/desactivar un establecimiento' })
+  async toggleEstado(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    await this.verificarPertenencia(req, id);
+    return await this.establecimientosService.toggleEstado(id);
   }
 
   @Get(':id/equipo')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener miembros del equipo del establecimiento' })
   async getEquipo(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    this.verificarPertenencia(req, id);
+    await this.verificarPertenencia(req, id);
     return await this.establecimientosService.getEquipo(id);
   }
 
@@ -138,7 +155,7 @@ export class EstablecimientosController {
     @Param('userId', ParseIntPipe) userId: number,
     @Req() req: any,
   ) {
-    this.verificarPertenencia(req, id);
+    await this.verificarPertenencia(req, id);
     await this.establecimientosService.eliminarMiembro(id, userId);
     return { message: 'Miembro eliminado correctamente' };
   }
@@ -146,7 +163,7 @@ export class EstablecimientosController {
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    this.verificarPertenencia(req, id);
+    await this.verificarPertenencia(req, id);
     await this.establecimientosService.remove(id);
     return { message: 'Establecimiento eliminado correctamente' };
   }

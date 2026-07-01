@@ -29,10 +29,11 @@ export class CreateTratamientoDto {
   @ApiProperty({
     description: 'Descripción del tratamiento',
     example: 'Tratamiento antibiótico para infecciones bacterianas',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  descripcion: string;
+  descripcion?: string;
 
   @ApiProperty({
     description: 'Tipo de enfermedad a tratar (texto libre)',

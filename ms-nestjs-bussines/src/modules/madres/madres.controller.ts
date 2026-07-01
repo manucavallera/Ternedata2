@@ -63,6 +63,7 @@ export class MadresController {
     @Query('page') pageQuery?: string,
     @Query('limit') limitQuery?: string,
     @Query('search') searchQuery?: string,
+    @Query('estado') estadoQuery?: string,
   ) {
     const establecimientoFiltro = idEstablecimientoQuery
       ? parseInt(idEstablecimientoQuery, 10)
@@ -73,6 +74,7 @@ export class MadresController {
     const page = pageQuery ? parseInt(pageQuery, 10) : 1;
     const limit = limitQuery ? parseInt(limitQuery, 10) : 20;
     const search = searchQuery || null;
+    const estado = estadoQuery || null;
 
     return this.madresService.findAll(
       req.id_establecimiento,
@@ -83,6 +85,7 @@ export class MadresController {
       page,
       limit,
       search,
+      estado,
     );
   }
 
