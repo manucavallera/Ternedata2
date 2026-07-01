@@ -10,6 +10,8 @@ import {
   ParseIntPipe,
   ForbiddenException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InvitacionesService } from './invitaciones.service';
 import { CrearInvitacionDto } from './dto/crear-invitacion.dto';
@@ -18,13 +20,35 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entity/users.entity';
+import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 
 @ApiTags('Invitaciones')
 @Controller('invitaciones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class InvitacionesController {
-  constructor(private readonly invitacionesService: InvitacionesService) {}
+  constructor(
+    private readonly invitacionesService: InvitacionesService,
+    @InjectRepository(UserEstablecimientoEntity)
+    private readonly userEstablecimientoRepository: Repository<UserEstablecimientoEntity>,
+  ) {}
+
+  private async verificarPertenencia(req: any, id: number): Promise<void> {
+    // Camino barato: el token ya apunta a ese establecimiento o lo lista.
+    // Si no, consultamos la DB (cubre establecimientos creados/asignados
+    // después de emitido el JWT, ej. recién creado en la misma sesión).
+    const userEstabs = (req.user?.userEstablecimientos || []).map(
+      (ue: any) => ue.establecimientoId,
+    );
+    if (req.user?.id_establecimiento === id || userEstabs.includes(id)) return;
+
+    const enDb = await this.userEstablecimientoRepository.findOne({
+      where: { userId: req.user?.userId, establecimientoId: id },
+    });
+    if (!enDb) {
+      throw new ForbiddenException('No tenés acceso a este establecimiento');
+    }
+  }
 
   @Post('crear/:establecimientoId')
   @Roles(UserRole.ADMIN)
@@ -34,15 +58,7 @@ export class InvitacionesController {
     @Body() body: CrearInvitacionDto,
     @Req() req: any,
   ) {
-    // H10: el admin solo puede invitar a establecimientos a los que pertenece
-    const userEstabs = (req.user?.userEstablecimientos || []).map(
-      (ue: any) => ue.establecimientoId,
-    );
-    const puedeAcceder =
-      req.user?.id_establecimiento === id || userEstabs.includes(id);
-    if (!puedeAcceder) {
-      throw new ForbiddenException('No tenés acceso a este establecimiento');
-    }
+    await this.verificarPertenencia(req, id);
     return await this.invitacionesService.generarLink(id, body.rol, body.email);
   }
 
@@ -68,14 +84,7 @@ export class InvitacionesController {
     @Param('establecimientoId', ParseIntPipe) id: number,
     @Req() req: any,
   ) {
-    const userEstabs = (req.user?.userEstablecimientos || []).map(
-      (ue: any) => ue.establecimientoId,
-    );
-    const puedeAcceder =
-      req.user?.id_establecimiento === id || userEstabs.includes(id);
-    if (!puedeAcceder) {
-      throw new ForbiddenException('No tenés acceso a este establecimiento');
-    }
+    await this.verificarPertenencia(req, id);
     return await this.invitacionesService.getPendientes(id);
   }
 
