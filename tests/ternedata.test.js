@@ -244,7 +244,7 @@ describe('🐮 TERNEROS', () => {
   test('Agregar peso diario', async () => {
     if (!state.terneroId) return;
     const res = await busApi.post(`/terneros/peso-diario/${state.terneroId}`,
-      { peso: 59.0, fecha: new Date().toISOString().split('T')[0] },
+      { peso_actual: 59.0, fecha: new Date().toISOString().split('T')[0] },
       { headers: authHeader() }
     );
     expect([200, 201]).toContain(res.status);
@@ -539,6 +539,7 @@ describe('🎟️ INVITACIONES', () => {
   test('Generar token de invitación como admin', async () => {
     const res = await secApi.get('/auth/generar-token', {
       params: { email: 'invitado_test@ternedata.com', rol: 'operario', idEstablecimiento: state.establecimientoId || 1 },
+      headers: authHeader(),
     });
     expect([200, 201]).toContain(res.status);
     expect(res.data).toHaveProperty('token_para_copiar');
