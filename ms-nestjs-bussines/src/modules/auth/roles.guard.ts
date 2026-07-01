@@ -47,9 +47,15 @@ export class RolesGuard implements CanActivate {
     // 2. CHEQUEO ESPECÍFICO (¿Es Veterinario en alguna granja?)
     // 👇 ESTA ES LA PARTE QUE FALTABA EN TU CÓDIGO ACTUAL 👇
     if (user.userEstablecimientos && Array.isArray(user.userEstablecimientos)) {
-      // Buscamos si en ALGUNA granja tiene el rol que pide el endpoint
+      // Buscamos si en ALGUNA granja tiene el rol que pide el endpoint.
+      // 'dueno' (dueño de la granja, asignado al crear el establecimiento)
+      // equivale a 'admin' dentro de esa granja: el creador nunca tiene
+      // rol 'admin' global, solo 'dueno' por-granja.
       const hasSpecificRole = user.userEstablecimientos.some((ue) =>
-        requiredRoles.some((reqRole) => ue.rol === reqRole),
+        requiredRoles.some(
+          (reqRole) =>
+            ue.rol === reqRole || (reqRole === 'admin' && ue.rol === 'dueno'),
+        ),
       );
 
       if (hasSpecificRole) {
