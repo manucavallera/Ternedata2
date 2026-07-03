@@ -18,6 +18,7 @@ async function bootstrap() {
       process.env.FRONTEND_URL || 'http://localhost:3000',
       'http://localhost:8081',
       'http://localhost:19006',
+      'https://manu-ternedatamobile.gygo4l.easypanel.host',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
