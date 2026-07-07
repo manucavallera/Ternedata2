@@ -8,6 +8,7 @@ import { MadreEntity } from '../madres/entities/madre.entity';
 import { EventoEntity } from '../eventos/entities/evento.entity';
 //import { TerneroTratamientoEntity } from '../terneros-tratamientos/entities/terneros-tratamiento.entity';
 import { DiarreaTerneroEntity } from '../diarrea-terneros/entities/diarrea-ternero.entity';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 // ⬅️ ELIMINADO: import { PadreEntity } from '../padres/entities/padre.entity';
 
 @Module({
@@ -18,6 +19,7 @@ import { DiarreaTerneroEntity } from '../diarrea-terneros/entities/diarrea-terne
       EventoEntity,
       //TerneroTratamientoEntity,
       DiarreaTerneroEntity,
+      Rodeos,
       // ⬅️ ELIMINADO: PadreEntity
     ]),
   ],

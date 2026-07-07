@@ -13,6 +13,23 @@ import { MadreEntity } from './entities/madre.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+function calcularDiasEnLeche(madre: MadreEntity): number | null {
+  if (madre.estado !== 'En Tambo') return null;
+  if (!madre.terneros || madre.terneros.length === 0) return null;
+
+  const fechaUltimoParto = madre.terneros
+    .map((t) => new Date(t.fecha_nacimiento))
+    .filter((fecha) => !isNaN(fecha.getTime()))
+    .reduce((max, fecha) => (fecha > max ? fecha : max), new Date(0));
+
+  if (fechaUltimoParto.getTime() === 0) return null;
+
+  const dias = Math.floor(
+    (Date.now() - fechaUltimoParto.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return dias < 0 ? 0 : dias;
+}
+
 @Injectable()
 export class MadresService {
   private readonly logger = new Logger(MadresService.name);
@@ -151,8 +168,13 @@ export class MadresService {
         .getManyAndCount();
 
 
+      const data = madres.map((madre) => ({
+        ...madre,
+        dias_en_leche: calcularDiasEnLeche(madre),
+      }));
+
       return {
-        data: madres,
+        data,
         total,
         page,
         limit,
@@ -174,7 +196,7 @@ export class MadresService {
     id: number,
     idEstablecimiento: number | null,
     _esAdmin: boolean,
-  ): Promise<MadreEntity> {
+  ): Promise<any> {
     try {
       const query = this.madreRepository
         .createQueryBuilder('madre')
@@ -197,7 +219,7 @@ export class MadresService {
         );
       }
 
-      return madre;
+      return { ...madre, dias_en_leche: calcularDiasEnLeche(madre) };
     } catch (error) {
       throw new HttpException(
         `Error al obtener la madre con ID ${id}: ${error.message}`,
@@ -263,7 +285,11 @@ export class MadresService {
   // ============================================================
   // ESTADÍSTICAS POR ESTABLECIMIENTO
   // ============================================================
-  async getEstadisticas(idEstablecimiento: number | null, _esAdmin: boolean) {
+  async getEstadisticas(
+    idEstablecimiento: number | null,
+    _esAdmin: boolean,
+    idRodeo?: number | null,
+  ) {
     try {
       const query = this.madreRepository.createQueryBuilder('madre');
 
@@ -274,7 +300,11 @@ export class MadresService {
         });
       }
 
-      const [total, secas, enTambo] = await Promise.all([
+      if (idRodeo) {
+        query.andWhere('madre.id_rodeo = :idRodeo', { idRodeo });
+      }
+
+      const [total, secas, enTambo, madresEnTambo] = await Promise.all([
         query.getCount(),
         query
           .clone()
@@ -284,13 +314,32 @@ export class MadresService {
           .clone()
           .andWhere('madre.estado = :estado', { estado: 'En Tambo' })
           .getCount(),
+        query
+          .clone()
+          .andWhere('madre.estado = :estado', { estado: 'En Tambo' })
+          .leftJoinAndSelect('madre.terneros', 'terneros')
+          .getMany(),
       ]);
+
+      const diasEnLeche = madresEnTambo
+        .map((madre) => calcularDiasEnLeche(madre))
+        .filter((dias): dias is number => dias !== null);
+
+      const promedioDiasEnLeche =
+        diasEnLeche.length > 0
+          ? Math.round(
+              diasEnLeche.reduce((suma, dias) => suma + dias, 0) /
+                diasEnLeche.length,
+            )
+          : null;
 
       return {
         total,
         secas,
         en_tambo: enTambo,
+        promedio_dias_en_leche: promedioDiasEnLeche,
         establecimiento_id: idEstablecimiento,
+        id_rodeo: idRodeo || null,
       };
     } catch (error) {
       throw new HttpException(

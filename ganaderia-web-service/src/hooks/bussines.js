@@ -867,6 +867,176 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
+  // ===== LITROS =====
+  const registrarLitrosHook = async (litrosData) => {
+    try {
+      const res = await businessApi.post(`/litros/registrar`, litrosData);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, data: error.response?.data, error: true };
+    }
+  };
+
+  const obtenerLitrosHook = async (idEstablecimiento = null) => {
+    try {
+      const url = idEstablecimiento
+        ? `/litros/listado?id_establecimiento=${idEstablecimiento}`
+        : `/litros/listado`;
+      const { data, status } = await businessApi.get(url);
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  const obtenerStatsLitrosHook = async (idEstablecimiento = null) => {
+    try {
+      const url = idEstablecimiento
+        ? `/litros/stats?id_establecimiento=${idEstablecimiento}`
+        : `/litros/stats`;
+      const { data, status } = await businessApi.get(url);
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  const eliminarLitrosHook = async (id) => {
+    try {
+      const res = await businessApi.delete(`/litros/${id}`);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  // ===== DIETAS =====
+  const crearDietaHook = async (dietaData) => {
+    try {
+      const res = await businessApi.post(`/dietas/crear`, dietaData);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, data: error.response?.data, error: true };
+    }
+  };
+
+  const obtenerDietasRodeoHook = async (idRodeo) => {
+    try {
+      const { data, status } = await businessApi.get(`/dietas/rodeo/${idRodeo}`);
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  const eliminarDietaHook = async (id) => {
+    try {
+      const res = await businessApi.delete(`/dietas/${id}`);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  // ===== HISTORIAL / CALENDARIO =====
+  const obtenerSnapshotHook = async (fecha) => {
+    try {
+      const { data, status } = await businessApi.get(
+        `/historial/snapshot?fecha=${fecha}`
+      );
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  const obtenerDiasConCambiosHook = async (desde, hasta) => {
+    try {
+      const { data, status } = await businessApi.get(
+        `/historial/dias-con-cambios?desde=${desde}&hasta=${hasta}`
+      );
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  // ===== SUSTITUTO LÁCTEO =====
+  const registrarSustitutoHook = async (data) => {
+    try {
+      const res = await businessApi.post(`/sustituto/registrar`, data);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, data: error.response?.data, error: true };
+    }
+  };
+
+  const obtenerSustitutoHook = async () => {
+    try {
+      const { data, status } = await businessApi.get(`/sustituto/listado`);
+      return { data, status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
+  const eliminarSustitutoHook = async (id) => {
+    try {
+      const res = await businessApi.delete(`/sustituto/${id}`);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, error: true };
+    }
+  };
+
   return {
     //seccion MADRES
     crearMadreHook,
@@ -924,5 +1094,21 @@ export const useBussinesMicroservicio = () => {
     desasignarMadresRodeoHook,
     // ===== DASHBOARD =====
     obtenerResumenDashboardHook,
+    // ===== LITROS =====
+    registrarLitrosHook,
+    obtenerLitrosHook,
+    obtenerStatsLitrosHook,
+    eliminarLitrosHook,
+    // ===== DIETAS =====
+    crearDietaHook,
+    obtenerDietasRodeoHook,
+    eliminarDietaHook,
+
+    obtenerSnapshotHook,
+    obtenerDiasConCambiosHook,
+
+    registrarSustitutoHook,
+    obtenerSustitutoHook,
+    eliminarSustitutoHook,
   };
 };

@@ -155,10 +155,15 @@ export class MadresController {
   @ApiOperation({
     summary: 'Obtener estadísticas de madres del establecimiento',
   })
-  async getEstadisticas(@Req() req: any) {
+  async getEstadisticas(
+    @Req() req: any,
+    @Query('id_rodeo') idRodeoQuery?: string,
+  ) {
+    const idRodeo = idRodeoQuery ? parseInt(idRodeoQuery, 10) : null;
     return this.madresService.getEstadisticas(
       req.id_establecimiento,
       req.es_admin,
+      idRodeo,
     );
   }
 }

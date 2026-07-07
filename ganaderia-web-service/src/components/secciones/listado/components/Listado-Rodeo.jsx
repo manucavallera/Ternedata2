@@ -43,6 +43,9 @@ const ListadoRodeo = () => {
     obtenerMadreHook,
     asignarMadresRodeoHook,
     desasignarMadresRodeoHook,
+    crearDietaHook,
+    obtenerDietasRodeoHook,
+    eliminarDietaHook,
   } = useBussinesMicroservicio();
 
   const [rodeos, setRodeos] = useState([]);
@@ -65,6 +68,17 @@ const ListadoRodeo = () => {
   const [madresDelRodeo, setMadresDelRodeo] = useState([]);
   const [madresSeleccionadas, setMadresSeleccionadas] = useState([]);
   const [loadingTerneros, setLoadingTerneros] = useState(false);
+  // Dietas
+  const [showDietasModal, setShowDietasModal] = useState(false);
+  const [rodeoParaDietas, setRodeoParaDietas] = useState(null);
+  const [dietas, setDietas] = useState([]);
+  const [loadingDietas, setLoadingDietas] = useState(false);
+  const [dietaForm, setDietaForm] = useState({
+    modo: "nota",
+    nombre: "",
+    nota: "",
+    kg_por_animal: "",
+  });
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -217,6 +231,58 @@ const ListadoRodeo = () => {
       console.error("Error al cargar estadísticas:", error);
       showAlert("Error al cargar estadísticas", "error");
     }
+  };
+
+  // ===== DIETAS =====
+  const abrirModalDietas = async (rodeo) => {
+    setRodeoParaDietas(rodeo);
+    setShowDietasModal(true);
+    setDietaForm({ modo: "nota", nombre: "", nota: "", kg_por_animal: "" });
+    await cargarDietas(rodeo.id_rodeo);
+  };
+
+  const cargarDietas = async (idRodeo) => {
+    setLoadingDietas(true);
+    try {
+      const res = await obtenerDietasRodeoHook(idRodeo);
+      if (res?.status === 200) setDietas(res.data || []);
+    } catch (error) {
+      console.error("Error al cargar dietas:", error);
+    } finally {
+      setLoadingDietas(false);
+    }
+  };
+
+  const guardarDieta = async (e) => {
+    e.preventDefault();
+    if (!rodeoParaDietas) return;
+    const payload = {
+      id_rodeo: rodeoParaDietas.id_rodeo,
+      modo: dietaForm.modo,
+      nombre: dietaForm.nombre || undefined,
+    };
+    if (dietaForm.modo === "nota") {
+      payload.nota = dietaForm.nota;
+    } else {
+      payload.kg_por_animal = parseFloat(dietaForm.kg_por_animal) || 0;
+    }
+    if (userPayload?.rol === "admin" && establecimientoActual) {
+      payload.id_establecimiento = establecimientoActual;
+    }
+    const res = await crearDietaHook(payload);
+    if (res?.status === 201 || res?.status === 200) {
+      setDietaForm({ modo: "nota", nombre: "", nota: "", kg_por_animal: "" });
+      await cargarDietas(rodeoParaDietas.id_rodeo);
+    } else {
+      showAlert(res?.data?.message || "No se pudo guardar la dieta", "error");
+    }
+  };
+
+  const eliminarDieta = async (id) => {
+    if (!confirm("¿Eliminar esta dieta?")) return;
+    const res = await eliminarDietaHook(id);
+    if (res?.status === 200 && rodeoParaDietas)
+      await cargarDietas(rodeoParaDietas.id_rodeo);
   };
 
   // Helpers para construir query según multi-tenancy (admin / no-admin)
@@ -393,6 +459,7 @@ const ListadoRodeo = () => {
       destete: "bg-blue-100 text-blue-800",
       engorde: "bg-orange-100 text-orange-800",
       reproduccion: "bg-purple-100 text-purple-800",
+      tambo: "bg-cyan-100 text-cyan-800",
       otro: "bg-gray-100 text-gray-800",
     };
     return colors[tipo] || "bg-gray-100 text-gray-800";
@@ -404,6 +471,7 @@ const ListadoRodeo = () => {
       destete: "🐄",
       engorde: "🥩",
       reproduccion: "💕",
+      tambo: "🥛",
       otro: "📋",
     };
     return icons[tipo] || "📋";
@@ -572,6 +640,14 @@ const ListadoRodeo = () => {
                     >
                       🧩 Asignar
                     </button>
+
+                    <button
+                      onClick={() => abrirModalDietas(rodeo)}
+                      className='flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium'
+                      title='Dietas del rodeo'
+                    >
+                      🍽️ Dieta
+                    </button>
                   </>
                 )}
 
@@ -638,6 +714,7 @@ const ListadoRodeo = () => {
                     <option value='destete'>🐄 Destete</option>
                     <option value='engorde'>🥩 Engorde</option>
                     <option value='reproduccion'>💕 Reproducción</option>
+                    <option value='tambo'>🥛 Tambo</option>
                     <option value='otro'>📋 Otro</option>
                   </select>
                 </div>
@@ -766,6 +843,17 @@ const ListadoRodeo = () => {
                   {statsData.estadisticas.pesoPromedio} kg
                 </div>
               </div>
+
+              {statsData.estadisticas.promedioDiasEnLeche != null && (
+                <div className='bg-cyan-50 rounded-lg p-4 border-l-4 border-cyan-500'>
+                  <div className='text-sm text-cyan-600 font-semibold mb-1'>
+                    Promedio DEL (días en leche)
+                  </div>
+                  <div className='text-3xl font-bold text-cyan-700'>
+                    {statsData.estadisticas.promedioDiasEnLeche}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
@@ -777,6 +865,167 @@ const ListadoRodeo = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL: DIETAS DEL RODEO */}
+      {showDietasModal && rodeoParaDietas && (
+        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4'>
+          <div className='bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto'>
+            <div className='flex items-start justify-between mb-4'>
+              <h3 className='text-lg sm:text-xl font-bold break-words'>
+                🍽️ Dietas — {rodeoParaDietas.nombre}
+              </h3>
+              <button
+                onClick={() => setShowDietasModal(false)}
+                className='text-gray-400 hover:text-gray-600 text-2xl leading-none'
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Formulario nueva dieta */}
+            <form
+              onSubmit={guardarDieta}
+              className='bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5'
+            >
+              <div className='flex gap-2 mb-3'>
+                <button
+                  type='button'
+                  onClick={() => setDietaForm({ ...dietaForm, modo: "nota" })}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    dietaForm.modo === "nota"
+                      ? "bg-amber-600 text-white"
+                      : "bg-white text-gray-600 border border-gray-300"
+                  }`}
+                >
+                  📝 Nota libre
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setDietaForm({ ...dietaForm, modo: "formula" })}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    dietaForm.modo === "formula"
+                      ? "bg-amber-600 text-white"
+                      : "bg-white text-gray-600 border border-gray-300"
+                  }`}
+                >
+                  🧮 Fórmula (kg/animal)
+                </button>
+              </div>
+
+              <input
+                type='text'
+                value={dietaForm.nombre}
+                onChange={(e) =>
+                  setDietaForm({ ...dietaForm, nombre: e.target.value })
+                }
+                placeholder='Nombre de la dieta (opcional)'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500'
+              />
+
+              {dietaForm.modo === "nota" ? (
+                <textarea
+                  value={dietaForm.nota}
+                  onChange={(e) =>
+                    setDietaForm({ ...dietaForm, nota: e.target.value })
+                  }
+                  placeholder='Ej: 3kg de balanceado + heno a voluntad'
+                  rows={3}
+                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500'
+                  required
+                />
+              ) : (
+                <div>
+                  <label className='block text-sm font-medium text-gray-600 mb-1'>
+                    Kg por animal
+                  </label>
+                  <input
+                    type='number'
+                    step='0.01'
+                    min='0'
+                    value={dietaForm.kg_por_animal}
+                    onChange={(e) =>
+                      setDietaForm({
+                        ...dietaForm,
+                        kg_por_animal: e.target.value,
+                      })
+                    }
+                    placeholder='Ej: 3.5'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500'
+                    required
+                  />
+                  <p className='text-xs text-gray-500 mt-1'>
+                    El total del rodeo se calcula automático según la cantidad de
+                    animales.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type='submit'
+                className='mt-3 w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg font-medium transition-colors'
+              >
+                ➕ Agregar dieta
+              </button>
+            </form>
+
+            {/* Lista de dietas */}
+            {loadingDietas ? (
+              <div className='text-center py-6 text-gray-400'>Cargando...</div>
+            ) : dietas.length === 0 ? (
+              <div className='text-center py-6 text-gray-400'>
+                Sin dietas cargadas para este rodeo.
+              </div>
+            ) : (
+              <div className='space-y-3'>
+                {dietas.map((d) => (
+                  <div
+                    key={d.id_dieta}
+                    className='border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3'
+                  >
+                    <div className='min-w-0'>
+                      {d.nombre && (
+                        <div className='font-semibold text-gray-800'>
+                          {d.nombre}
+                        </div>
+                      )}
+                      {d.modo === "nota" ? (
+                        <div className='text-sm text-gray-600 whitespace-pre-wrap'>
+                          {d.nota}
+                        </div>
+                      ) : (
+                        <div className='text-sm text-gray-600'>
+                          <span className='font-medium'>
+                            {d.kg_por_animal} kg/animal
+                          </span>{" "}
+                          × {d.cantidad_animales} animales ={" "}
+                          <span className='font-bold text-amber-700'>
+                            {d.total_rodeo} kg
+                          </span>{" "}
+                          totales
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => eliminarDieta(d.id_dieta)}
+                      className='text-red-500 hover:text-red-700 text-xs shrink-0'
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowDietasModal(false)}
+              className='w-full mt-6 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors'
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {showAsignarModal && (
         <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4'>
           <div className='bg-white rounded-lg p-4 sm:p-6 w-full max-w-4xl mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto'>

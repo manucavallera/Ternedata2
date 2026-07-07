@@ -19,6 +19,10 @@ import { RodeosModule } from './modules/rodeos/rodeos.module';
 import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
 import { BotModule } from './modules/bot/bot.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
+import { LitrosModule } from './modules/litros/litros.module';
+import { DietasModule } from './modules/dietas/dietas.module';
+import { HistorialModule } from './modules/historial/historial.module';
+import { SustitutoModule } from './modules/sustituto/sustituto.module';
 
 // 👇 1. AGREGAR ESTA IMPORTACIÓN
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -77,6 +81,10 @@ import { MailerModule } from '@nestjs-modules/mailer';
     InvitacionesModule,
     BotModule,
     AlertsModule,
+    LitrosModule,
+    DietasModule,
+    HistorialModule,
+    SustitutoModule,
   ],
   controllers: [AppController],
   providers: [

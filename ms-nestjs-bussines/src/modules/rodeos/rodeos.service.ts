@@ -212,6 +212,22 @@ export class RodeosService {
     const porcentajeMortalidad =
       total > 0 ? ((muertos / total) * 100).toFixed(2) : '0';
 
+    const delStats = await this.rodeosRepository.query(
+      `
+  SELECT AVG(dias) as promedio_del
+  FROM (
+    SELECT m.id_madre,
+           EXTRACT(DAY FROM (NOW() - MAX(t.fecha_nacimiento)))::int as dias
+    FROM madres m
+    JOIN terneros t ON t.id_madre = m.id_madre
+    WHERE m.id_rodeo = $1 AND m.estado = 'En Tambo'
+    GROUP BY m.id_madre
+  ) sub
+  `,
+      [id],
+    );
+    const promedioDel = delStats[0]?.promedio_del;
+
     return {
       rodeo: {
         id_rodeo: rodeo.id_rodeo,
@@ -225,6 +241,8 @@ export class RodeosService {
         ternerosMuertos: muertos,
         porcentajeMortalidad: parseFloat(porcentajeMortalidad),
         pesoPromedio: parseFloat(pesoPromedio.toFixed(2)),
+        promedioDiasEnLeche:
+          promedioDel != null ? Math.round(parseFloat(promedioDel)) : null,
       },
     };
   }

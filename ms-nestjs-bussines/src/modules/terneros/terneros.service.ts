@@ -17,6 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TerneroEntity } from './entities/ternero.entity';
 import { Repository } from 'typeorm';
 import { MadreEntity } from '../madres/entities/madre.entity';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 
 interface UpdateCalostradoDto {
   metodo_calostrado?: string;
@@ -35,7 +36,26 @@ export class TernerosService {
     private readonly terneroRepository: Repository<TerneroEntity>,
     @InjectRepository(MadreEntity)
     private readonly madreRepository: Repository<MadreEntity>,
+    @InjectRepository(Rodeos)
+    private readonly rodeoRepository: Repository<Rodeos>,
   ) {}
+
+  private async obtenerORodeoTambo(idEstablecimiento: number): Promise<Rodeos> {
+    let rodeoTambo = await this.rodeoRepository.findOne({
+      where: { id_establecimiento: idEstablecimiento, tipo: 'tambo' },
+    });
+
+    if (!rodeoTambo) {
+      rodeoTambo = this.rodeoRepository.create({
+        nombre: 'Tambo',
+        tipo: 'tambo',
+        id_establecimiento: idEstablecimiento,
+      });
+      rodeoTambo = await this.rodeoRepository.save(rodeoTambo);
+    }
+
+    return rodeoTambo;
+  }
 
   // ============================================================
   // CREAR TERNERO (con id_establecimiento)
@@ -137,6 +157,15 @@ export class TernerosService {
       }
 
       const terneroGuardado = await this.terneroRepository.save(nuevoTernero);
+
+      if (madre && madre.estado !== 'En Tambo') {
+        const rodeoTambo = await this.obtenerORodeoTambo(
+          createTerneroDto.id_establecimiento,
+        );
+        madre.estado = 'En Tambo';
+        madre.id_rodeo = rodeoTambo.id_rodeo;
+        await this.madreRepository.save(madre);
+      }
 
       try {
         terneroGuardado.calcularIndicadoresCrecimiento();

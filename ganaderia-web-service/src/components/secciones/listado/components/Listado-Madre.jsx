@@ -267,6 +267,9 @@ const ListadoMadre = () => {
                   <span>🐄 <span className='text-green-400 font-semibold'>{madre.terneros?.length ?? 0}</span> crías</span>
                   <span>📋 <span className='text-purple-400 font-semibold'>{madre.eventos?.length ?? 0}</span> eventos</span>
                   {madre.fecha_nacimiento && <span>📅 {madre.fecha_nacimiento}</span>}
+                  {madre.dias_en_leche != null && (
+                    <span>🥛 <span className='text-cyan-400 font-semibold'>{madre.dias_en_leche}</span> DEL</span>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -379,6 +382,11 @@ const ListadoMadre = () => {
                         >
                           {madre.estado === "Seca" ? "Seca" : "En Tambo"}
                         </span>
+                        {madre.dias_en_leche != null && (
+                          <p className='text-xs text-cyan-400 mt-1'>
+                            🥛 {madre.dias_en_leche} DEL
+                          </p>
+                        )}
                       </div>
                     </td>
 

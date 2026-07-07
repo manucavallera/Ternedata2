@@ -155,6 +155,30 @@ function Navbar() {
                 </button>
 
                 <button
+                  onClick={() => router.push("/litros")}
+                  className='text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1'
+                >
+                  <span className='text-base leading-none'>🥛</span>
+                  Litros
+                </button>
+
+                <button
+                  onClick={() => router.push("/calendario")}
+                  className='text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1'
+                >
+                  <span className='text-base leading-none'>📅</span>
+                  Calendario
+                </button>
+
+                <button
+                  onClick={() => router.push("/sustituto")}
+                  className='text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1'
+                >
+                  <span className='text-base leading-none'>🍼</span>
+                  Sustituto
+                </button>
+
+                <button
                   onClick={onclickListado}
                   className='text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1'
                 >
@@ -365,6 +389,39 @@ function Navbar() {
                 />
               </svg>
               Rodeos
+            </button>
+
+            <button
+              onClick={() => {
+                router.push("/litros");
+                setIsMobileMenuOpen(false);
+              }}
+              className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
+            >
+              <span className='text-lg leading-none'>🥛</span>
+              Litros
+            </button>
+
+            <button
+              onClick={() => {
+                router.push("/calendario");
+                setIsMobileMenuOpen(false);
+              }}
+              className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
+            >
+              <span className='text-lg leading-none'>📅</span>
+              Calendario
+            </button>
+
+            <button
+              onClick={() => {
+                router.push("/sustituto");
+                setIsMobileMenuOpen(false);
+              }}
+              className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
+            >
+              <span className='text-lg leading-none'>🍼</span>
+              Sustituto
             </button>
 
             <button
