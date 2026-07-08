@@ -286,13 +286,28 @@ const CalendarioSeccion = () => {
                     <span className='font-semibold text-gray-800'>
                       {d.nombre || `Dieta rodeo #${d.id_rodeo}`}
                     </span>
-                    <Etiqueta>{d.modo === "formula" ? "fórmula" : "nota"}</Etiqueta>
-                    {d.modo === "formula" ? (
+                    <Etiqueta>
+                      {d.modo === "formula"
+                        ? "fórmula"
+                        : d.modo === "mezcla"
+                        ? "mezcla"
+                        : "nota"}
+                    </Etiqueta>
+                    {d.modo === "formula" && (
                       <span className='text-xs text-gray-500'>
                         {d.kg_por_animal} kg/animal × {d.cantidad_animales ?? "—"} ={" "}
                         <strong>{d.total_rodeo ?? "—"} kg</strong>
                       </span>
-                    ) : (
+                    )}
+                    {d.modo === "mezcla" && (
+                      <span className='text-xs text-gray-500'>
+                        {(d.ingredientes || [])
+                          .map((i) => `${i.nombre} ${i.kg}kg`)
+                          .join(" + ")}{" "}
+                        = <strong>{d.total_rodeo ?? "—"} kg</strong>
+                      </span>
+                    )}
+                    {d.modo === "nota" && (
                       <span className='text-xs text-gray-500'>{d.nota}</span>
                     )}
                     <span className='text-xs text-gray-400'>rodeo #{d.id_rodeo}</span>

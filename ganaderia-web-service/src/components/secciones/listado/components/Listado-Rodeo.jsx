@@ -78,6 +78,7 @@ const ListadoRodeo = () => {
     nombre: "",
     nota: "",
     kg_por_animal: "",
+    ingredientes: [{ nombre: "", kg: "" }],
   });
 
   const [formData, setFormData] = useState({
@@ -237,7 +238,13 @@ const ListadoRodeo = () => {
   const abrirModalDietas = async (rodeo) => {
     setRodeoParaDietas(rodeo);
     setShowDietasModal(true);
-    setDietaForm({ modo: "nota", nombre: "", nota: "", kg_por_animal: "" });
+    setDietaForm({
+      modo: "nota",
+      nombre: "",
+      nota: "",
+      kg_por_animal: "",
+      ingredientes: [{ nombre: "", kg: "" }],
+    });
     await cargarDietas(rodeo.id_rodeo);
   };
 
@@ -263,20 +270,64 @@ const ListadoRodeo = () => {
     };
     if (dietaForm.modo === "nota") {
       payload.nota = dietaForm.nota;
-    } else {
+    } else if (dietaForm.modo === "formula") {
       payload.kg_por_animal = parseFloat(dietaForm.kg_por_animal) || 0;
+    } else if (dietaForm.modo === "mezcla") {
+      const ingredientes = (dietaForm.ingredientes || [])
+        .map((i) => ({
+          nombre: (i.nombre || "").trim(),
+          kg: parseFloat(i.kg) || 0,
+        }))
+        .filter((i) => i.nombre !== "" && i.kg > 0);
+      if (ingredientes.length === 0) {
+        showAlert("Agregá al menos un ingrediente con kg", "error");
+        return;
+      }
+      payload.ingredientes = ingredientes;
     }
     if (userPayload?.rol === "admin" && establecimientoActual) {
       payload.id_establecimiento = establecimientoActual;
     }
     const res = await crearDietaHook(payload);
     if (res?.status === 201 || res?.status === 200) {
-      setDietaForm({ modo: "nota", nombre: "", nota: "", kg_por_animal: "" });
+      setDietaForm({
+        modo: dietaForm.modo,
+        nombre: "",
+        nota: "",
+        kg_por_animal: "",
+        ingredientes: [{ nombre: "", kg: "" }],
+      });
       await cargarDietas(rodeoParaDietas.id_rodeo);
     } else {
       showAlert(res?.data?.message || "No se pudo guardar la dieta", "error");
     }
   };
+
+  // ===== helpers ingredientes (modo mezcla) =====
+  const agregarIngrediente = () =>
+    setDietaForm((f) => ({
+      ...f,
+      ingredientes: [...(f.ingredientes || []), { nombre: "", kg: "" }],
+    }));
+
+  const quitarIngrediente = (idx) =>
+    setDietaForm((f) => {
+      const next = (f.ingredientes || []).filter((_, i) => i !== idx);
+      return { ...f, ingredientes: next.length ? next : [{ nombre: "", kg: "" }] };
+    });
+
+  const cambiarIngrediente = (idx, campo, valor) =>
+    setDietaForm((f) => ({
+      ...f,
+      ingredientes: (f.ingredientes || []).map((ing, i) =>
+        i === idx ? { ...ing, [campo]: valor } : ing,
+      ),
+    }));
+
+  const totalMezcla = (dietaForm.ingredientes || []).reduce(
+    (acc, i) => acc + (parseFloat(i.kg) || 0),
+    0,
+  );
 
   const eliminarDieta = async (id) => {
     if (!confirm("¿Eliminar esta dieta?")) return;
@@ -887,11 +938,11 @@ const ListadoRodeo = () => {
               onSubmit={guardarDieta}
               className='bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5'
             >
-              <div className='flex gap-2 mb-3'>
+              <div className='flex flex-wrap gap-2 mb-3'>
                 <button
                   type='button'
                   onClick={() => setDietaForm({ ...dietaForm, modo: "nota" })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  className={`flex-1 min-w-[30%] py-2 rounded-lg text-sm font-medium ${
                     dietaForm.modo === "nota"
                       ? "bg-amber-600 text-white"
                       : "bg-white text-gray-600 border border-gray-300"
@@ -901,8 +952,19 @@ const ListadoRodeo = () => {
                 </button>
                 <button
                   type='button'
+                  onClick={() => setDietaForm({ ...dietaForm, modo: "mezcla" })}
+                  className={`flex-1 min-w-[30%] py-2 rounded-lg text-sm font-medium ${
+                    dietaForm.modo === "mezcla"
+                      ? "bg-amber-600 text-white"
+                      : "bg-white text-gray-600 border border-gray-300"
+                  }`}
+                >
+                  🥣 Mezcla (ingredientes)
+                </button>
+                <button
+                  type='button'
                   onClick={() => setDietaForm({ ...dietaForm, modo: "formula" })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  className={`flex-1 min-w-[30%] py-2 rounded-lg text-sm font-medium ${
                     dietaForm.modo === "formula"
                       ? "bg-amber-600 text-white"
                       : "bg-white text-gray-600 border border-gray-300"
@@ -922,7 +984,7 @@ const ListadoRodeo = () => {
                 className='w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500'
               />
 
-              {dietaForm.modo === "nota" ? (
+              {dietaForm.modo === "nota" && (
                 <textarea
                   value={dietaForm.nota}
                   onChange={(e) =>
@@ -933,7 +995,9 @@ const ListadoRodeo = () => {
                   className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500'
                   required
                 />
-              ) : (
+              )}
+
+              {dietaForm.modo === "formula" && (
                 <div>
                   <label className='block text-sm font-medium text-gray-600 mb-1'>
                     Kg por animal
@@ -957,6 +1021,61 @@ const ListadoRodeo = () => {
                     El total del rodeo se calcula automático según la cantidad de
                     animales.
                   </p>
+                </div>
+              )}
+
+              {dietaForm.modo === "mezcla" && (
+                <div>
+                  <label className='block text-sm font-medium text-gray-600 mb-1'>
+                    Ingredientes (kg totales que van a la mezcla)
+                  </label>
+                  <div className='space-y-2'>
+                    {(dietaForm.ingredientes || []).map((ing, idx) => (
+                      <div key={idx} className='flex gap-2 items-center'>
+                        <input
+                          type='text'
+                          value={ing.nombre}
+                          onChange={(e) =>
+                            cambiarIngrediente(idx, "nombre", e.target.value)
+                          }
+                          placeholder='Ej: Silo de maíz'
+                          className='flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500'
+                        />
+                        <input
+                          type='number'
+                          step='0.01'
+                          min='0'
+                          value={ing.kg}
+                          onChange={(e) =>
+                            cambiarIngrediente(idx, "kg", e.target.value)
+                          }
+                          placeholder='kg'
+                          className='w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500'
+                        />
+                        <button
+                          type='button'
+                          onClick={() => quitarIngrediente(idx)}
+                          className='text-red-500 hover:text-red-700 text-xl leading-none shrink-0 px-1'
+                          title='Quitar ingrediente'
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type='button'
+                    onClick={agregarIngrediente}
+                    className='mt-2 text-sm text-amber-700 hover:text-amber-800 font-medium'
+                  >
+                    ➕ Agregar ingrediente
+                  </button>
+                  <div className='mt-3 text-sm font-semibold text-gray-700'>
+                    Total mezcla:{" "}
+                    <span className='text-amber-700'>
+                      {Math.round(totalMezcla * 100) / 100} kg
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -988,11 +1107,12 @@ const ListadoRodeo = () => {
                           {d.nombre}
                         </div>
                       )}
-                      {d.modo === "nota" ? (
+                      {d.modo === "nota" && (
                         <div className='text-sm text-gray-600 whitespace-pre-wrap'>
                           {d.nota}
                         </div>
-                      ) : (
+                      )}
+                      {d.modo === "formula" && (
                         <div className='text-sm text-gray-600'>
                           <span className='font-medium'>
                             {d.kg_por_animal} kg/animal
@@ -1002,6 +1122,31 @@ const ListadoRodeo = () => {
                             {d.total_rodeo} kg
                           </span>{" "}
                           totales
+                        </div>
+                      )}
+                      {d.modo === "mezcla" && (
+                        <div className='text-sm text-gray-600'>
+                          <ul className='list-disc list-inside'>
+                            {(d.ingredientes || []).map((ing, i) => (
+                              <li key={i}>
+                                {ing.nombre}:{" "}
+                                <span className='font-medium'>{ing.kg} kg</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className='mt-1'>
+                            Total:{" "}
+                            <span className='font-bold text-amber-700'>
+                              {d.total_rodeo} kg
+                            </span>
+                            {d.kg_por_animal != null && (
+                              <span className='text-gray-500'>
+                                {" "}
+                                (≈ {d.kg_por_animal} kg/animal ·{" "}
+                                {d.cantidad_animales} animales)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

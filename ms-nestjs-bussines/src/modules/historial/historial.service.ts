@@ -96,14 +96,30 @@ export class HistorialService {
         madres.filter((m: any) => Number(m.id_rodeo) === idRodeo).length +
         terneros.filter((t: any) => Number(t.id_rodeo) === idRodeo).length;
       const dietasCalc = dietas.map((d: any) => {
-        if (d.modo !== 'formula') return { ...d, cantidad_animales: null, total_rodeo: null };
-        const cantidad = contarEnRodeo(Number(d.id_rodeo));
-        const kg = Number(d.kg_por_animal) || 0;
-        return {
-          ...d,
-          cantidad_animales: cantidad,
-          total_rodeo: Math.round(kg * cantidad * 100) / 100,
-        };
+        if (d.modo === 'formula') {
+          const cantidad = contarEnRodeo(Number(d.id_rodeo));
+          const kg = Number(d.kg_por_animal) || 0;
+          return {
+            ...d,
+            cantidad_animales: cantidad,
+            total_rodeo: Math.round(kg * cantidad * 100) / 100,
+          };
+        }
+        if (d.modo === 'mezcla' && Array.isArray(d.ingredientes)) {
+          const cantidad = contarEnRodeo(Number(d.id_rodeo));
+          const total = d.ingredientes.reduce(
+            (acc: number, i: any) => acc + (Number(i.kg) || 0),
+            0,
+          );
+          return {
+            ...d,
+            cantidad_animales: cantidad,
+            kg_por_animal:
+              cantidad > 0 ? Math.round((total / cantidad) * 100) / 100 : null,
+            total_rodeo: Math.round(total * 100) / 100,
+          };
+        }
+        return { ...d, cantidad_animales: null, total_rodeo: null };
       });
 
       return {

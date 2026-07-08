@@ -20,7 +20,7 @@ export class RodeoDietaEntity {
   @Column({ type: 'int' })
   id_establecimiento: number;
 
-  // 'nota' (texto libre) | 'formula' (kg por animal)
+  // 'nota' (texto libre) | 'formula' (kg por animal) | 'mezcla' (ingredientes kg totales)
   @Column({ type: 'varchar', length: 20 })
   modo: string;
 
@@ -29,6 +29,10 @@ export class RodeoDietaEntity {
 
   @Column({ type: 'numeric', nullable: true })
   kg_por_animal: number;
+
+  // modo 'mezcla': lista de { nombre, kg } — kg totales que van a la mezcla
+  @Column({ type: 'jsonb', nullable: true })
+  ingredientes: { nombre: string; kg: number }[];
 
   @Column({ type: 'varchar', nullable: true })
   nombre: string;

@@ -29,22 +29,43 @@ export class DietasService {
   }
 
   private async conCalculo(dieta: RodeoDietaEntity) {
-    if (dieta.modo !== 'formula' || dieta.kg_por_animal == null) {
+    if (dieta.modo === 'formula' && dieta.kg_por_animal != null) {
+      const cantidad = await this.contarAnimales(dieta.id_rodeo);
+      const kg = Number(dieta.kg_por_animal) || 0;
       return {
         ...dieta,
-        cantidad_animales: null,
-        total_individual: null,
-        total_rodeo: null,
+        kg_por_animal: kg,
+        cantidad_animales: cantidad,
+        total_individual: kg,
+        total_rodeo: Math.round(kg * cantidad * 100) / 100,
       };
     }
-    const cantidad = await this.contarAnimales(dieta.id_rodeo);
-    const kg = Number(dieta.kg_por_animal) || 0;
+
+    if (dieta.modo === 'mezcla' && Array.isArray(dieta.ingredientes)) {
+      const cantidad = await this.contarAnimales(dieta.id_rodeo);
+      const ingredientes = dieta.ingredientes.map((i) => ({
+        nombre: i.nombre,
+        kg: Number(i.kg) || 0,
+      }));
+      const total = ingredientes.reduce((acc, i) => acc + i.kg, 0);
+      const totalRodeo = Math.round(total * 100) / 100;
+      return {
+        ...dieta,
+        ingredientes,
+        cantidad_animales: cantidad,
+        // kg/animal derivado (informativo)
+        kg_por_animal:
+          cantidad > 0 ? Math.round((total / cantidad) * 100) / 100 : null,
+        total_individual: null,
+        total_rodeo: totalRodeo,
+      };
+    }
+
     return {
       ...dieta,
-      kg_por_animal: kg,
-      cantidad_animales: cantidad,
-      total_individual: kg,
-      total_rodeo: Math.round(kg * cantidad * 100) / 100,
+      cantidad_animales: null,
+      total_individual: null,
+      total_rodeo: null,
     };
   }
 
@@ -57,6 +78,7 @@ export class DietasService {
         nombre: dto.nombre,
         nota: dto.modo === 'nota' ? dto.nota : null,
         kg_por_animal: dto.modo === 'formula' ? dto.kg_por_animal : null,
+        ingredientes: dto.modo === 'mezcla' ? dto.ingredientes ?? [] : null,
       });
       const guardada = await this.dietaRepository.save(dieta);
       return this.conCalculo(guardada);
@@ -101,9 +123,20 @@ export class DietasService {
     if (dto.nota !== undefined) dieta.nota = dto.nota;
     if (dto.kg_por_animal !== undefined)
       dieta.kg_por_animal = dto.kg_por_animal;
+    if (dto.ingredientes !== undefined) dieta.ingredientes = dto.ingredientes;
     // coherencia según modo
-    if (dieta.modo === 'nota') dieta.kg_por_animal = null;
-    if (dieta.modo === 'formula') dieta.nota = null;
+    if (dieta.modo === 'nota') {
+      dieta.kg_por_animal = null;
+      dieta.ingredientes = null;
+    }
+    if (dieta.modo === 'formula') {
+      dieta.nota = null;
+      dieta.ingredientes = null;
+    }
+    if (dieta.modo === 'mezcla') {
+      dieta.nota = null;
+      dieta.kg_por_animal = null;
+    }
     const guardada = await this.dietaRepository.save(dieta);
     return this.conCalculo(guardada);
   }
