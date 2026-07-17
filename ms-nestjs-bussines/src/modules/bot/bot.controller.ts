@@ -393,7 +393,10 @@ export class BotController {
     // Detectar comando "cambiar_establecimiento" antes de ir a Claude
     const textNorm = (text || '').toLowerCase().trim().replace(/[_\s-]/g, '_');
     if (textNorm === 'cambiar_establecimiento' || textNorm === 'cambiar establecimiento') {
-      await this.userRepo.update(user.id, { bot_establecimiento_id: null });
+      await this.userRepo.update(user.id, {
+        bot_establecimiento_id: null,
+        bot_establecimiento_at: null,
+      });
       const establecimientos = await this.obtenerEstablecimientosDeUsuario(user.id);
       if (establecimientos.length > 1) {
         const lista = this.formatearListaEstablecimientos(establecimientos);
@@ -411,20 +414,42 @@ export class BotController {
       return { requiere_seleccion: false };
     }
 
-    // Tiene varios → verificar si ya eligió uno válido
-    if (user.bot_establecimiento_id) {
-      const valido = establecimientos.find(e => e.id === user.bot_establecimiento_id);
-      if (valido) {
-        return { requiere_seleccion: false, establecimiento_actual: valido };
-      }
+    // Tiene varios establecimientos.
+    const RECORDAR_MS = 6 * 60 * 60 * 1000; // re-preguntar tras 6h de inactividad
+    const valido = user.bot_establecimiento_id
+      ? establecimientos.find(e => e.id === user.bot_establecimiento_id)
+      : undefined;
+    const ultima = user.bot_establecimiento_at?.getTime() ?? 0;
+    const vencido = !valido || Date.now() - ultima > RECORDAR_MS;
+
+    // Camino rápido: campo válido + actividad reciente → seguir sin molestar.
+    // Refresca la marca para que el recordatorio sea "6h desde el último mensaje".
+    if (valido && !vencido) {
+      await this.userRepo.update(user.id, { bot_establecimiento_at: new Date() });
+      return { requiere_seleccion: false, establecimiento_actual: valido };
     }
 
-    // Intentar procesar selección inline si el texto parece una selección válida
+    // Acá: no hay campo válido, o venció el recordatorio. Solo en este contexto
+    // interpretamos el texto como selección (evita cambiar de campo por accidente
+    // si un mensaje normal contiene el nombre de otro establecimiento).
+    const textoNorm = (text || '').toLowerCase().trim();
+    const confirmaSeguir =
+      !!valido && ['si', 'sí', 'sip', 'dale', 'sigo', 'sigue'].includes(textoNorm);
+
+    if (confirmaSeguir) {
+      await this.userRepo.update(user.id, { bot_establecimiento_at: new Date() });
+      return {
+        requiere_seleccion: false,
+        seleccion_exitosa: true,
+        mensaje: `✅ Seguimos en *${valido!.nombre}*. Mandá tus datos.`,
+      };
+    }
+
+    // ¿Eligió un campo por número o nombre?
+    let elegido: EstablecimientoInfo | undefined;
     if (text) {
       const selStr = text.trim();
       const numSel = parseInt(selStr);
-      let elegido: EstablecimientoInfo | undefined;
-
       if (!isNaN(numSel) && numSel >= 1 && numSel <= establecimientos.length) {
         elegido = establecimientos[numSel - 1];
       } else if (selStr.length >= 2) {
@@ -432,18 +457,30 @@ export class BotController {
           e.nombre.toLowerCase().includes(selStr.toLowerCase())
         );
       }
-
-      if (elegido) {
-        await this.userRepo.update(user.id, { bot_establecimiento_id: elegido.id });
-        return {
-          requiere_seleccion: false,
-          seleccion_exitosa: true,
-          mensaje: `✅ Listo! Registrando en *${elegido.nombre}*.\nAhora podés enviar tus datos.`,
-        };
-      }
+    }
+    if (elegido) {
+      await this.userRepo.update(user.id, {
+        bot_establecimiento_id: elegido.id,
+        bot_establecimiento_at: new Date(),
+      });
+      return {
+        requiere_seleccion: false,
+        seleccion_exitosa: true,
+        mensaje: `✅ Listo! Registrando en *${elegido.nombre}*.\nAhora podés enviar tus datos.`,
+      };
     }
 
+    // No interpretó selección → preguntar.
     const lista = this.formatearListaEstablecimientos(establecimientos);
+    if (valido) {
+      // Recordatorio bloqueante tras >6h. Mantiene la selección previa por si
+      // responde "sí". El mensaje que disparó esto hay que re-enviarlo.
+      return {
+        requiere_seleccion: true,
+        establecimientos,
+        mensaje: `🏠 ¿Seguís trabajando en *${valido.nombre}*?\nRespondé *sí* para seguir, o elegí otro:\n${lista}`,
+      };
+    }
     return {
       requiere_seleccion: true,
       establecimientos,

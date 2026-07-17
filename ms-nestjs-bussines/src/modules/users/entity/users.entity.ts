@@ -80,6 +80,11 @@ export class UserEntity {
   @Column({ type: 'int', nullable: true })
   bot_establecimiento_id: number;
 
+  // Última vez que el usuario confirmó/usó su establecimiento activo en el bot.
+  // Si pasan >6h, el bot re-pregunta a modo de recordatorio (solo multi-campo).
+  @Column({ type: 'timestamp', nullable: true })
+  bot_establecimiento_at: Date;
+
   @Column({ type: 'varchar', length: 8, nullable: true })
   bot_link_token: string;
 
