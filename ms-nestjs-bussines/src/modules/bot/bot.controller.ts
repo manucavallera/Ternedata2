@@ -239,7 +239,7 @@ export class BotController {
     idEstablecimiento: number,
   ): Promise<{ id: number; estado: string } | { error: string }> {
     if (!rp || rp === 0) {
-      return { error: 'No se especificó el RP del ternero' };
+      return { error: 'Me falta el RP del ternero' };
     }
     const ternero = await this.terneroRepo.findOne({
       where: { rp_ternero: rp, id_establecimiento: idEstablecimiento },
@@ -248,7 +248,7 @@ export class BotController {
       console.log(`🔍 RP ternero ${rp} → id_ternero ${ternero.id_ternero}`);
       return { id: ternero.id_ternero, estado: ternero.estado };
     }
-    return { error: `No existe el ternero RP ${rp} en tu establecimiento` };
+    return { error: `No encontré el ternero RP ${rp} en tu establecimiento. Fijate el número` };
   }
 
   // Bloquea escrituras de salud (diarrea/tratamiento/peso/calostrado) sobre
@@ -266,7 +266,7 @@ export class BotController {
     idEstablecimiento: number,
   ): Promise<{ id: number } | { error: string }> {
     if (!rp || rp === 0) {
-      return { error: 'No se especificó el RP de la madre' };
+      return { error: 'Me falta el RP de la madre' };
     }
     const madre = await this.madreRepo.findOne({
       where: { rp_madre: rp, id_establecimiento: idEstablecimiento },
@@ -275,7 +275,7 @@ export class BotController {
       console.log(`🔍 RP madre ${rp} → id_madre ${madre.id_madre}`);
       return { id: madre.id_madre };
     }
-    return { error: `No existe la madre RP ${rp} en tu establecimiento` };
+    return { error: `No encontré la madre RP ${rp} en tu establecimiento. Fijate el número` };
   }
 
   private async resolverTerneroIdsEstricto(
@@ -584,7 +584,7 @@ export class BotController {
         await this.messagingService.responder(
           msg._origen,
           msg.phone,
-          'No entendí bien. Probá de nuevo o escribilo diferente.',
+          '🤔 No te entendí bien. Probá de nuevo, más simple. Por ejemplo: "nació ternero RP 500 macho".',
         );
       }
       return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
@@ -637,7 +637,7 @@ export class BotController {
     if (!accion) {
       return {
         success: false,
-        mensaje: `❌ Falta el campo "accion". Body recibido: ${JSON.stringify(body)}`,
+        mensaje: `🤔 No entendí bien qué querés hacer. Probá de nuevo diciéndolo simple, por ejemplo: "nació ternero RP 500 macho".`,
       };
     }
 
@@ -652,7 +652,7 @@ export class BotController {
       if (!userEntity) {
         return {
           success: false,
-          mensaje: `⚠️ Tu número no está registrado. Pedile al encargado que te agregue al sistema.`,
+          mensaje: `👋 Tu número todavía no está en el sistema. Pedile al encargado que te dé de alta y listo, ya podés registrar.`,
         };
       }
       userName = userEntity.name;
@@ -661,7 +661,7 @@ export class BotController {
     // ── Acciones de selección de establecimiento (se manejan antes del switch principal) ──
     if (accion === 'cambiar_establecimiento') {
       if (!userEntity) {
-        return { success: false, mensaje: '⚠️ Necesito saber tu número de teléfono para cambiar el establecimiento.' };
+        return { success: false, mensaje: '🤔 No pude reconocer tu número. Escribime desde el teléfono que tenés registrado.' };
       }
       // Si ya tiene un establecimiento activo, ignorar (probablemente es un eco procesado por Claude)
       // El cambio real se maneja en /bot/estado cuando el usuario escribe "cambiar establecimiento"
@@ -688,7 +688,7 @@ export class BotController {
 
     if (accion === 'seleccionar_establecimiento') {
       if (!userEntity) {
-        return { success: false, mensaje: '⚠️ Necesito saber tu número de teléfono para seleccionar el establecimiento.' };
+        return { success: false, mensaje: '🤔 No pude reconocer tu número. Escribime desde el teléfono que tenés registrado.' };
       }
       const establecimientos = await this.obtenerEstablecimientosDeUsuario(userEntity.id);
       const selStr = String(body.seleccion ?? '').trim();
@@ -709,7 +709,7 @@ export class BotController {
           success: false,
           requiere_seleccion: true,
           establecimientos,
-          mensaje: `⚠️ No entendí la selección. Respondé con el número:\n${lista}`,
+          mensaje: `🤔 No entendí cuál elegiste. Respondé con el número:\n${lista}`,
         };
       }
 
@@ -730,15 +730,15 @@ export class BotController {
       const password = String(body.password || body.contrasena || '').trim();
 
       if (!email || !password) {
-        return { success: false, mensaje: '⚠️ Necesito tu email y contraseña. Ejemplo: "cambiar perfil email@x.com micontraseña"' };
+        return { success: false, mensaje: '🔑 Para entrar con otra cuenta necesito tu email y contraseña. Ejemplo: "cambiar perfil juan@mail.com miclave"' };
       }
 
       const nuevoUser = await this.userRepo.findOne({ where: { email } });
-      if (!nuevoUser) return { success: false, mensaje: '⚠️ No existe una cuenta con ese email.' };
+      if (!nuevoUser) return { success: false, mensaje: '🤔 No encontré ninguna cuenta con ese email. Fijate que esté bien escrito.' };
 
       const { compare } = await import('bcrypt');
       const valida = await compare(password, nuevoUser.password);
-      if (!valida) return { success: false, mensaje: '⚠️ Contraseña incorrecta.' };
+      if (!valida) return { success: false, mensaje: '🔒 La contraseña no coincide. Probá de nuevo.' };
 
       // Liberar teléfono del usuario anterior y asignarlo al nuevo
       if (phone) {
@@ -761,7 +761,7 @@ export class BotController {
       // Resolver el establecimiento del NUEVO usuario (auto-switch de campo)
       const auth = await this.autenticarPorTelefono(phone);
       if (!auth) {
-        return { success: true, accion: 'cambiar_perfil', mensaje: `${encabezado}\n⚠️ No tenés ningún establecimiento asignado. Pedile al administrador que te asigne uno.` };
+        return { success: true, accion: 'cambiar_perfil', mensaje: `${encabezado}\n🏠 Todavía no tenés un establecimiento asignado. Pedile al encargado que te asigne uno.` };
       }
       if (auth.requiere_seleccion) {
         const lista = this.formatearListaEstablecimientos(auth.establecimientos);
@@ -793,7 +793,7 @@ export class BotController {
       if (!auth) {
         return {
           success: false,
-          mensaje: `⚠️ No tenés ningún campo asignado. Pedile al encargado que te asigne uno.`,
+          mensaje: `🏠 Todavía no tenés un establecimiento asignado. Pedile al encargado que te asigne uno.`,
         };
       }
 
@@ -822,7 +822,7 @@ export class BotController {
       return {
         success: false,
         accion,
-        mensaje: '⚠️ No pude determinar tu establecimiento. Verificá que tu número esté registrado en el sistema.',
+        mensaje: '🤔 No pude ubicar tu establecimiento. Fijate que tu número esté registrado, o pedile al encargado.',
       };
     }
 
@@ -848,7 +848,7 @@ export class BotController {
           if (!rpTernero || rpTernero <= 0) {
             return {
               success: false,
-              mensaje: '⚠️ No se especificó el RP del ternero (o el valor no es un número válido). Decí el RP/caravana del ternero.',
+              mensaje: '👂 Me falta el RP del ternero. Decímelo (el número de caravana) y lo anoto.',
             };
           }
 
@@ -857,7 +857,7 @@ export class BotController {
           if (yaExiste) {
             return {
               success: false,
-              mensaje: `⚠️ Ya existe un ternero con RP ${rpTernero} en tu establecimiento. Verificá el número.`,
+              mensaje: `👀 Ya hay un ternero con RP ${rpTernero} en tu establecimiento. Fijate el número.`,
             };
           }
 
@@ -926,7 +926,7 @@ export class BotController {
             if (yaExiste) {
               return {
                 success: false,
-                mensaje: `⚠️ Ya existe una madre con RP ${rpMadre} en tu establecimiento. Verificá el número.`,
+                mensaje: `👀 Ya hay una madre con RP ${rpMadre} en tu establecimiento. Fijate el número.`,
               };
             }
           }
@@ -982,7 +982,7 @@ export class BotController {
           if (todosErrores.length > 0) {
             return {
               success: false,
-              mensaje: `⚠️ No se pudo registrar el evento:\n${todosErrores.join('\n')}\nVerificá los RP e intentá de nuevo.`,
+              mensaje: `🤔 No pude anotar el evento:\n${todosErrores.join('\n')}\nRevisá los RP y probá de nuevo.`,
             };
           }
 
@@ -1048,7 +1048,7 @@ export class BotController {
           if (eventosResueltos.length === 0) {
             return {
               success: false,
-              mensaje: `⚠️ No se pudo registrar ningún evento:\n${erroresGlobales.join('\n')}`,
+              mensaje: `🤔 No pude anotar ningún evento:\n${erroresGlobales.join('\n')}`,
             };
           }
 
@@ -1082,7 +1082,7 @@ export class BotController {
             return {
               success: false,
               mensaje:
-                '⚠️ No se especificó a qué ternero aplicar el tratamiento. Decí el RP del ternero.',
+                '👂 ¿A qué ternero le doy el tratamiento? Decime el RP.',
             };
           }
 
@@ -1094,7 +1094,7 @@ export class BotController {
           if ('error' in terneroResult) {
             return {
               success: false,
-              mensaje: `⚠️ ${terneroResult.error}. No se registró el tratamiento.`,
+              mensaje: `⚠️ ${terneroResult.error}\nNo anoté el tratamiento.`,
             };
           }
           const bloqueoTrat = this.bloqueoPorEstadoTerminal(
@@ -1139,7 +1139,7 @@ export class BotController {
             return {
               success: false,
               mensaje:
-                '⚠️ No se especificó a qué ternero registrar la diarrea. Decí el RP del ternero.',
+                '👂 ¿A qué ternero le anoto la diarrea? Decime el RP.',
             };
           }
 
@@ -1151,7 +1151,7 @@ export class BotController {
           if ('error' in terneroResult) {
             return {
               success: false,
-              mensaje: `⚠️ ${terneroResult.error}. No se registró la diarrea.`,
+              mensaje: `⚠️ ${terneroResult.error}\nNo anoté la diarrea.`,
             };
           }
           const bloqueoDiarrea = this.bloqueoPorEstadoTerminal(
@@ -1240,12 +1240,12 @@ export class BotController {
               : [];
 
           if (!rps.length) {
-            return { success: false, mensaje: '⚠️ No se especificaron terneros. Decí el RP o los RPs.' };
+            return { success: false, mensaje: '👂 Decime el RP del ternero (o los RPs) que querés mover.' };
           }
 
           const nombreRodeo = String(body.nombre_rodeo || body.rodeo || '').trim();
           if (!nombreRodeo) {
-            return { success: false, mensaje: '⚠️ No se especificó el rodeo destino.' };
+            return { success: false, mensaje: '👂 ¿A qué rodeo los mando? Decime el nombre.' };
           }
 
           const rodeo = await this.rodeosRepo.createQueryBuilder('r')
@@ -1255,13 +1255,13 @@ export class BotController {
             .getOne();
 
           if (!rodeo) {
-            return { success: false, mensaje: `⚠️ No encontré el rodeo "${nombreRodeo}" en tu establecimiento.` };
+            return { success: false, mensaje: `🤔 No encontré el rodeo "${nombreRodeo}" en tu establecimiento.` };
           }
 
           const { ids: terneroIds, errores } = await this.resolverTerneroIdsEstricto(rps, idEstablecimiento);
 
           if (terneroIds.length === 0) {
-            return { success: false, mensaje: `⚠️ No se encontraron los terneros:\n${errores.join('\n')}` };
+            return { success: false, mensaje: `🤔 No encontré esos terneros:\n${errores.join('\n')}` };
           }
 
           await this.rodeosRepo.query(
@@ -1279,19 +1279,19 @@ export class BotController {
         // ──────────────────────────────────────
         case 'crear_rodeo': {
           if (userEntity?.rol !== 'admin') {
-            return { success: false, mensaje: '⛔ Solo el administrador puede crear rodeos.' };
+            return { success: false, mensaje: '⛔ Esto lo hace solo el encargado (crear rodeos).' };
           }
 
           const nombreRodeoNuevo = String(body.nombre_rodeo || body.nombre || '').trim();
           if (!nombreRodeoNuevo) {
-            return { success: false, mensaje: '⚠️ Indicá el nombre del rodeo a crear.' };
+            return { success: false, mensaje: '👂 Decime el nombre del rodeo que querés crear.' };
           }
 
           const existe = await this.rodeosRepo.findOne({
             where: { nombre: nombreRodeoNuevo, id_establecimiento: idEstablecimiento },
           });
           if (existe) {
-            return { success: false, mensaje: `⚠️ Ya existe un rodeo llamado "${nombreRodeoNuevo}" en ${nombreEstablecimiento}.` };
+            return { success: false, mensaje: `👀 Ya hay un rodeo llamado "${nombreRodeoNuevo}" en ${nombreEstablecimiento}.` };
           }
 
           const nuevoRodeo = this.rodeosRepo.create({
@@ -1316,17 +1316,17 @@ export class BotController {
           const peso = parseFloat(body.peso) || 0;
 
           if (!rpTernero || rpTernero <= 0) {
-            return { success: false, mensaje: '⚠️ No se especificó el RP del ternero.' };
+            return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
           }
           if (!peso || peso <= 0) {
-            return { success: false, mensaje: '⚠️ No se especificó el peso (en kg).' };
+            return { success: false, mensaje: '👂 Me falta el peso (en kg).' };
           }
 
           const ternero = await this.terneroRepo.findOne({
             where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
           });
           if (!ternero) {
-            return { success: false, mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.` };
+            return { success: false, mensaje: `👀 No encontré el ternero RP ${rpTernero} en tu establecimiento. Fijate el número.` };
           }
           const bloqueoPeso = this.bloqueoPorEstadoTerminal(rpTernero, ternero.estado);
           if (bloqueoPeso) return { success: false, mensaje: bloqueoPeso };
@@ -1380,7 +1380,7 @@ export class BotController {
             return {
               success: false,
               mensaje:
-                '⚠️ No se especificó el RP del ternero para el calostrado.',
+                '👂 Me falta el RP del ternero para anotar el calostrado.',
             };
           }
 
@@ -1390,7 +1390,7 @@ export class BotController {
           if (!ternero) {
             return {
               success: false,
-              mensaje: `⚠️ No existe el ternero RP ${rpTernero} en tu establecimiento.`,
+              mensaje: `👀 No encontré el ternero RP ${rpTernero} en tu establecimiento. Fijate el número.`,
             };
           }
           const bloqueoCal = this.bloqueoPorEstadoTerminal(rpTernero, ternero.estado);
@@ -1456,13 +1456,13 @@ export class BotController {
         // ──────────────────────────────────────
         case 'consultar_ternero': {
           const rpTernero = parseInt(body.rp_ternero) || 0;
-          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+          if (!rpTernero) return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
 
           const t = await this.terneroRepo.findOne({
             where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
             relations: ['rodeo'],
           });
-          if (!t) return { success: false, mensaje: `⚠️ No existe ternero RP ${rpTernero} en tu establecimiento.` };
+          if (!t) return { success: false, mensaje: `👀 No encontré el ternero RP ${rpTernero} en tu establecimiento. Fijate el número.` };
 
           const fechaNac = new Date(t.fecha_nacimiento);
           const diasVida = Math.floor((new Date().getTime() - fechaNac.getTime()) / (1000 * 60 * 60 * 24));
@@ -1495,17 +1495,17 @@ export class BotController {
         // ──────────────────────────────────────
         case 'actualizar_estado_ternero': {
           const rpTernero = parseInt(body.rp_ternero) || 0;
-          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+          if (!rpTernero) return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
 
           const estadoNuevo = String(body.estado || '').trim();
           if (!['Vivo', 'Muerto'].includes(estadoNuevo)) {
-            return { success: false, mensaje: '⚠️ Estado inválido. Usá: Vivo o Muerto.' };
+            return { success: false, mensaje: '🤔 Ese estado no va. Poné *Vivo* o *Muerto*.' };
           }
 
           const t = await this.terneroRepo.findOne({
             where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
           });
-          if (!t) return { success: false, mensaje: `⚠️ No existe ternero RP ${rpTernero} en tu establecimiento.` };
+          if (!t) return { success: false, mensaje: `👀 No encontré el ternero RP ${rpTernero} en tu establecimiento. Fijate el número.` };
 
           await this.terneroRepo.update(t.id_ternero, { estado: estadoNuevo } as any);
 
@@ -1519,12 +1519,12 @@ export class BotController {
         // ──────────────────────────────────────
         case 'consultar_madre': {
           const rpMadre = parseInt(body.rp_madre) || 0;
-          if (!rpMadre) return { success: false, mensaje: '⚠️ Indicá el RP de la madre.' };
+          if (!rpMadre) return { success: false, mensaje: '👂 Me falta el RP de la madre.' };
 
           const m = await this.madreRepo.findOne({
             where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
           });
-          if (!m) return { success: false, mensaje: `⚠️ No existe la madre RP ${rpMadre} en tu establecimiento.` };
+          if (!m) return { success: false, mensaje: `👀 No encontré la madre RP ${rpMadre} en tu establecimiento. Fijate el número.` };
 
           const crias = await this.terneroRepo
             .createQueryBuilder('t')
@@ -1546,20 +1546,20 @@ export class BotController {
         // ──────────────────────────────────────
         case 'actualizar_estado_madre': {
           const rpMadre = parseInt(body.rp_madre) || 0;
-          if (!rpMadre) return { success: false, mensaje: '⚠️ Indicá el RP de la madre.' };
+          if (!rpMadre) return { success: false, mensaje: '👂 Me falta el RP de la madre.' };
 
           const estadoNuevo = String(body.estado || '').trim();
           // El sistema solo maneja Seca / En Tambo para madres (la preñez es un
           // evento de tacto, NO un estado de madre).
           const ESTADOS_MADRE = ['Seca', 'En Tambo'];
           if (!ESTADOS_MADRE.includes(estadoNuevo)) {
-            return { success: false, mensaje: `⚠️ Estado inválido. La madre solo puede ser: ${ESTADOS_MADRE.join(' o ')}.` };
+            return { success: false, mensaje: `🤔 Ese estado no va para la madre. Solo puede ser *${ESTADOS_MADRE.join('* o *')}*.` };
           }
 
           const m = await this.madreRepo.findOne({
             where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
           });
-          if (!m) return { success: false, mensaje: `⚠️ No existe la madre RP ${rpMadre} en tu establecimiento.` };
+          if (!m) return { success: false, mensaje: `👀 No encontré la madre RP ${rpMadre} en tu establecimiento. Fijate el número.` };
 
           await this.madreRepo.update(m.id_madre, { estado: estadoNuevo } as any);
 
@@ -1573,14 +1573,14 @@ export class BotController {
         // ──────────────────────────────────────
         case 'consultar_rodeo': {
           const nombreRodeoQ = String(body.nombre_rodeo || body.rodeo || '').trim();
-          if (!nombreRodeoQ) return { success: false, mensaje: '⚠️ Indicá el nombre del rodeo.' };
+          if (!nombreRodeoQ) return { success: false, mensaje: '👂 Decime el nombre del rodeo.' };
 
           const rodeo = await this.rodeosRepo.createQueryBuilder('r')
             .where('r.id_establecimiento = :id', { id: idEstablecimiento })
             .andWhere('LOWER(r.nombre) LIKE :nombre', { nombre: `%${nombreRodeoQ.toLowerCase()}%` })
             .getOne();
 
-          if (!rodeo) return { success: false, mensaje: `⚠️ No encontré el rodeo "${nombreRodeoQ}".` };
+          if (!rodeo) return { success: false, mensaje: `🤔 No encontré el rodeo "${nombreRodeoQ}".` };
 
           const terneros = await this.terneroRepo.find({
             where: { id_rodeo: rodeo.id_rodeo, id_establecimiento: idEstablecimiento },
@@ -1602,7 +1602,7 @@ export class BotController {
         // ──────────────────────────────────────
         case 'editar_diarrea': {
           const rpTernero = parseInt(body.rp_ternero) || 0;
-          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+          if (!rpTernero) return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
 
           const terneroResult = await this.resolverTerneroIdEstricto(rpTernero, idEstablecimiento);
           if ('error' in terneroResult) {
@@ -1618,7 +1618,7 @@ export class BotController {
             .getOne();
 
           if (!lastDiarrea) {
-            return { success: false, mensaje: `⚠️ El ternero RP ${rpTernero} no tiene diarreas registradas.` };
+            return { success: false, mensaje: `🤔 El ternero RP ${rpTernero} no tiene diarreas anotadas todavía.` };
           }
 
           const cambiosDiarrea: Record<string, any> = {};
@@ -1627,7 +1627,7 @@ export class BotController {
           if (body.observaciones != null) cambiosDiarrea.observaciones = body.observaciones;
 
           if (!Object.keys(cambiosDiarrea).length) {
-            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (severidad, fecha u observaciones).' };
+            return { success: false, mensaje: '🤔 ¿Qué querés corregir? Decime la severidad, la fecha o la observación.' };
           }
 
           await this.diarreaRepo.update(lastDiarrea.id_diarrea_ternero, cambiosDiarrea);
@@ -1645,7 +1645,7 @@ export class BotController {
         // ──────────────────────────────────────
         case 'editar_tratamiento': {
           const rpTernero = parseInt(body.rp_ternero) || 0;
-          if (!rpTernero) return { success: false, mensaje: '⚠️ Indicá el RP del ternero.' };
+          if (!rpTernero) return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
 
           const terneroResult = await this.resolverTerneroIdEstricto(rpTernero, idEstablecimiento);
           if ('error' in terneroResult) {
@@ -1661,7 +1661,7 @@ export class BotController {
             .getOne();
 
           if (!lastTratamiento) {
-            return { success: false, mensaje: `⚠️ El ternero RP ${rpTernero} no tiene tratamientos registrados.` };
+            return { success: false, mensaje: `🤔 El ternero RP ${rpTernero} no tiene tratamientos anotados todavía.` };
           }
 
           const cambiosTrat: Record<string, any> = {};
@@ -1672,7 +1672,7 @@ export class BotController {
           if (body.descripcion || body.observaciones) cambiosTrat.descripcion = body.descripcion || body.observaciones;
 
           if (!Object.keys(cambiosTrat).length) {
-            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (medicamento, tipo, turno o fecha).' };
+            return { success: false, mensaje: '🤔 ¿Qué querés corregir? Decime el medicamento, el tipo, el turno o la fecha.' };
           }
 
           await this.tratamientoRepo.update(lastTratamiento.id_tratamiento, cambiosTrat);
@@ -1695,7 +1695,7 @@ export class BotController {
           const rpMadre = parseInt(body.rp_madre) || 0;
 
           if (!rpTernero && !rpMadre) {
-            return { success: false, mensaje: '⚠️ Indicá el RP del ternero o la madre.' };
+            return { success: false, mensaje: '👂 Decime el RP del ternero o de la madre.' };
           }
 
           let lastEvento: EventoEntity | null = null;
@@ -1728,7 +1728,7 @@ export class BotController {
 
           if (!lastEvento) {
             const label = rpTernero ? `ternero RP ${rpTernero}` : `madre RP ${rpMadre}`;
-            return { success: false, mensaje: `⚠️ El ${label} no tiene eventos registrados.` };
+            return { success: false, mensaje: `🤔 El ${label} no tiene eventos anotados todavía.` };
           }
 
           const cambiosEvento: Record<string, any> = {};
@@ -1736,7 +1736,7 @@ export class BotController {
           if (body.fecha_evento) cambiosEvento.fecha_evento = parsearFecha(body.fecha_evento);
 
           if (!Object.keys(cambiosEvento).length) {
-            return { success: false, mensaje: '⚠️ No indicaste qué cambiar (observación o fecha).' };
+            return { success: false, mensaje: '🤔 ¿Qué querés corregir? Decime la observación o la fecha.' };
           }
 
           await this.eventoRepo.update(lastEvento.id_evento, cambiosEvento);
@@ -1798,7 +1798,7 @@ export class BotController {
       return {
         success: false,
         accion,
-        mensaje: `Algo salió mal. Probá de nuevo o avisale al encargado si sigue pasando.`,
+        mensaje: `😕 Uf, algo salió mal. Probá de nuevo y si sigue pasando avisale al encargado.`,
       };
     }
   }
@@ -1883,7 +1883,7 @@ export class BotController {
       if (!auth) {
         return {
           success: false,
-          mensaje: `⚠️ Tu número no está registrado o no tenés campo asignado. Pedile al encargado que te agregue.`,
+          mensaje: `👋 Tu número todavía no está en el sistema (o no tenés establecimiento asignado). Pedile al encargado que te dé de alta.`,
         };
       }
       if (auth.requiere_seleccion) {
@@ -1953,7 +1953,7 @@ export class BotController {
           abortado: true,
           total: acciones.length,
           exitosos: 0,
-          mensaje: `⚠️ No registré nada para no dejar datos a medias.\n\n${fallos.join('\n')}\n\nCorregí y mandalo de nuevo.`,
+          mensaje: `⚠️ No anoté nada para no dejar datos a medias.\n\n${fallos.join('\n')}\n\nCorregilo y mandámelo de nuevo.`,
         };
       }
     }
