@@ -56,6 +56,12 @@ const ListadoRodeo = () => {
   const [selectedRodeo, setSelectedRodeo] = useState(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [statsData, setStatsData] = useState(null);
+  // Detalle del rodeo abierto: solapas Resumen / Terneros / Madres
+  const [tabDetalle, setTabDetalle] = useState("resumen");
+  const [detalleTerneros, setDetalleTerneros] = useState([]);
+  const [detalleMadres, setDetalleMadres] = useState([]);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [busquedaDetalle, setBusquedaDetalle] = useState("");
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
   // Asignación de animales a rodeo
   const [showAsignarModal, setShowAsignarModal] = useState(false);
@@ -226,12 +232,45 @@ const ListadoRodeo = () => {
       const response = await obtenerEstadisticasRodeoHook(rodeo.id_rodeo);
       if (response?.status === 200) {
         setStatsData(response.data);
+        setTabDetalle("resumen");
+        setBusquedaDetalle("");
         setShowStatsModal(true);
+        cargarAnimalesDelRodeo(rodeo);
       }
     } catch (error) {
       console.error("Error al cargar estadísticas:", error);
       showAlert("Error al cargar estadísticas", "error");
     }
+  };
+
+  // Animales que están hoy en el rodeo, para las solapas del detalle.
+  const cargarAnimalesDelRodeo = async (rodeo) => {
+    setLoadingDetalle(true);
+    try {
+      const qpBase = buildQpBase();
+      const [respTerneros, respMadres] = await Promise.all([
+        obtenerTerneroHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&limit=500`),
+        obtenerMadreHook(`${qpBase}&id_rodeo=${rodeo.id_rodeo}&limit=500`),
+      ]);
+      setDetalleTerneros(respTerneros?.data?.data || []);
+      setDetalleMadres(respMadres?.data?.data || []);
+    } catch (error) {
+      console.error("Error al cargar animales del rodeo:", error);
+      setDetalleTerneros([]);
+      setDetalleMadres([]);
+    } finally {
+      setLoadingDetalle(false);
+    }
+  };
+
+  const filtrarPorRp = (lista, campoRp) => {
+    const q = busquedaDetalle.trim().toLowerCase();
+    if (!q) return lista;
+    return lista.filter(
+      (item) =>
+        String(item[campoRp] ?? "").includes(q) ||
+        String(item.nombre ?? "").toLowerCase().includes(q)
+    );
   };
 
   // ===== DIETAS =====
@@ -667,9 +706,9 @@ const ListadoRodeo = () => {
                 <button
                   onClick={() => verEstadisticas(rodeo)}
                   className='flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium'
-                  title='Ver estadísticas'
+                  title='Ver el rodeo: resumen y animales'
                 >
-                  📊 Stats
+                  👁️ Ver rodeo
                 </button>
 
                 {(userPayload?.rol === "admin" ||
@@ -851,13 +890,36 @@ const ListadoRodeo = () => {
         </div>
       )}
 
-      {/* MODAL: ESTADÍSTICAS */}
+      {/* MODAL: DETALLE DEL RODEO (resumen + animales) */}
       {showStatsModal && statsData && (
         <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4'>
-          <div className='bg-white rounded-lg p-4 sm:p-6 md:p-8 max-w-lg w-full mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto'>
-            <h3 className='text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-800 break-words'>
-              📊 Estadísticas: {statsData.rodeo.nombre}
+          <div className='bg-white rounded-lg p-4 sm:p-6 md:p-8 max-w-2xl w-full mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto'>
+            <h3 className='text-xl sm:text-2xl font-bold mb-4 text-gray-800 break-words'>
+              🐄 {statsData.rodeo.nombre}
             </h3>
+
+            {/* Solapas: los números de siempre + quiénes están en el rodeo */}
+            <div className='flex gap-2 mb-4 border-b border-gray-200'>
+              {[
+                { id: "resumen", label: "📊 Resumen" },
+                { id: "terneros", label: `🐮 Terneros (${detalleTerneros.length})` },
+                { id: "madres", label: `🐄 Madres (${detalleMadres.length})` },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTabDetalle(tab.id)}
+                  className={`px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                    tabDetalle === tab.id
+                      ? "border-indigo-600 text-indigo-700"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {tabDetalle === "resumen" && (
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
               <div className='bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500'>
                 <div className='text-sm text-blue-600 font-semibold mb-1'>
@@ -906,6 +968,133 @@ const ListadoRodeo = () => {
                 </div>
               )}
             </div>
+            )}
+
+            {tabDetalle !== "resumen" && (
+              <div>
+                <input
+                  type='text'
+                  value={busquedaDetalle}
+                  onChange={(e) => setBusquedaDetalle(e.target.value)}
+                  placeholder='🔍 Buscar por RP o nombre...'
+                  className='w-full p-2 mb-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                />
+
+                {loadingDetalle ? (
+                  <div className='flex justify-center items-center py-8'>
+                    <div className='animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-500' />
+                    <span className='ml-2 text-gray-500 text-sm'>Cargando...</span>
+                  </div>
+                ) : tabDetalle === "terneros" ? (
+                  <div className='grid gap-2'>
+                    {filtrarPorRp(detalleTerneros, "rp_ternero").length === 0 ? (
+                      <p className='text-center text-gray-400 py-8 text-sm'>
+                        No hay terneros en este rodeo
+                      </p>
+                    ) : (
+                      filtrarPorRp(detalleTerneros, "rp_ternero").map((t) => (
+                        <div
+                          key={t.id_ternero}
+                          className='rounded-lg border border-gray-200 bg-gray-50 p-3'
+                        >
+                          <div className='flex items-center justify-between mb-1'>
+                            <span className='text-lg font-extrabold text-indigo-700'>
+                              RP {t.rp_ternero}
+                            </span>
+                            <div className='flex gap-1.5'>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  t.sexo === "Macho"
+                                    ? "bg-blue-200 text-blue-800"
+                                    : "bg-pink-200 text-pink-800"
+                                }`}
+                              >
+                                {t.sexo}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  t.estado === "Vivo"
+                                    ? "bg-green-200 text-green-800"
+                                    : "bg-red-200 text-red-800"
+                                }`}
+                              >
+                                {t.estado}
+                              </span>
+                            </div>
+                          </div>
+                          <div className='flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600'>
+                            <span>
+                              ⚖️{" "}
+                              <strong>
+                                {t.ultimo_peso ?? t.peso_nacer ?? "—"} kg
+                              </strong>
+                            </span>
+                            {t.dias_desde_nacimiento != null && (
+                              <span>
+                                📅 <strong>{t.dias_desde_nacimiento}</strong> días
+                              </span>
+                            )}
+                            {t.madre && (
+                              <span>
+                                🐄 Madre{" "}
+                                <strong>RP {t.madre.rp_madre ?? "—"}</strong>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className='grid gap-2'>
+                    {filtrarPorRp(detalleMadres, "rp_madre").length === 0 ? (
+                      <p className='text-center text-gray-400 py-8 text-sm'>
+                        No hay madres en este rodeo
+                      </p>
+                    ) : (
+                      filtrarPorRp(detalleMadres, "rp_madre").map((m) => (
+                        <div
+                          key={m.id_madre}
+                          className='rounded-lg border border-gray-200 bg-gray-50 p-3'
+                        >
+                          <div className='flex items-center justify-between mb-1'>
+                            <div>
+                              <span className='text-lg font-extrabold text-indigo-700'>
+                                RP {m.rp_madre ?? "—"}
+                              </span>
+                              {m.nombre && m.nombre !== String(m.rp_madre) && (
+                                <span className='ml-2 text-xs text-gray-500'>
+                                  {m.nombre}
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                m.estado === "Seca"
+                                  ? "bg-green-200 text-green-800"
+                                  : "bg-blue-200 text-blue-800"
+                              }`}
+                            >
+                              {m.estado}
+                            </span>
+                          </div>
+                          <div className='flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600'>
+                            <span>
+                              🐮 <strong>{m.terneros?.length ?? 0}</strong> crías
+                            </span>
+                            {m.dias_en_leche != null && (
+                              <span>
+                                🥛 <strong>{m.dias_en_leche}</strong> DEL
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={() => setShowStatsModal(false)}
