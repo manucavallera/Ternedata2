@@ -4,13 +4,15 @@ import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ AGREGAR
 
 const FormularioTernero = ({ setStep }) => {
-  const { userPayload } = useSelector((state) => state.auth);
-  const {
-    crearTerneroHook,
-    obtenerRodeosHook,
-    obtenerEstablecimientosHook,
-    obtenerMadreHook,
-  } = useBussinesMicroservicio(); // ⬅️ AGREGAR obtenerRodeosHook
+  const { userPayload, establecimientoActual } = useSelector(
+    (state) => state.auth
+  );
+  const { crearTerneroHook, obtenerRodeosHook, obtenerMadreHook } =
+    useBussinesMicroservicio();
+
+  // El establecimiento sale del selector del navbar (admin) o del usuario (operario).
+  const idEstablecimiento =
+    establecimientoActual || userPayload?.id_establecimiento || null;
 
   // ⬅️ NUEVO: Estado para rodeos
   const [rodeos, setRodeos] = useState([]);
@@ -20,7 +22,6 @@ const FormularioTernero = ({ setStep }) => {
     rp_ternero: "",
     sexo: "Macho",
     estado: "Vivo",
-    id_establecimiento: userPayload?.id_establecimiento || "", // ⬅️ Auto-llenar si tiene
     peso_nacer: "",
     peso_ideal: "",
     observaciones: "",
@@ -46,41 +47,12 @@ const FormularioTernero = ({ setStep }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mostrarCalostrado, setMostrarCalostrado] = useState(false);
 
-  // ⬅️ NUEVO: Estado para establecimientos
-  const [establecimientos, setEstablecimientos] = useState([]);
-  const [loadingEstablecimientos, setLoadingEstablecimientos] = useState(false);
-
-  // ⬅️ NUEVO: Cargar establecimientos si es admin
-  useEffect(() => {
-    if (userPayload?.rol === "admin") {
-      cargarEstablecimientos();
-    }
-  }, [userPayload]);
-
-  const cargarEstablecimientos = async () => {
-    try {
-      setLoadingEstablecimientos(true);
-      const response = await obtenerEstablecimientosHook();
-
-      if (response?.status === 200) {
-        setEstablecimientos(response.data.filter((e) => e.estado === "activo"));
-      }
-    } catch (error) {
-      console.error("Error al cargar establecimientos:", error);
-    } finally {
-      setLoadingEstablecimientos(false);
-    }
-  };
-
   // ⬅️ NUEVO: Cargar rodeos al montar el componente
   useEffect(() => {
-    const establecimientoActual =
-      formData.id_establecimiento || userPayload?.id_establecimiento;
-
-    if (establecimientoActual) {
-      cargarRodeosPorEstablecimiento(establecimientoActual);
+    if (idEstablecimiento) {
+      cargarRodeosPorEstablecimiento(idEstablecimiento);
     }
-  }, [formData.id_establecimiento, userPayload]);
+  }, [idEstablecimiento]);
 
   const cargarRodeosPorEstablecimiento = async (idEstablecimiento) => {
     try {
@@ -192,8 +164,9 @@ const FormularioTernero = ({ setStep }) => {
       newErrors.madre = "Por favor, seleccione la madre";
     }
 
-    if (userPayload?.rol === "admin" && !formData.id_establecimiento) {
-      newErrors.id_establecimiento = "Debe seleccionar un establecimiento";
+    if (!idEstablecimiento) {
+      newErrors.id_establecimiento =
+        "Elegí un establecimiento arriba antes de cargar el ternero";
     }
 
     if (mostrarCalostrado) {
@@ -254,12 +227,8 @@ const FormularioTernero = ({ setStep }) => {
       id_madre: madreId,
     };
 
-    // ⬅️ AGREGAR ESTABLECIMIENTO
-    if (userPayload?.rol === "admin" && formData.id_establecimiento) {
-      newTernero.id_establecimiento = parseInt(formData.id_establecimiento);
-    } else if (userPayload?.id_establecimiento) {
-      newTernero.id_establecimiento = userPayload.id_establecimiento;
-    }
+    // ⬅️ AGREGAR ESTABLECIMIENTO (el activo del navbar / el del operario)
+    newTernero.id_establecimiento = parseInt(idEstablecimiento);
 
     // ⬅️ NUEVO: Agregar rodeo si se seleccionó
     if (formData.id_rodeo && formData.id_rodeo !== "") {
@@ -481,43 +450,10 @@ const FormularioTernero = ({ setStep }) => {
             </select>
           </div>
 
-          {/* ⬅️ NUEVO: SELECCIÓN DE ESTABLECIMIENTO (solo para admin) */}
-          {userPayload?.rol === "admin" && (
-            <div>
-              <label
-                htmlFor='id_establecimiento'
-                className='block text-sm font-medium text-gray-700 mb-1'
-              >
-                🏢 Establecimiento *
-              </label>
-              <select
-                id='id_establecimiento'
-                name='id_establecimiento'
-                value={formData.id_establecimiento}
-                onChange={handleInputChange}
-                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.id_establecimiento
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-                required
-              >
-                <option value=''>Seleccionar establecimiento...</option>
-                {establecimientos.map((est) => (
-                  <option
-                    key={est.id_establecimiento}
-                    value={est.id_establecimiento}
-                  >
-                    {est.nombre}
-                  </option>
-                ))}
-              </select>
-              {errors.id_establecimiento && (
-                <span className='text-red-500 text-sm'>
-                  {errors.id_establecimiento}
-                </span>
-              )}
-            </div>
+          {errors.id_establecimiento && (
+            <span className='block text-red-500 text-sm'>
+              {errors.id_establecimiento}
+            </span>
           )}
 
           {/* ⬅️ NUEVO: SELECCIÓN DE RODEO */}
@@ -657,9 +593,7 @@ const FormularioTernero = ({ setStep }) => {
             </label>
             <SeleccionarMadre
               madreSeleccionada={handleObetenerMadre}
-              idEstablecimiento={
-                formData.id_establecimiento || userPayload?.id_establecimiento
-              } // ⬅️ PASAR ESTABLECIMIENTO
+              idEstablecimiento={idEstablecimiento} // ⬅️ PASAR ESTABLECIMIENTO
             />
             {errors.madre && (
               <span className='text-red-500 text-sm'>{errors.madre}</span>

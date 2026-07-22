@@ -32,13 +32,25 @@ export default function EstablecimientoSelector() {
         );
         setEstablecimientos(establecimientosActivos);
 
-        // OPCIONAL: Si solo hay uno y no tengo nada seleccionado, seleccionarlo automáticamente
-        if (establecimientosActivos.length === 1 && !establecimientoActual) {
-          dispatch(
-            setEstablecimientoActual(
-              establecimientosActivos[0].id_establecimiento
-            )
+        if (!establecimientoActual) {
+          // Recordar el último elegido (Redux se pierde al refrescar la página)
+          const guardado = parseInt(
+            localStorage.getItem("establecimientoActual")
           );
+          const sigueActivo = establecimientosActivos.some(
+            (e) => e.id_establecimiento === guardado
+          );
+
+          if (sigueActivo) {
+            dispatch(setEstablecimientoActual(guardado));
+          } else if (establecimientosActivos.length === 1) {
+            // Si solo hay uno, seleccionarlo automáticamente
+            dispatch(
+              setEstablecimientoActual(
+                establecimientosActivos[0].id_establecimiento
+              )
+            );
+          }
         }
       }
     } catch (error) {
@@ -58,6 +70,12 @@ export default function EstablecimientoSelector() {
   const handleChange = (e) => {
     const establecimientoId = e.target.value ? parseInt(e.target.value) : null;
     dispatch(setEstablecimientoActual(establecimientoId));
+
+    if (establecimientoId) {
+      localStorage.setItem("establecimientoActual", establecimientoId);
+    } else {
+      localStorage.removeItem("establecimientoActual");
+    }
   };
 
   if (loading) {

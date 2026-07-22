@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector, useDispatch } from "react-redux";
@@ -6,11 +6,8 @@ import { setUserData, setAuthPayload, setStatus } from "@/store/auth";
 import SeleccionarTernero from "./Select-Ternero";
 
 const FormularioDiarreaTernero = ({ setStep }) => {
-  const {
-    crearDiarreTerneroHook,
-    obtenerDiarreaTerneroHook,
-    obtenerEstablecimientosHook,
-  } = useBussinesMicroservicio();
+  const { crearDiarreTerneroHook, obtenerDiarreaTerneroHook } =
+    useBussinesMicroservicio();
 
   // ✅ NUEVO: Redux para multi-tenancy
   const { establecimientoActual, userPayload } = useSelector(
@@ -72,11 +69,9 @@ const FormularioDiarreaTernero = ({ setStep }) => {
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [cargando, setCargando] = useState(false);
 
-  // ✅ NUEVO: Estados para establecimientos (solo Admin)
-  const [establecimientos, setEstablecimientos] = useState([]);
-  const [establecimientoSeleccionado, setEstablecimientoSeleccionado] =
-    useState("");
-  const hasLoadedEstablecimientos = useRef(false);
+  // El establecimiento sale del selector del navbar (admin) o del usuario (operario).
+  const establecimientoSeleccionado =
+    establecimientoActual || userPayload?.id_establecimiento || "";
 
   // Opciones de severidad predefinidas
   const opcionesSeveridad = [
@@ -96,93 +91,6 @@ const FormularioDiarreaTernero = ({ setStep }) => {
     },
   ];
 
-  // ✅ NUEVO: Cargar establecimientos si es Admin
-
-  useEffect(() => {
-    console.log("🔄 useEffect ejecutándose...");
-    console.log("   - userPayload:", userPayload);
-    console.log("   - rol:", userPayload?.rol);
-    console.log(
-      "   - hasLoadedEstablecimientos:",
-      hasLoadedEstablecimientos.current
-    );
-
-    const cargarEstablecimientos = async () => {
-      console.log("🎯 Entrando a cargarEstablecimientos");
-      console.log("   - Condición Admin:", userPayload?.rol === "admin");
-      console.log("   - Condición loaded:", !hasLoadedEstablecimientos.current);
-
-      if (userPayload?.rol === "admin" && !hasLoadedEstablecimientos.current) {
-        hasLoadedEstablecimientos.current = true;
-        console.log("✅ Pasó las validaciones, cargando...");
-
-        try {
-          const response = await obtenerEstablecimientosHook();
-          console.log("📦 Response RAW:", response);
-          console.log("📦 Response.data:", response?.data);
-          console.log("📦 Tipo de data:", typeof response?.data);
-          console.log("📦 Es Array?:", Array.isArray(response?.data));
-
-          if (response?.data) {
-            console.log("📦 Primer elemento:", response.data[0]);
-            console.log("📦 Cantidad total:", response.data.length);
-
-            const establecimientosActivos = response.data.filter((est) => {
-              console.log("   - Revisando:", est.nombre, "estado:", est.estado);
-              return est.estado === "activo"; // ✅ Comparar con string "activo"
-            });
-            console.log(
-              "✅ Establecimientos ACTIVOS:",
-              establecimientosActivos
-            );
-            console.log("✅ Cantidad activos:", establecimientosActivos.length);
-
-            setEstablecimientos(establecimientosActivos);
-
-            if (establecimientoActual) {
-              console.log(
-                "🎯 Seleccionando establecimiento de Redux:",
-                establecimientoActual
-              );
-              setEstablecimientoSeleccionado(establecimientoActual.toString());
-            } else if (establecimientosActivos.length > 0) {
-              console.log(
-                "🎯 Seleccionando primer establecimiento:",
-                establecimientosActivos[0].id_establecimiento
-              );
-              setEstablecimientoSeleccionado(
-                establecimientosActivos[0].id_establecimiento.toString()
-              );
-            }
-          } else {
-            console.warn("⚠️ response.data está vacío o undefined");
-          }
-        } catch (error) {
-          console.error("❌ ERROR completo:", error);
-          console.error("❌ Error.message:", error.message);
-          console.error("❌ Error.response:", error.response);
-        }
-      } else {
-        console.log("❌ NO pasó las validaciones");
-        if (userPayload?.rol !== "admin") {
-          console.log("   - Razón: No es admin, rol actual:", userPayload?.rol);
-        }
-        if (hasLoadedEstablecimientos.current) {
-          console.log("   - Razón: Ya se cargaron los establecimientos");
-        }
-      }
-    };
-
-    cargarEstablecimientos();
-  }, [userPayload, establecimientoActual]);
-
-  // ✅ NUEVO: Sincronizar establecimiento seleccionado con Redux
-  useEffect(() => {
-    if (userPayload?.rol === "admin" && establecimientoActual) {
-      setEstablecimientoSeleccionado(establecimientoActual.toString());
-    }
-  }, [establecimientoActual, userPayload]);
-
   const handleTerneroId = async (id) => {
     const idTernero = parseInt(id);
     setTerneroId(idTernero);
@@ -194,8 +102,7 @@ const FormularioDiarreaTernero = ({ setStep }) => {
         // Construir query params
         const queryParams = new URLSearchParams();
 
-        // Filtrar por establecimiento si es Admin y tiene uno seleccionado
-        if (userPayload?.rol === "admin" && establecimientoSeleccionado) {
+        if (establecimientoSeleccionado) {
           queryParams.append("id_establecimiento", establecimientoSeleccionado);
         }
 
@@ -236,11 +143,11 @@ const FormularioDiarreaTernero = ({ setStep }) => {
     console.log("🎯 SUBMIT EJECUTADO"); // ✅ AGREGAR ESTO TAMBIÉN
     setCargando(true);
 
-    // ✅ NUEVA VALIDACIÓN: Establecimiento para Admin
-    if (userPayload?.rol === "admin" && !establecimientoSeleccionado) {
+    // ✅ NUEVA VALIDACIÓN: Establecimiento
+    if (!establecimientoSeleccionado) {
       setDiarreaTerneroAlert({
         status: true,
-        message: "ERROR: DEBE SELECCIONAR UN ESTABLECIMIENTO",
+        message: "ELEGÍ UN ESTABLECIMIENTO ARRIBA ANTES DE CARGAR",
         estado: false,
       });
       setCargando(false);
@@ -278,16 +185,7 @@ const FormularioDiarreaTernero = ({ setStep }) => {
       return;
     }
 
-    // ✅ AGREGAR AQUÍ (nueva validación):
-    const idEstablecimiento =
-      userPayload?.rol === "admin"
-        ? establecimientoSeleccionado
-        : establecimientoActual;
-
-    console.log("🔍 userPayload.rol:", userPayload?.rol);
-    console.log("🔍 establecimientoSeleccionado:", establecimientoSeleccionado);
-    console.log("🔍 establecimientoActual:", establecimientoActual);
-    console.log("🔍 idEstablecimiento final:", idEstablecimiento);
+    const idEstablecimiento = establecimientoSeleccionado;
 
     if (!idEstablecimiento) {
       setDiarreaTerneroAlert({
@@ -359,39 +257,6 @@ const FormularioDiarreaTernero = ({ setStep }) => {
           </p>
         </div>
 
-        {/* ✅ NUEVO: Selector de Establecimiento (solo Admin) */}
-        {userPayload?.rol === "admin" && (
-          <div className='mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200'>
-            <label className='block text-sm font-medium text-gray-700 mb-2'>
-              🏢 Establecimiento *
-            </label>
-            <select
-              value={establecimientoSeleccionado}
-              onChange={(e) => {
-                setEstablecimientoSeleccionado(e.target.value);
-                setTerneroId(0); // Resetear ternero al cambiar establecimiento
-                setEpisodiosAnteriores(0);
-              }}
-              className='w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
-              required
-            >
-              <option value=''>Seleccione un establecimiento...</option>
-              {establecimientos.map((est) => (
-                <option
-                  key={est.id_establecimiento}
-                  value={est.id_establecimiento}
-                >
-                  {est.nombre}
-                </option>
-              ))}
-            </select>
-            <p className='text-xs text-blue-600 mt-2'>
-              ℹ️ Como Admin, debe seleccionar el establecimiento antes de
-              continuar
-            </p>
-          </div>
-        )}
-
         {/* SELECCIÓN DE TERNERO */}
         <div className='mb-6 bg-gray-50 p-4 rounded-lg'>
           <label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -401,11 +266,7 @@ const FormularioDiarreaTernero = ({ setStep }) => {
 
           <SeleccionarTernero
             terneroSeleccionado={handleTerneroId}
-            idEstablecimiento={
-              userPayload?.rol === "admin"
-                ? establecimientoSeleccionado
-                : establecimientoActual
-            }
+            idEstablecimiento={establecimientoSeleccionado}
           />
           {/* INFORMACIÓN DEL CONTADOR */}
           {terneroId > 0 && (

@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSelector } from "react-redux";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import SeleccionarTernero from "./Select-Ternero"; // 🆕 AGREGAR
 
 const FormularioTratamiento = ({ setStep }) => {
-  const {
-    crearTratamientoHook,
-    crearMultiplesTratamientosHook,
-    obtenerEstablecimientosHook,
-  } = useBussinesMicroservicio();
+  const { crearTratamientoHook, crearMultiplesTratamientosHook } =
+    useBussinesMicroservicio();
 
   // Obtener datos del Redux
   const { establecimientoActual, userPayload } = useSelector(
     (state) => state.auth
   );
+
+  // El establecimiento sale del selector del navbar (admin) o del usuario (operario).
+  const idEstablecimiento =
+    establecimientoActual || userPayload?.id_establecimiento || null;
 
   const [tratamientoAlert, setTratamientoAlert] = useState({
     status: false,
@@ -22,14 +23,6 @@ const FormularioTratamiento = ({ setStep }) => {
     estado: true,
   });
 
-  // Estado para establecimientos (solo admin)
-  const [establecimientos, setEstablecimientos] = useState([]);
-  const establecimientosCargadosRef = useRef(false);
-
-  const [
-    establecimientoSeleccionadoMultiple,
-    setEstablecimientoSeleccionadoMultiple,
-  ] = useState("");
   const [terneroSeleccionado, setTerneroSeleccionado] = useState("0");
 
   // Estado para modo múltiple
@@ -52,56 +45,6 @@ const FormularioTratamiento = ({ setStep }) => {
     watch,
     formState: { errors },
   } = useForm();
-
-  // Cargar establecimientos si es admin
-  useEffect(() => {
-    const cargarEstablecimientos = async () => {
-      if (establecimientosCargadosRef.current) {
-        console.log("⏭️ Establecimientos ya cargados, saltando...");
-        return;
-      }
-
-      console.log("🔍 Verificando carga de establecimientos...");
-      console.log("👤 userPayload:", userPayload);
-
-      if (userPayload?.rol === "admin") {
-        console.log("✅ Es admin, cargando establecimientos...");
-        establecimientosCargadosRef.current = true;
-
-        try {
-          const response = await obtenerEstablecimientosHook();
-          console.log("📡 Response:", response?.data);
-
-          if (response?.data) {
-            const establecimientosActivos = response.data.filter(
-              (est) => est.estado === "activo"
-            );
-
-            const establecimientosUnicos = Array.from(
-              new Map(
-                establecimientosActivos.map((est) => [
-                  est.id_establecimiento,
-                  est,
-                ])
-              ).values()
-            );
-
-            console.log(
-              "✅ Establecimientos únicos y activos:",
-              establecimientosUnicos.length
-            );
-            setEstablecimientos(establecimientosUnicos);
-          }
-        } catch (error) {
-          console.error("❌ Error cargando establecimientos:", error);
-          establecimientosCargadosRef.current = false;
-        }
-      }
-    };
-
-    cargarEstablecimientos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Opciones para tipo de enfermedad
   const tiposEnfermedadSugerencias = [
@@ -144,9 +87,11 @@ const FormularioTratamiento = ({ setStep }) => {
       fecha_tratamiento: data.fecha_tratamiento,
     };
 
-    if (userPayload?.rol === "admin" && data.id_establecimiento) {
-      newTratamiento.id_establecimiento = parseInt(data.id_establecimiento);
+    if (!idEstablecimiento) {
+      showAlert("❌ Elegí un establecimiento arriba antes de cargar", false);
+      return;
     }
+    newTratamiento.id_establecimiento = parseInt(idEstablecimiento);
 
     if (terneroSeleccionado && terneroSeleccionado !== "0") {
       newTratamiento.id_ternero = parseInt(terneroSeleccionado);
@@ -216,8 +161,8 @@ const FormularioTratamiento = ({ setStep }) => {
       return;
     }
 
-    if (userPayload?.rol === "admin" && !establecimientoSeleccionadoMultiple) {
-      showAlert("❌ Debes seleccionar un establecimiento", false);
+    if (!idEstablecimiento) {
+      showAlert("❌ Elegí un establecimiento arriba antes de cargar", false);
       return;
     }
 
@@ -226,11 +171,7 @@ const FormularioTratamiento = ({ setStep }) => {
     try {
       const payload = { tratamientos };
 
-      if (userPayload?.rol === "admin" && establecimientoSeleccionadoMultiple) {
-        payload.id_establecimiento = parseInt(
-          establecimientoSeleccionadoMultiple
-        );
-      }
+      payload.id_establecimiento = parseInt(idEstablecimiento);
       console.log("📤 Enviando múltiples tratamientos:", payload);
       const resultado = await crearMultiplesTratamientosHook(payload);
 
@@ -297,55 +238,6 @@ const FormularioTratamiento = ({ setStep }) => {
           </div>
         </div>
 
-        {userPayload?.rol === "admin" && modoMultiple && (
-          <div className='mb-6 p-4 rounded-lg border-l-4 border-orange-500 bg-orange-50'>
-            <label className='block text-sm font-medium text-orange-700 mb-2'>
-              🏢 Establecimiento *
-            </label>
-            <p className='text-xs text-orange-600 mb-2'>
-              Selecciona dónde se crearán estos tratamientos
-            </p>
-
-            <select
-              value={establecimientoSeleccionadoMultiple}
-              onChange={(e) =>
-                setEstablecimientoSeleccionadoMultiple(e.target.value)
-              }
-              className='w-full px-4 py-2 border border-orange-300 rounded-md bg-white focus:ring focus:ring-orange-400 mb-2'
-            >
-              <option value=''>Selecciona un establecimiento</option>
-              {establecimientos.map((est) => (
-                <option
-                  key={est.id_establecimiento}
-                  value={est.id_establecimiento}
-                >
-                  {est.nombre || `Establecimiento ${est.id_establecimiento}`}
-                </option>
-              ))}
-            </select>
-
-            {!establecimientoSeleccionadoMultiple ? (
-              <p className='text-xs text-red-600 font-medium'>
-                ⚠️ Selecciona un establecimiento
-              </p>
-            ) : (
-              <p className='text-xs text-green-600 font-medium'>
-                ✅ Creando en:{" "}
-                <strong>
-                  {
-                    establecimientos.find(
-                      (e) =>
-                        e.id_establecimiento ===
-                        parseInt(establecimientoSeleccionadoMultiple)
-                    )?.nombre
-                  }{" "}
-                  {/* 👈 CAMBIAR A .nombre */}
-                </strong>
-              </p>
-            )}
-          </div>
-        )}
-
         <div className='mb-6 p-4 rounded-lg border-l-4 border-blue-500 bg-blue-50'>
           <p className='text-sm text-blue-700'>
             {modoMultiple
@@ -356,52 +248,6 @@ const FormularioTratamiento = ({ setStep }) => {
 
         {!modoMultiple ? (
           <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-            {userPayload?.rol === "admin" && (
-              <div className='p-4 bg-orange-50 border border-orange-200 rounded-lg'>
-                <label
-                  className='block text-gray-700 font-medium mb-2'
-                  htmlFor='id_establecimiento'
-                >
-                  🏢 Establecimiento *
-                </label>
-                <div className='mb-2 p-2 bg-gray-100 rounded text-xs'>
-                  <p>Establecimientos cargados: {establecimientos.length}</p>
-                  <p>
-                    Establecimiento actual Redux:{" "}
-                    {establecimientoActual || "Ninguno"}
-                  </p>
-                </div>
-                <select
-                  id='id_establecimiento'
-                  {...register("id_establecimiento", {
-                    required: "Debes seleccionar un establecimiento",
-                  })}
-                  className='w-full px-4 py-2 border rounded-md focus:ring focus:ring-orange-300 bg-white'
-                  defaultValue={establecimientoActual || ""}
-                >
-                  <option value=''>Selecciona un establecimiento</option>
-                  {establecimientos.map((est) => (
-                    <option
-                      key={est.id_establecimiento}
-                      value={est.id_establecimiento}
-                    >
-                      {est.nombre ||
-                        `Establecimiento ${est.id_establecimiento}`}
-                    </option>
-                  ))}
-                </select>
-                {errors.id_establecimiento && (
-                  <span className='text-red-500 text-sm'>
-                    {errors.id_establecimiento.message}
-                  </span>
-                )}
-                <p className='text-xs text-orange-600 mt-1'>
-                  ℹ️ Como admin, debes especificar a qué establecimiento
-                  pertenece este tratamiento
-                </p>
-              </div>
-            )}
-
             <div>
               <label className='block text-gray-600' htmlFor='nombre'>
                 Nombre del Tratamiento *
@@ -534,11 +380,7 @@ const FormularioTratamiento = ({ setStep }) => {
               </label>
               <SeleccionarTernero
                 terneroSeleccionado={setTerneroSeleccionado}
-                idEstablecimiento={
-                  userPayload?.rol === "admin"
-                    ? watch("id_establecimiento")
-                    : userPayload?.id_establecimiento
-                }
+                idEstablecimiento={idEstablecimiento}
               />
               <p className='text-xs text-gray-500 mt-1'>
                 ℹ️ Selecciona el ternero al que se le aplicará este tratamiento
@@ -731,8 +573,7 @@ const FormularioTratamiento = ({ setStep }) => {
                 disabled={
                   loadingMultiple ||
                   !validarTratamientosMultiples() ||
-                  (userPayload?.rol === "admin" &&
-                    !establecimientoSeleccionadoMultiple)
+                  !idEstablecimiento
                 }
                 className='flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-md disabled:opacity-50'
               >

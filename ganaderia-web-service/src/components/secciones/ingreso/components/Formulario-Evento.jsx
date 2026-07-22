@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import React, { useState, useEffect } from "react"; // ✅ Agregar useEffect
+import React, { useState } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ✅ NUEVO
 import SeleccionarMadre from "./Select-Madre";
@@ -7,11 +7,14 @@ import SeleccionarTernero from "./Select-Ternero";
 
 const FormularioEvento = ({ setStep }) => {
   // ✅ NUEVO: Obtener datos del usuario
-  const { userPayload } = useSelector((state) => state.auth);
-  const {
-    crearMultiplesEventosHook,
-    obtenerEstablecimientosHook, // ✅ NUEVO
-  } = useBussinesMicroservicio();
+  const { userPayload, establecimientoActual } = useSelector(
+    (state) => state.auth
+  );
+  const { crearMultiplesEventosHook } = useBussinesMicroservicio();
+
+  // El establecimiento sale del selector del navbar (admin) o del usuario (operario).
+  const idEstablecimiento =
+    establecimientoActual || userPayload?.id_establecimiento || null;
 
   const {
     register,
@@ -30,31 +33,7 @@ const FormularioEvento = ({ setStep }) => {
   const [eventosAcumulados, setEventosAcumulados] = useState([]);
   const [cargandoEnvio, setCargandoEnvio] = useState(false);
 
-  // ✅ NUEVO: Estados para establecimientos
-  const [establecimientos, setEstablecimientos] = useState([]);
-  const [idEstablecimiento, setIdEstablecimiento] = useState(
-    userPayload?.rol === "admin" ? "" : userPayload?.id_establecimiento
-  );
-
   const [resetKey, setResetKey] = useState(0);
-
-  // ✅ NUEVO: Cargar establecimientos si es admin
-  useEffect(() => {
-    if (userPayload?.rol === "admin") {
-      cargarEstablecimientos();
-    }
-  }, [userPayload]);
-
-  const cargarEstablecimientos = async () => {
-    try {
-      const response = await obtenerEstablecimientosHook();
-      if (response?.status === 200) {
-        setEstablecimientos(response.data.filter((e) => e.estado === "activo"));
-      }
-    } catch (error) {
-      console.error("Error al cargar establecimientos:", error);
-    }
-  };
 
   const handleObetenerMadre = (id) => {
     const idMadre = parseInt(id);
@@ -80,10 +59,10 @@ const FormularioEvento = ({ setStep }) => {
 
   const agregarEvento = async (data) => {
     // ✅ NUEVA VALIDACIÓN: Verificar establecimiento
-    if (userPayload?.rol === "admin" && !idEstablecimiento) {
+    if (!idEstablecimiento) {
       setEventoAlert({
         status: true,
-        message: "POR FAVOR, SELECCIONE UN ESTABLECIMIENTO",
+        message: "ELEGÍ UN ESTABLECIMIENTO ARRIBA ANTES DE CARGAR",
         estado: false,
       });
       return;
@@ -155,10 +134,10 @@ const FormularioEvento = ({ setStep }) => {
     }
 
     // ✅ VALIDACIÓN FINAL: Verificar establecimiento antes de enviar
-    if (userPayload?.rol === "admin" && !idEstablecimiento) {
+    if (!idEstablecimiento) {
       setEventoAlert({
         status: true,
-        message: "DEBE SELECCIONAR UN ESTABLECIMIENTO ANTES DE ENVIAR",
+        message: "ELEGÍ UN ESTABLECIMIENTO ARRIBA ANTES DE ENVIAR",
         estado: false,
       });
       return;
@@ -175,10 +154,7 @@ const FormularioEvento = ({ setStep }) => {
         id_madre: evento.id_madre,
       })),
       // ✅ AGREGAR: id_establecimiento al nivel del DTO principal
-      id_establecimiento:
-        userPayload?.rol === "admin"
-          ? parseInt(idEstablecimiento)
-          : userPayload?.id_establecimiento,
+      id_establecimiento: parseInt(idEstablecimiento),
     };
 
     console.log("📤 Enviando eventos:", eventosParaEnviar);
@@ -241,35 +217,6 @@ const FormularioEvento = ({ setStep }) => {
             </h3>
 
             <form onSubmit={handleSubmit(agregarEvento)} className='space-y-4'>
-              {/* ✅ NUEVO: SELECTOR DE ESTABLECIMIENTO (solo para admin) */}
-              {userPayload?.rol === "admin" && (
-                <div>
-                  <label
-                    htmlFor='id_establecimiento'
-                    className='block text-sm font-medium text-gray-700 mb-1'
-                  >
-                    🏢 Establecimiento *
-                  </label>
-                  <select
-                    id='id_establecimiento'
-                    value={idEstablecimiento}
-                    onChange={(e) => setIdEstablecimiento(e.target.value)}
-                    className='w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
-                    required
-                  >
-                    <option value=''>Seleccionar establecimiento...</option>
-                    {establecimientos.map((est) => (
-                      <option
-                        key={est.id_establecimiento}
-                        value={est.id_establecimiento}
-                      >
-                        {est.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div>
                 <label
                   htmlFor='fecha_evento'
