@@ -116,29 +116,53 @@ export class BotController {
   private async buscarUsuarioPorTelefono(phone: string): Promise<UserEntity | null> {
     if (!phone) return null;
 
-    const telefonoNormalizado = phone.replace(/[\s\-\+]/g, '');
-    const variantes = [
+    // Solo dígitos: el teléfono en la DB puede venir con "+", espacios, guiones o paréntesis,
+    // así que se normalizan los dos lados antes de comparar.
+    const telefonoNormalizado = phone.replace(/\D/g, '');
+    if (!telefonoNormalizado) return null;
+
+    const variantes = Array.from(new Set([
       telefonoNormalizado,
       telefonoNormalizado.replace(/^54/, ''),
       `54${telefonoNormalizado}`,
       telefonoNormalizado.replace(/^549/, '54'),
       telefonoNormalizado.replace(/^549/, ''),
-    ];
+      `549${telefonoNormalizado}`,
+    ].filter(Boolean)));
 
-    for (const variante of variantes) {
-      const users = await this.userRepo.find({ where: { telefono: variante } });
+    // Últimos 10 dígitos = área + número local, lo que queda igual con o sin 54/9/15.
+    const ultimos10 = telefonoNormalizado.slice(-10);
+
+    const elegir = (users: UserEntity[], criterio: string): UserEntity | null => {
+      if (!users.length) return null;
       if (users.length > 1) {
-        console.warn(`⚠️ Teléfono duplicado: ${variante} — ${users.map(u => u.name).join(', ')}`);
-        // Priorizar admin sobre operario si hay duplicados
+        console.warn(`⚠️ Teléfono duplicado (${criterio}): ${users.map(u => u.name).join(', ')}`);
         const admin = users.find(u => u.rol === 'admin');
         const elegido = admin || users[0];
         console.log(`📱 Usuario elegido (duplicado): ${elegido.name} (ID: ${elegido.id})`);
         return elegido;
       }
-      if (users.length === 1) {
-        console.log(`📱 Usuario encontrado: ${users[0].name} (ID: ${users[0].id})`);
-        return users[0];
-      }
+      console.log(`📱 Usuario encontrado (${criterio}): ${users[0].name} (ID: ${users[0].id})`);
+      return users[0];
+    };
+
+    const soloDigitosCol = `regexp_replace(u.telefono, '\\D', '', 'g')`;
+
+    const porVariante = await this.userRepo
+      .createQueryBuilder('u')
+      .where(`${soloDigitosCol} IN (:...variantes)`, { variantes })
+      .getMany();
+    const match = elegir(porVariante, 'variante');
+    if (match) return match;
+
+    if (ultimos10.length === 10) {
+      const porSufijo = await this.userRepo
+        .createQueryBuilder('u')
+        .where(`length(${soloDigitosCol}) >= 10`)
+        .andWhere(`right(${soloDigitosCol}, 10) = :ultimos10`, { ultimos10 })
+        .getMany();
+      const matchSufijo = elegir(porSufijo, 'últimos 10 dígitos');
+      if (matchSufijo) return matchSufijo;
     }
 
     console.warn(`📱 No se encontró usuario con teléfono: ${phone}`);
@@ -259,6 +283,105 @@ export class BotController {
       return `⚠️ El ternero RP ${rp} está *${estado}*. No registré nada. Si fue un error, primero actualizá su estado a Vivo.`;
     }
     return null;
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPERS: acción pendiente de confirmación ("¿la doy de alta?")
+  // ─────────────────────────────────────────────
+  private readonly PENDIENTE_TTL_MS = 60 * 60 * 1000; // 1h
+
+  private async guardarPendiente(userId: number, pendiente: any): Promise<void> {
+    await this.userRepo.update(userId, {
+      bot_pendiente: JSON.stringify(pendiente),
+      bot_pendiente_at: new Date(),
+    } as any);
+  }
+
+  private async limpiarPendiente(userId: number): Promise<void> {
+    await this.userRepo.update(userId, {
+      bot_pendiente: null,
+      bot_pendiente_at: null,
+    } as any);
+  }
+
+  private leerPendiente(user: UserEntity): any | null {
+    if (!user.bot_pendiente || !user.bot_pendiente_at) return null;
+    const vencido =
+      Date.now() - new Date(user.bot_pendiente_at).getTime() >
+      this.PENDIENTE_TTL_MS;
+    if (vencido) return null;
+    try {
+      return JSON.parse(user.bot_pendiente);
+    } catch {
+      return null;
+    }
+  }
+
+  // Si hay una pregunta pendiente y el texto la contesta, la resuelve y devuelve
+  // el mensaje para el usuario. Devuelve null si no había nada que resolver.
+  // Con texto vacío (audio sin transcribir todavía) no toca nada: se vuelve a
+  // llamar más adelante con la transcripción.
+  private async resolverPendiente(
+    user: UserEntity,
+    text?: string,
+  ): Promise<string | null> {
+    const resp = (text || '').toLowerCase().trim().replace(/[.!¡¿?]/g, '');
+    if (!resp) return null;
+
+    const pendiente = this.leerPendiente(user);
+    if (pendiente?.tipo !== 'alta_madre') return null;
+
+    const SI = ['si', 'sí', 'sip', 'sisi', 'si si', 'dale', 'ok', 'oka', 'obvio', 'claro', 'correcto', 'exacto'];
+    const NO = ['no', 'nop', 'nel', 'negativo', 'dejalo', 'no gracias', 'nada'];
+
+    if (SI.includes(resp)) {
+      await this.limpiarPendiente(user.id);
+      return this.confirmarAltaMadre(user, pendiente);
+    }
+    if (NO.includes(resp)) {
+      await this.limpiarPendiente(user.id);
+      return `👍 Listo, el ternero RP ${pendiente.rp_ternero} queda sin madre. Si querés, cargala después y se la asignás.`;
+    }
+
+    // Contestó otra cosa: era un mensaje nuevo. Se descarta la pregunta y sigue normal.
+    await this.limpiarPendiente(user.id);
+    return null;
+  }
+
+  // Da de alta la madre que quedó pendiente y se la asigna al ternero ya anotado.
+  private async confirmarAltaMadre(
+    user: UserEntity,
+    pendiente: any,
+  ): Promise<string> {
+    const { rp_madre, id_ternero, rp_ternero, id_establecimiento } = pendiente;
+
+    // Pudo haberla cargado desde la web mientras tanto.
+    const yaExiste = await this.madreRepo.findOne({
+      where: { rp_madre, id_establecimiento },
+    });
+
+    const madre =
+      yaExiste ||
+      (await this.madresService.create({
+        rp_madre,
+        nombre: `Vaca ${rp_madre}`,
+        estado: 'En Tambo',
+        id_establecimiento,
+        observaciones: `Alta por bot al anotar el parto (${user.name})`,
+      } as any));
+
+    if (id_ternero) {
+      await this.ternerosService.update(
+        id_ternero,
+        { id_madre: madre.id_madre } as any,
+        id_establecimiento,
+        false,
+      );
+    }
+
+    return yaExiste
+      ? `✅ La madre RP ${rp_madre} ya estaba. Se la asigné al ternero RP ${rp_ternero}.`
+      : `✅ Di de alta la madre RP ${rp_madre} y se la asigné al ternero RP ${rp_ternero}.`;
   }
 
   private async resolverMadreIdEstricto(
@@ -388,6 +511,12 @@ export class BotController {
 
     if (!user) {
       return { requiere_seleccion: false, usuario_no_encontrado: true };
+    }
+
+    // ¿Está respondiendo un "¿la doy de alta?" que dejamos pendiente?
+    const respPendiente = await this.resolverPendiente(user, text);
+    if (respPendiente) {
+      return { requiere_seleccion: false, seleccion_exitosa: true, mensaje: respPendiente };
     }
 
     // Detectar comando "cambiar_establecimiento" antes de ir a Claude
@@ -572,6 +701,22 @@ export class BotController {
       }
     }
     if (!texto) return { ok: true, modo: MODE, recibido: true };
+
+    // 2.b) Si era audio, recién ahora tenemos el texto: puede ser el "sí" de una
+    //      pregunta pendiente (en el paso 1 el texto todavía estaba vacío).
+    if (msg.type === 'audio') {
+      const user = await this.buscarUsuarioPorTelefono(msg.phone);
+      const respPendiente = user
+        ? await this.resolverPendiente(user, texto)
+        : null;
+      if (respPendiente) {
+        console.log('🐄 [webhook] pendiente resuelto por audio:', respPendiente);
+        if (esLive) {
+          await this.messagingService.responder(msg._origen, msg.phone, respPendiente);
+        }
+        return { ok: true, modo: MODE, pendiente: respPendiente };
+      }
+    }
 
     // 3) Parsear con Claude.
     let parsed: any;
@@ -863,15 +1008,20 @@ export class BotController {
 
           // Resolver madre si viene
           let idMadre = null;
+          let rpMadreFaltante: number | null = null;
           if (body.id_madre) {
+            const rpMadre = parseInt(body.id_madre);
             const madreResult = await this.resolverMadreIdEstricto(
-              parseInt(body.id_madre),
+              rpMadre,
               idEstablecimiento,
             );
             if ('error' in madreResult) {
+              // No la damos de alta por las nuestras: un RP mal tipeado crearía una
+              // vaca fantasma. Anotamos el ternero igual y preguntamos después.
               console.warn(
-                `⚠️ Madre RP ${body.id_madre} no encontrada, se crea ternero sin madre`,
+                `⚠️ Madre RP ${rpMadre} no encontrada, se pregunta antes de crearla`,
               );
+              rpMadreFaltante = rpMadre;
             } else {
               idMadre = madreResult.id;
             }
@@ -900,8 +1050,15 @@ export class BotController {
 
           let mensaje = `✅ Ternero anotado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
           if (data.semen && data.semen !== 'Sin datos' && data.semen !== 'N/A') mensaje += `\n🧬 Semen: ${data.semen}`;
-          if (body.id_madre && !idMadre) {
-            mensaje += `\n⚠️ Madre RP ${body.id_madre} no encontrada, registrado sin madre.`;
+          if (rpMadreFaltante && userEntity) {
+            await this.guardarPendiente(userEntity.id, {
+              tipo: 'alta_madre',
+              rp_madre: rpMadreFaltante,
+              id_ternero: ternero.id_ternero,
+              rp_ternero: data.rp_ternero,
+              id_establecimiento: idEstablecimiento,
+            });
+            mensaje += `\n\n🤔 No tengo la madre RP ${rpMadreFaltante}. ¿La doy de alta y se la asigno? Respondé *sí* o *no*.`;
           }
           if (nombreEstablecimiento) mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
 

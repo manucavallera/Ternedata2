@@ -85,6 +85,14 @@ export class UserEntity {
   @Column({ type: 'timestamp', nullable: true })
   bot_establecimiento_at: Date;
 
+  // Acción que el bot dejó a la espera de un "sí" del usuario (JSON).
+  // Hoy se usa para confirmar el alta de una madre cuyo RP no existe.
+  @Column({ type: 'text', nullable: true })
+  bot_pendiente: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  bot_pendiente_at: Date;
+
   @Column({ type: 'varchar', length: 8, nullable: true })
   bot_link_token: string;
 
