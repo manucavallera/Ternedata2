@@ -49,7 +49,9 @@ const SeleccionarMadre = ({ madreSeleccionada, idEstablecimiento }) => {
       const madres = res?.data?.data || [];
       const opts = madres.map((m) => ({
         value: m.id_madre,
-        label: `${m.nombre ? m.nombre + " — " : ""}RP: ${m.rp_madre}`,
+        label: m.rp_madre
+          ? `RP ${m.rp_madre}${m.nombre ? ` — ${m.nombre}` : ""}`
+          : m.nombre || `Madre ${m.id_madre}`,
       }));
       setOpciones(opts);
 

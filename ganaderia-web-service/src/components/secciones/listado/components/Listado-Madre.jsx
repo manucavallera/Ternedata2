@@ -254,8 +254,10 @@ const ListadoMadre = () => {
                 {/* Header */}
                 <div className='flex items-center justify-between mb-2'>
                   <div>
-                    <p className='text-base font-extrabold text-indigo-300'>{madre.nombre}</p>
-                    <p className='text-xs text-slate-400'>RP {madre.rp_madre}</p>
+                    <p className='text-base font-extrabold text-indigo-300'>
+                      RP {madre.rp_madre ?? "—"}
+                    </p>
+                    <p className='text-xs text-slate-400'>{madre.nombre}</p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${madre.estado === 'Seca' ? 'bg-green-500 text-green-900' : 'bg-blue-500 text-blue-900'}`}>
                     {madre.estado}
@@ -294,7 +296,7 @@ const ListadoMadre = () => {
             <thead className='bg-slate-900'>
               <tr>
                 <th className='px-2 sm:px-3 md:px-4 py-2 sm:py-3 border-b border-slate-600 bg-slate-700 text-xs sm:text-sm whitespace-nowrap'>
-                  ID
+                  RP
                 </th>
                 <th className='px-2 sm:px-3 md:px-4 py-2 sm:py-3 border-b border-slate-600 bg-slate-700 text-xs sm:text-sm whitespace-nowrap'>
                   Datos Básicos
@@ -339,11 +341,11 @@ const ListadoMadre = () => {
                     key={madre.id_madre}
                     className='hover:bg-slate-600 transition-all duration-300'
                   >
-                    {/* ID */}
+                    {/* RP (identificador que carga el usuario) */}
                     <td className='px-4 py-4 border-b border-slate-700'>
                       <div className='text-center'>
                         <span className='px-3 py-1 bg-indigo-500 text-indigo-900 rounded-full text-sm font-bold'>
-                          #{madre.id_madre}
+                          {madre.rp_madre ?? "Sin RP"}
                         </span>
                       </div>
                     </td>
@@ -355,10 +357,6 @@ const ListadoMadre = () => {
                           {madre.nombre}
                         </h3>
                         <div className='space-y-1'>
-                          <p className='text-sm'>
-                            <span className='font-medium'>RP:</span>{" "}
-                            {madre.rp_madre}
-                          </p>
                           <p className='text-sm'>
                             <span className='font-medium'>F. Nacimiento:</span>{" "}
                             {madre.fecha_nacimiento}

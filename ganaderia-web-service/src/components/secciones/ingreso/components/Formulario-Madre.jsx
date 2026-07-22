@@ -4,21 +4,21 @@ import { useForm } from "react-hook-form";
 import { useSelector } from "react-redux";
 
 const FormularioMadre = ({ setStep }) => {
-  const { userPayload } = useSelector((state) => state.auth);
-  const { crearMadreHook, obtenerEstablecimientosHook, obtenerRodeosHook } =
-    useBussinesMicroservicio();
+  const { userPayload, establecimientoActual } = useSelector(
+    (state) => state.auth
+  );
+  const { crearMadreHook, obtenerRodeosHook } = useBussinesMicroservicio();
+
+  // El establecimiento sale del selector del navbar (admin) o del usuario (operario).
+  const idEstablecimiento =
+    establecimientoActual || userPayload?.id_establecimiento || null;
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-    setValue,
-  } = useForm({
-    defaultValues: {
-      id_establecimiento: userPayload?.id_establecimiento || "",
-    },
-  });
+  } = useForm();
 
   const [madreAlert, setMadreAlert] = useState({
     status: false,
@@ -26,29 +26,21 @@ const FormularioMadre = ({ setStep }) => {
     estado: true,
   });
 
-  const [establecimientos, setEstablecimientos] = useState([]);
-  const [loadingEstablecimientos, setLoadingEstablecimientos] = useState(false);
   const [rodeos, setRodeos] = useState([]);
   const [loadingRodeos, setLoadingRodeos] = useState(false);
 
   useEffect(() => {
     if (!userPayload) return;
-    if (userPayload.rol === "admin") {
-      cargarEstablecimientos();
-    } else if (userPayload.id_establecimiento) {
-      setValue("id_establecimiento", userPayload.id_establecimiento);
-    }
     cargarRodeos();
-  }, [userPayload]);
+  }, [userPayload, idEstablecimiento]);
 
   const cargarRodeos = async () => {
     try {
       const tokenRaw = localStorage.getItem("token");
       if (!tokenRaw) return;
       setLoadingRodeos(true);
-      const idEst = userPayload?.id_establecimiento;
-      const query = idEst && userPayload?.rol !== "admin"
-        ? `id_establecimiento=${idEst}&limit=500`
+      const query = idEstablecimiento
+        ? `id_establecimiento=${idEstablecimiento}&limit=500`
         : "limit=500";
       const response = await obtenerRodeosHook(query);
       if (response?.status === 200) {
@@ -61,32 +53,27 @@ const FormularioMadre = ({ setStep }) => {
     }
   };
 
-  const cargarEstablecimientos = async () => {
-    try {
-      setLoadingEstablecimientos(true);
-      const response = await obtenerEstablecimientosHook();
-
-      if (response?.status === 200) {
-        setEstablecimientos(response.data.filter((e) => e.estado === "activo"));
-      }
-    } catch (error) {
-      console.error("Error al cargar establecimientos:", error);
-    } finally {
-      setLoadingEstablecimientos(false);
-    }
-  };
-
   const onSubmit = async (data) => {
+    if (!idEstablecimiento) {
+      setMadreAlert({
+        status: true,
+        message: "❌ Elegí un establecimiento arriba antes de cargar la madre",
+        estado: false,
+      });
+      return;
+    }
+
+    const rp = parseInt(data.rp_madre);
+
     let newMadre = {
-      nombre: data.nombre,
+      rp_madre: rp,
+      // El nombre es opcional: si no lo ponen, la vaca se identifica por su RP.
+      nombre: data.nombre?.trim() || `Vaca ${rp}`,
       estado: data.estado,
       ...(data.observaciones && { observaciones: data.observaciones }),
       ...(data.fecha_nacimiento && { fecha_nacimiento: data.fecha_nacimiento }),
       ...(data.id_rodeo && { id_rodeo: parseInt(data.id_rodeo) }),
-      id_establecimiento:
-        userPayload?.rol === "admin"
-          ? parseInt(data.id_establecimiento)
-          : userPayload?.id_establecimiento,
+      id_establecimiento: idEstablecimiento,
     };
 
     console.log("📤 Enviando madre:", newMadre);
@@ -104,10 +91,6 @@ const FormularioMadre = ({ setStep }) => {
         });
         setTimeout(() => {
           reset();
-          // Si es admin, mantener el establecimiento seleccionado
-          if (userPayload?.rol === "admin" && data.id_establecimiento) {
-            setValue("id_establecimiento", data.id_establecimiento);
-          }
         }, 2000);
       } else {
         const errorMsg =
@@ -149,62 +132,52 @@ const FormularioMadre = ({ setStep }) => {
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-            {/* ⬅️ NUEVO: Selector de Establecimiento (solo admin) */}
-            {userPayload?.rol === "admin" && (
-              <div>
-                <label
-                  htmlFor='id_establecimiento'
-                  className='block text-sm font-medium text-gray-700 mb-1'
-                >
-                  🏢 Establecimiento *
-                </label>
-                <select
-                  id='id_establecimiento'
-                  {...register("id_establecimiento", {
-                    required: "Debe seleccionar un establecimiento",
-                  })}
-                  className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.id_establecimiento
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`}
-                  disabled={loadingEstablecimientos}
-                >
-                  <option value=''>Seleccionar establecimiento...</option>
-                  {establecimientos.map((est) => (
-                    <option
-                      key={est.id_establecimiento}
-                      value={est.id_establecimiento}
-                    >
-                      {est.nombre}
-                    </option>
-                  ))}
-                </select>
-                {errors.id_establecimiento && (
-                  <span className='text-red-500 text-sm'>
-                    {errors.id_establecimiento.message}
-                  </span>
-                )}
-              </div>
-            )}
+            <div>
+              <label
+                htmlFor='rp_madre'
+                className='block text-sm font-medium text-gray-700 mb-1'
+              >
+                RP / Caravana *
+              </label>
+              <input
+                type='number'
+                id='rp_madre'
+                inputMode='numeric'
+                {...register("rp_madre", {
+                  required: "Poné el número de caravana",
+                  valueAsNumber: true,
+                  validate: (v) =>
+                    (Number.isInteger(v) && v > 0) || "Tiene que ser un número",
+                })}
+                placeholder='Ej: 717'
+                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  errors.rp_madre ? "border-red-500" : "border-gray-300"
+                }`}
+              />
+              {errors.rp_madre && (
+                <span className='text-red-500 text-sm'>
+                  {errors.rp_madre.message}
+                </span>
+              )}
+              <p className='text-xs text-gray-500 mt-1'>
+                Este es el número con el que la vas a buscar y con el que la
+                reconoce el bot.
+              </p>
+            </div>
 
             <div>
               <label
                 htmlFor='nombre'
                 className='block text-sm font-medium text-gray-700 mb-1'
               >
-                Nombre / RP Madre *
+                Nombre (opcional)
               </label>
               <input
                 type='text'
                 id='nombre'
-                {...register("nombre", {
-                  required: "Este campo es obligatorio",
-                })}
-                placeholder='Ej: Vaca María o RP 1023'
-                className={`w-full p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.nombre ? "border-red-500" : "border-gray-300"
-                }`}
+                {...register("nombre")}
+                placeholder='Ej: Vaca María'
+                className='w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
               />
               {errors.nombre && (
                 <span className='text-red-500 text-sm'>
