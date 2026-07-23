@@ -28,6 +28,12 @@ export class RegistroLitrosEntity {
   @Column({ type: 'varchar', nullable: true })
   observaciones: string;
 
+  // Vacas efectivamente ordeñadas ese día. Arranca como el conteo de madres
+  // 'En Tambo' al registrar, pero es editable (días de tratamiento se restan
+  // algunas) sin tocar el rodeo. El promedio del día usa este número.
+  @Column({ type: 'int', nullable: true })
+  cantidad_vacas: number;
+
   @CreateDateColumn()
   creado_en: Date;
 

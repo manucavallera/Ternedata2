@@ -17,6 +17,7 @@ import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
 import { TratamientosService } from '../tratamientos/tratamientos.service';
 import { DiarreaTernerosService } from '../diarrea-terneros/diarrea-terneros.service';
+import { LitrosService } from '../litros/litros.service';
 
 // Entities
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
@@ -28,6 +29,7 @@ import { UserEntity } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { Establecimiento } from '../establecimientos/entities/establecimiento.entity';
 import { Rodeos } from '../rodeos/entities/rodeos.entity';
+import { RegistroLitrosEntity } from '../litros/entities/registro-litros.entity';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { Rodeos } from '../rodeos/entities/rodeos.entity';
       UserEstablecimientoEntity,
       Establecimiento,
       Rodeos,
+      RegistroLitrosEntity,
     ]),
   ],
   controllers: [BotController],
@@ -56,6 +59,7 @@ import { Rodeos } from '../rodeos/entities/rodeos.entity';
     EventosService,
     TratamientosService,
     DiarreaTernerosService,
+    LitrosService,
   ],
 })
 export class BotModule {}

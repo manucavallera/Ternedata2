@@ -38,11 +38,18 @@ export class LitrosService {
 
   async registrar(dto: CreateLitrosDto, idEstablecimiento: number) {
     try {
+      // Si el front no manda cantidad_vacas, tomamos el conteo del rodeo como
+      // snapshot del día. Queda editable después con +/-.
+      const cantidadVacas =
+        dto.cantidad_vacas != null
+          ? dto.cantidad_vacas
+          : await this.contarVacasEnTambo(idEstablecimiento);
       const registro = this.litrosRepository.create({
         fecha: new Date(dto.fecha),
         litros_vendido: dto.litros_vendido,
         litros_terneros: dto.litros_terneros,
         observaciones: dto.observaciones,
+        cantidad_vacas: cantidadVacas,
         id_establecimiento: idEstablecimiento,
       });
       const guardado = await this.litrosRepository.save(registro);
@@ -79,7 +86,7 @@ export class LitrosService {
         order: { fecha: 'DESC', creado_en: 'DESC' },
       });
 
-      const cantidadVacas = await this.contarVacasEnTambo(idEstablecimiento);
+      const cantidadRodeo = await this.contarVacasEnTambo(idEstablecimiento);
 
       if (!ultimo) {
         return {
@@ -87,12 +94,15 @@ export class LitrosService {
           litros_vendido: 0,
           litros_terneros: 0,
           total: 0,
-          cantidad_vacas: cantidadVacas,
+          cantidad_vacas: cantidadRodeo,
           promedio: null,
         };
       }
 
+      // El promedio del día usa las vacas ordeñadas de ESE registro. Si es un
+      // registro viejo sin snapshot, caemos al conteo actual del rodeo.
       const conjunto = conTotal(ultimo);
+      const cantidadVacas = ultimo.cantidad_vacas ?? cantidadRodeo;
       const promedio =
         cantidadVacas > 0
           ? Math.round((conjunto.total / cantidadVacas) * 100) / 100
@@ -100,6 +110,7 @@ export class LitrosService {
 
       return {
         fecha: conjunto.fecha,
+        id_registro: ultimo.id_registro,
         litros_vendido: conjunto.litros_vendido,
         litros_terneros: conjunto.litros_terneros,
         total: conjunto.total,
@@ -133,6 +144,8 @@ export class LitrosService {
       registro.litros_terneros = dto.litros_terneros;
     if (dto.observaciones !== undefined)
       registro.observaciones = dto.observaciones;
+    if (dto.cantidad_vacas !== undefined)
+      registro.cantidad_vacas = dto.cantidad_vacas;
     const guardado = await this.litrosRepository.save(registro);
     return conTotal(guardado);
   }

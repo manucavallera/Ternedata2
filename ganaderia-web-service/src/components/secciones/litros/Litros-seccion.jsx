@@ -15,6 +15,7 @@ const ListadoLitros = () => {
     obtenerLitrosHook,
     obtenerStatsLitrosHook,
     eliminarLitrosHook,
+    actualizarLitrosHook,
   } = useBussinesMicroservicio();
 
   const [stats, setStats] = useState(null);
@@ -23,10 +24,13 @@ const ListadoLitros = () => {
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
+  const [ajustandoVacas, setAjustandoVacas] = useState(false);
+
   const [form, setForm] = useState({
     fecha: hoyISO(),
     litros_vendido: "",
     litros_terneros: "",
+    cantidad_vacas: "",
     observaciones: "",
   });
 
@@ -67,6 +71,8 @@ const ListadoLitros = () => {
       litros_terneros: parseFloat(form.litros_terneros) || 0,
       observaciones: form.observaciones || undefined,
     };
+    if (form.cantidad_vacas !== "")
+      payload.cantidad_vacas = parseInt(form.cantidad_vacas, 10);
     if (idEstab) payload.id_establecimiento = idEstab;
 
     const res = await registrarLitrosHook(payload);
@@ -75,6 +81,7 @@ const ListadoLitros = () => {
         fecha: hoyISO(),
         litros_vendido: "",
         litros_terneros: "",
+        cantidad_vacas: "",
         observaciones: "",
       });
       await cargar();
@@ -86,8 +93,33 @@ const ListadoLitros = () => {
 
   const onEliminar = async (id) => {
     if (!confirm("¿Eliminar este registro de litros?")) return;
-    const res = await eliminarLitrosHook(id);
-    if (res?.status === 200) await cargar();
+    setError(null);
+    const res = await eliminarLitrosHook(id, idEstab);
+    if (res?.status === 200) {
+      await cargar();
+    } else {
+      setError(res?.data?.message || "No se pudo eliminar el registro.");
+    }
+  };
+
+  // +/- sobre las vacas ordeñadas del último registro (días de tratamiento se
+  // restan algunas). Ajusta ese registro, no toca el rodeo.
+  const ajustarVacas = async (delta) => {
+    if (!stats?.id_registro) return;
+    const nuevo = Math.max(0, (stats.cantidad_vacas || 0) + delta);
+    setAjustandoVacas(true);
+    setError(null);
+    const res = await actualizarLitrosHook(
+      stats.id_registro,
+      { cantidad_vacas: nuevo },
+      idEstab
+    );
+    if (res?.status === 200) {
+      await cargar();
+    } else {
+      setError(res?.data?.message || "No se pudo ajustar las vacas.");
+    }
+    setAjustandoVacas(false);
   };
 
   return (
@@ -144,8 +176,28 @@ const ListadoLitros = () => {
                 <div className="text-xs text-gray-500 font-semibold">
                   Vacas (tambo)
                 </div>
-                <div className="text-xl font-bold text-gray-700">
-                  {stats.cantidad_vacas}
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => ajustarVacas(-1)}
+                    disabled={ajustandoVacas || !stats.id_registro}
+                    aria-label="Restar una vaca"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 disabled:opacity-40"
+                  >
+                    −
+                  </button>
+                  <div className="text-xl font-bold text-gray-700 min-w-[2ch] text-center">
+                    {stats.cantidad_vacas}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => ajustarVacas(1)}
+                    disabled={ajustandoVacas || !stats.id_registro}
+                    aria-label="Sumar una vaca"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 disabled:opacity-40"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
               <div className="bg-cyan-50 rounded-lg p-3">
@@ -214,6 +266,26 @@ const ListadoLitros = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="Ej: 58"
               required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">
+              Vacas en ordeñe (opcional)
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={form.cantidad_vacas}
+              onChange={(e) =>
+                setForm({ ...form, cantidad_vacas: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder={
+                stats?.cantidad_vacas != null
+                  ? `Rodeo: ${stats.cantidad_vacas}`
+                  : "Ej: 71"
+              }
             />
           </div>
           <div>

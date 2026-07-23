@@ -32,6 +32,15 @@ export class CreateLitrosDto {
   @IsString()
   observaciones?: string;
 
+  @ApiProperty({
+    description: 'Vacas ordeñadas ese día (default: conteo del rodeo)',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  cantidad_vacas?: number;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()

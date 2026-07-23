@@ -14,6 +14,7 @@ const ACCIONES_VALIDAS = [
   'consultar_rodeo', 'cambiar_perfil', 'registrar_calostrado',
   'consultar_madre', 'actualizar_estado_madre',
   'editar_diarrea', 'editar_tratamiento', 'editar_evento',
+  'registrar_litros',
 ];
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -69,6 +70,7 @@ export class ClaudeService {
       'crear_evento CUANDO vacune tacte insemina pese marque castre desmame destete revise sanidad pesaje bane: {"accion":"crear_evento","fecha_evento":"YYYY-MM-DD","observacion":"","id_ternero":[],"id_madre":[]}\n' +
       'crear_tratamiento CUANDO le di aplique inyecte puse medicamento antibiotico antiparasitario suero vitamina desparasitante ivermectina oxitetraciclina enrofloxacina penicilina hierro: {"accion":"crear_tratamiento","nombre":"","descripcion":"","tipo_enfermedad":"General","turno":"manana","fecha_tratamiento":"YYYY-MM-DD","id_ternero":0}\n' +
       'crear_diarrea CUANDO diarrea cagadera deposiciones liquidas deshidratado flojo suelto debil: {"accion":"crear_diarrea","id_ternero":0,"severidad":"Leve","fecha_diarrea_ternero":"YYYY-MM-DD","observaciones":""}\n' +
+      'registrar_litros CUANDO litros vendidos litros de leche vendi X litros lts vendidos leche vendida terneros X litros (leche para terneros): {"accion":"registrar_litros","litros_vendido":0,"litros_terneros":0,"cantidad_vacas":0,"fecha":"YYYY-MM-DD","observaciones":""}. litros_terneros = litros que toman los terneros (NO cantidad de terneros). cantidad_vacas solo si dicen cuántas vacas se ordeñaron, sino 0. Ej: "litros vendidos 2141, terneros 80" → {"accion":"registrar_litros","litros_vendido":2141,"litros_terneros":80,"cantidad_vacas":0}\n' +
       'consultar_resumen CUANDO resumen cuantos tengo que se registro que hubo dame un resumen cuantos terneros: {"accion":"consultar_resumen","periodo":"hoy" o "semana" o "mes"}\n' +
       'asignar_rodeo CUANDO asignar a rodeo poner en rodeo agregar al grupo metelo en: {"accion":"asignar_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo"}\n' +
       'mover_rodeo CUANDO mover a rodeo cambiar de rodeo pasar al grupo pasarlo a otro: {"accion":"mover_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo destino"}\n' +

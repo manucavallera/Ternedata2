@@ -913,16 +913,35 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
-  const eliminarLitrosHook = async (id) => {
+  const eliminarLitrosHook = async (id, idEstablecimiento = null) => {
     try {
-      const res = await businessApi.delete(`/litros/${id}`);
+      const url = idEstablecimiento
+        ? `/litros/${id}?id_establecimiento=${idEstablecimiento}`
+        : `/litros/${id}`;
+      const res = await businessApi.delete(url);
       return { data: res.data, status: res.status };
     } catch (error) {
       if (error.response?.status === 401) {
         sessionLogOutMethod(dispatch);
         logAuthMethod(dispatch, router);
       }
-      return { status: error.response?.status, error: true };
+      return { status: error.response?.status, data: error.response?.data, error: true };
+    }
+  };
+
+  const actualizarLitrosHook = async (id, litrosData, idEstablecimiento = null) => {
+    try {
+      const url = idEstablecimiento
+        ? `/litros/${id}?id_establecimiento=${idEstablecimiento}`
+        : `/litros/${id}`;
+      const res = await businessApi.patch(url, litrosData);
+      return { data: res.data, status: res.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return { status: error.response?.status, data: error.response?.data, error: true };
     }
   };
 
@@ -1099,6 +1118,7 @@ export const useBussinesMicroservicio = () => {
     obtenerLitrosHook,
     obtenerStatsLitrosHook,
     eliminarLitrosHook,
+    actualizarLitrosHook,
     // ===== DIETAS =====
     crearDietaHook,
     obtenerDietasRodeoHook,

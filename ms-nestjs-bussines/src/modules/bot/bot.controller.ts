@@ -21,6 +21,7 @@ import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
 import { TratamientosService } from '../tratamientos/tratamientos.service';
 import { DiarreaTernerosService } from '../diarrea-terneros/diarrea-terneros.service';
+import { LitrosService } from '../litros/litros.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
@@ -65,7 +66,8 @@ interface BotRequestBody {
     | 'actualizar_estado_madre'
     | 'editar_diarrea'
     | 'editar_tratamiento'
-    | 'editar_evento';
+    | 'editar_evento'
+    | 'registrar_litros';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -90,6 +92,7 @@ export class BotController {
     private readonly eventosService: EventosService,
     private readonly tratamientosService: TratamientosService,
     private readonly diarreaTernerosService: DiarreaTernerosService,
+    private readonly litrosService: LitrosService,
     @InjectRepository(TerneroEntity)
     private readonly terneroRepo: Repository<TerneroEntity>,
     @InjectRepository(MadreEntity)
@@ -1110,6 +1113,58 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'registrar_litros': {
+          const litrosVendido = parseFloat(body.litros_vendido) || 0;
+          const litrosTerneros = parseFloat(body.litros_terneros) || 0;
+
+          if (litrosVendido <= 0 && litrosTerneros <= 0) {
+            return {
+              success: false,
+              mensaje:
+                '👂 ¿Cuántos litros? Decime algo como "litros vendidos 2141, terneros 80".',
+            };
+          }
+
+          // cantidad_vacas: solo si el usuario la dijo. Sino, el service toma
+          // el conteo del rodeo ('En Tambo') como snapshot del día.
+          const vacas = parseInt(body.cantidad_vacas);
+          const dto: any = {
+            fecha: parsearFecha(body.fecha),
+            litros_vendido: litrosVendido,
+            litros_terneros: litrosTerneros,
+            observaciones:
+              body.observaciones || `Registrado por bot (${userName})`,
+          };
+          if (!isNaN(vacas) && vacas > 0) dto.cantidad_vacas = vacas;
+
+          console.log('🥛 Registrando litros:', dto);
+          const registro = await this.litrosService.registrar(
+            dto,
+            idEstablecimiento,
+          );
+
+          const promedio =
+            registro.cantidad_vacas > 0
+              ? Math.round((registro.total / registro.cantidad_vacas) * 100) /
+                100
+              : null;
+
+          let mensaje = `✅ Litros anotados\n🥛 Vendidos: ${registro.litros_vendido} L\n🐮 Terneros: ${registro.litros_terneros} L\n📊 Total: ${registro.total} L`;
+          if (registro.cantidad_vacas)
+            mensaje += `\n🐄 Vacas: ${registro.cantidad_vacas}`;
+          if (promedio != null) mensaje += `\n📈 Promedio: ${promedio} L/vaca`;
+          if (nombreEstablecimiento)
+            mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
+
+          return {
+            success: true,
+            accion: 'registrar_litros',
+            mensaje,
+            data: registro,
+          };
+        }
+
+        // ──────────────────────────────────────
         case 'crear_evento': {
           const terneroRps = body.id_ternero
             ? Array.isArray(body.id_ternero)
@@ -1936,6 +1991,7 @@ export class BotController {
                 'editar_diarrea',
                 'editar_tratamiento',
                 'editar_evento',
+                'registrar_litros',
               ],
             },
             HttpStatus.BAD_REQUEST,
