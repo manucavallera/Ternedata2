@@ -2180,9 +2180,43 @@ export class BotController {
           const hoyDate = new Date();
           const diasVida = Math.floor((hoyDate.getTime() - fechaNac.getTime()) / (1000 * 60 * 60 * 24));
 
+          const COL_A_ETIQ: Record<string, string> = {
+            peso_nacer: 'Nacimiento',
+            peso_15d: '15 días',
+            peso_30d: '30 días',
+            peso_45d: '45 días',
+            peso_largado: 'Largado',
+          };
+          // Etapa nombrada por el usuario (acentos/espacios normalizados).
+          const ETAPA_A_COL: Record<string, string> = {
+            nacer: 'peso_nacer',
+            nacimiento: 'peso_nacer',
+            alnacer: 'peso_nacer',
+            '15d': 'peso_15d',
+            '15': 'peso_15d',
+            '15dias': 'peso_15d',
+            '30d': 'peso_30d',
+            '30': 'peso_30d',
+            '30dias': 'peso_30d',
+            '45d': 'peso_45d',
+            '45': 'peso_45d',
+            '45dias': 'peso_45d',
+            largado: 'peso_largado',
+            destete: 'peso_largado',
+            destetado: 'peso_largado',
+          };
+          const etapaRaw = String(body.etapa || body.peso_tipo || '')
+            .toLowerCase()
+            .replace(/í/g, 'i')
+            .replace(/\s+/g, '');
+
           let columna: string;
           let etiqueta: string;
-          if (diasVida <= 7) {
+          if (etapaRaw && ETAPA_A_COL[etapaRaw]) {
+            // El usuario nombró la etapa → esa manda, sin importar la edad.
+            columna = ETAPA_A_COL[etapaRaw];
+            etiqueta = COL_A_ETIQ[columna];
+          } else if (diasVida <= 7) {
             columna = 'peso_nacer'; etiqueta = 'Nacimiento';
           } else if (diasVida <= 22) {
             columna = 'peso_15d'; etiqueta = '15 días';
@@ -2197,9 +2231,9 @@ export class BotController {
           // Además de la columna hito, guardamos cada pesaje en el historial
           // (columna `estimativo`, formato "fecha:peso|...") para no perder
           // pesajes — sobre todo pasados los 52 días, donde antes todo pisaba
-          // peso_largado.
-          const fechaHoy = new Date().toISOString().split('T')[0];
-          const nuevoPesaje = `${fechaHoy}:${peso}`;
+          // peso_largado. La fecha es la que diga el usuario, o hoy.
+          const fechaPesaje = parsearFecha(body.fecha);
+          const nuevoPesaje = `${fechaPesaje}:${peso}`;
           const estimativoNuevo =
             ternero.estimativo && ternero.estimativo.trim() !== ''
               ? `${ternero.estimativo}|${nuevoPesaje}`
@@ -2214,7 +2248,7 @@ export class BotController {
           return {
             success: true,
             accion: 'registrar_peso',
-            mensaje: `✅ Peso anotado\n🐄 Ternero RP: ${rpTernero}\n⚖️ ${peso} kg (${etiqueta})\n📅 Días de vida: ${diasVida}\n📈 Pesajes totales: ${totalPesajes}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            mensaje: `✅ Peso anotado\n🐄 Ternero RP: ${rpTernero}\n⚖️ ${peso} kg (${etiqueta})\n📅 Fecha: ${fechaPesaje}\n📈 Pesajes totales: ${totalPesajes}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
           };
         }
 

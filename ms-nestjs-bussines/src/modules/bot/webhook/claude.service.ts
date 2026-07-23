@@ -91,7 +91,7 @@ export class ClaudeService {
       'eliminar_litros CUANDO borrar litros eliminar litros borra los litros borrar el ultimo registro de leche: {"accion":"eliminar_litros"}. Borra el ÚLTIMO registro de litros.\n' +
       'OJO: "murió/muerto" NO es borrar (es actualizar_estado_ternero). "corregí/me equivoqué" NO es borrar (es editar_*).\n' +
       'crear_rodeo CUANDO crear rodeo nuevo grupo nuevo lote nuevo: {"accion":"crear_rodeo","nombre_rodeo":"nombre","descripcion":"opcional","tipo":"opcional"}\n' +
-      'registrar_peso CUANDO pesa peso ternero pesaje kg pesar: {"accion":"registrar_peso","rp_ternero":0,"peso":0}\n' +
+      'registrar_peso CUANDO pesa peso ternero pesaje kg pesar peso de 15/30/45 dias peso largado peso al nacer: {"accion":"registrar_peso","rp_ternero":0,"peso":0,"etapa":"","fecha":"YYYY-MM-DD"}. etapa SOLO si la nombran: nacer/15d/30d/45d/largado (al nacer/nacimiento→nacer, "15 dias"→15d, "30 dias"→30d, "45 dias"→45d, largado/destete→largado). Si NO nombran etapa, dejá etapa "" (el sistema la deduce por la edad). fecha del pesaje solo si la dicen, sino omitila.\n' +
       'registrar_calostrado CUANDO calostro calostrado calostre encalostrar le di calostro tomo calostro mamadera sonda brix: {"accion":"registrar_calostrado","rp_ternero":0,"metodo_calostrado":"sonda","litros_calostrado":0,"grado_brix":0,"observaciones_calostrado":""}\n' +
       'consultar_ternero CUANDO como esta el ternero info ternero ver ternero consultar ternero: {"accion":"consultar_ternero","rp_ternero":0}\n' +
       'consultar_madre CUANDO como esta la madre info madre ver madre consultar madre datos de la vaca: {"accion":"consultar_madre","rp_madre":0}\n' +
