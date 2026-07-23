@@ -16,6 +16,8 @@ const ACCIONES_VALIDAS = [
   'editar_diarrea', 'editar_tratamiento', 'editar_evento',
   'registrar_litros', 'crear_dieta', 'consultar_dieta',
   'desasignar_rodeo', 'consultar_del', 'consultar_salud',
+  'eliminar_ternero', 'eliminar_madre', 'eliminar_evento',
+  'eliminar_tratamiento', 'eliminar_diarrea', 'eliminar_litros',
 ];
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -80,6 +82,14 @@ export class ClaudeService {
       'consultar_dieta CUANDO que come el rodeo dieta del rodeo ver dieta que le doy al rodeo racion del rodeo: {"accion":"consultar_dieta","nombre_rodeo":"nombre"}\n' +
       'consultar_del CUANDO dias en leche DEL cuantos dias en leche desde que pario promedio dias en leche: {"accion":"consultar_del","rp_madre":0}. Con RP de una vaca = esa vaca. Sin RP = promedio del tambo.\n' +
       'consultar_salud CUANDO resumen de salud como esta la sanidad mortalidad morbilidad cuantos enfermos estado sanitario: {"accion":"consultar_salud"}\n' +
+      '=== BORRAR (solo si dicen borrar/eliminar/borrá, NO "murió" ni "corregí") ===\n' +
+      'eliminar_ternero CUANDO borrar ternero eliminar ternero borra el ternero borrá el ternero: {"accion":"eliminar_ternero","rp_ternero":0}\n' +
+      'eliminar_madre CUANDO borrar vaca eliminar madre borra la vaca borrá la madre: {"accion":"eliminar_madre","rp_madre":0}\n' +
+      'eliminar_tratamiento CUANDO borrar tratamiento eliminar el tratamiento borra el medicamento: {"accion":"eliminar_tratamiento","rp_ternero":0}. Borra el ÚLTIMO tratamiento del ternero.\n' +
+      'eliminar_diarrea CUANDO borrar diarrea eliminar la diarrea borra la diarrea: {"accion":"eliminar_diarrea","rp_ternero":0}. Borra la ÚLTIMA diarrea del ternero.\n' +
+      'eliminar_evento CUANDO borrar evento eliminar el evento borra el evento: {"accion":"eliminar_evento","rp_ternero":0,"rp_madre":0}. Borra el ÚLTIMO evento del ternero o la madre.\n' +
+      'eliminar_litros CUANDO borrar litros eliminar litros borra los litros borrar el ultimo registro de leche: {"accion":"eliminar_litros"}. Borra el ÚLTIMO registro de litros.\n' +
+      'OJO: "murió/muerto" NO es borrar (es actualizar_estado_ternero). "corregí/me equivoqué" NO es borrar (es editar_*).\n' +
       'crear_rodeo CUANDO crear rodeo nuevo grupo nuevo lote nuevo: {"accion":"crear_rodeo","nombre_rodeo":"nombre","descripcion":"opcional","tipo":"opcional"}\n' +
       'registrar_peso CUANDO pesa peso ternero pesaje kg pesar: {"accion":"registrar_peso","rp_ternero":0,"peso":0}\n' +
       'registrar_calostrado CUANDO calostro calostrado calostre encalostrar le di calostro tomo calostro mamadera sonda brix: {"accion":"registrar_calostrado","rp_ternero":0,"metodo_calostrado":"sonda","litros_calostrado":0,"grado_brix":0,"observaciones_calostrado":""}\n' +

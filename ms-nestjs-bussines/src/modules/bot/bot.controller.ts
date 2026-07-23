@@ -74,7 +74,13 @@ interface BotRequestBody {
     | 'consultar_dieta'
     | 'desasignar_rodeo'
     | 'consultar_del'
-    | 'consultar_salud';
+    | 'consultar_salud'
+    | 'eliminar_ternero'
+    | 'eliminar_madre'
+    | 'eliminar_evento'
+    | 'eliminar_tratamiento'
+    | 'eliminar_diarrea'
+    | 'eliminar_litros';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -341,10 +347,28 @@ export class BotController {
     if (!resp) return null;
 
     const pendiente = this.leerPendiente(user);
-    if (pendiente?.tipo !== 'alta_madre') return null;
+    if (
+      pendiente?.tipo !== 'alta_madre' &&
+      pendiente?.tipo !== 'confirmar_borrado'
+    )
+      return null;
 
-    const SI = ['si', 'sí', 'sip', 'sisi', 'si si', 'dale', 'ok', 'oka', 'obvio', 'claro', 'correcto', 'exacto'];
-    const NO = ['no', 'nop', 'nel', 'negativo', 'dejalo', 'no gracias', 'nada'];
+    const SI = ['si', 'sí', 'sip', 'sisi', 'si si', 'dale', 'ok', 'oka', 'obvio', 'claro', 'correcto', 'exacto', 'borra', 'borralo', 'borrala', 'eliminalo'];
+    const NO = ['no', 'nop', 'nel', 'negativo', 'dejalo', 'no gracias', 'nada', 'cancelar', 'cancela'];
+
+    if (pendiente.tipo === 'confirmar_borrado') {
+      if (SI.includes(resp)) {
+        await this.limpiarPendiente(user.id);
+        return this.ejecutarBorrado(user, pendiente);
+      }
+      if (NO.includes(resp)) {
+        await this.limpiarPendiente(user.id);
+        return `👍 Listo, no borré nada. ${pendiente.desc} sigue como estaba.`;
+      }
+      // Contestó otra cosa: se descarta la pregunta y sigue normal.
+      await this.limpiarPendiente(user.id);
+      return null;
+    }
 
     if (SI.includes(resp)) {
       await this.limpiarPendiente(user.id);
@@ -358,6 +382,48 @@ export class BotController {
     // Contestó otra cosa: era un mensaje nuevo. Se descarta la pregunta y sigue normal.
     await this.limpiarPendiente(user.id);
     return null;
+  }
+
+  // Ejecuta el borrado que quedó confirmado. El id concreto ya se resolvió
+  // cuando se pidió la confirmación, así que acá solo se llama al service.
+  private async ejecutarBorrado(
+    user: UserEntity,
+    pendiente: any,
+  ): Promise<string> {
+    const { recurso, id, idEstablecimiento } = pendiente;
+    const esAdmin = user.rol === 'admin';
+    try {
+      switch (recurso) {
+        case 'ternero':
+          await this.ternerosService.remove(id, idEstablecimiento, esAdmin);
+          break;
+        case 'madre':
+          await this.madresService.remove(id, idEstablecimiento, esAdmin);
+          break;
+        case 'evento':
+          await this.eventosService.remove(id, idEstablecimiento, esAdmin);
+          break;
+        case 'tratamiento':
+          await this.tratamientosService.remove(id, idEstablecimiento, esAdmin);
+          break;
+        case 'diarrea':
+          await this.diarreaTernerosService.remove(
+            id,
+            idEstablecimiento,
+            esAdmin,
+          );
+          break;
+        case 'litros':
+          await this.litrosService.remove(id, idEstablecimiento);
+          break;
+        default:
+          return '😕 No supe qué borrar. Probá de nuevo.';
+      }
+      return `🗑️ Borré ${pendiente.desc}.`;
+    } catch (error) {
+      console.error('❌ Error al borrar:', error?.message, error);
+      return `😕 No pude borrar ${pendiente.desc}. Puede que ya no exista o que tenga datos asociados. Avisale al encargado si sigue.`;
+    }
   }
 
   // Da de alta la madre que quedó pendiente y se la asigna al ternero ya anotado.
@@ -1495,6 +1561,243 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        // BORRAR (con confirmación: se resuelve el target y se pide "sí")
+        // ──────────────────────────────────────
+        case 'eliminar_ternero': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero)
+            return {
+              success: false,
+              mensaje: '👂 Me falta el RP del ternero que querés borrar.',
+            };
+          const t = await this.terneroRepo.findOne({
+            where: { rp_ternero: rpTernero, id_establecimiento: idEstablecimiento },
+          });
+          if (!t)
+            return {
+              success: false,
+              mensaje: `👀 No encontré el ternero RP ${rpTernero} en tu establecimiento.`,
+            };
+          const desc = `el ternero RP ${rpTernero}`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'ternero',
+            id: t.id_ternero,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_ternero',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'eliminar_madre': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const rpMadre = parseInt(body.rp_madre) || 0;
+          if (!rpMadre)
+            return {
+              success: false,
+              mensaje: '👂 Me falta el RP de la vaca que querés borrar.',
+            };
+          const m = await this.madreRepo.findOne({
+            where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
+          });
+          if (!m)
+            return {
+              success: false,
+              mensaje: `👀 No encontré la vaca RP ${rpMadre} en tu establecimiento.`,
+            };
+          const desc = `la vaca RP ${rpMadre}`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'madre',
+            id: m.id_madre,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_madre',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'eliminar_tratamiento': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero)
+            return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
+          const terneroResult = await this.resolverTerneroIdEstricto(
+            rpTernero,
+            idEstablecimiento,
+          );
+          if ('error' in terneroResult)
+            return { success: false, mensaje: `⚠️ ${terneroResult.error}` };
+          const last = await this.tratamientoRepo
+            .createQueryBuilder('tr')
+            .leftJoin('tr.ternero', 't')
+            .where('t.id_ternero = :id', { id: terneroResult.id })
+            .andWhere('tr.id_establecimiento = :est', { est: idEstablecimiento })
+            .orderBy('tr.fecha_tratamiento', 'DESC')
+            .getOne();
+          if (!last)
+            return {
+              success: false,
+              mensaje: `🤔 El ternero RP ${rpTernero} no tiene tratamientos anotados.`,
+            };
+          const desc = `el último tratamiento${last.nombre ? ` (${last.nombre})` : ''} del ternero RP ${rpTernero}`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'tratamiento',
+            id: last.id_tratamiento,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_tratamiento',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'eliminar_diarrea': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          if (!rpTernero)
+            return { success: false, mensaje: '👂 Me falta el RP del ternero.' };
+          const terneroResult = await this.resolverTerneroIdEstricto(
+            rpTernero,
+            idEstablecimiento,
+          );
+          if ('error' in terneroResult)
+            return { success: false, mensaje: `⚠️ ${terneroResult.error}` };
+          const last = await this.diarreaRepo
+            .createQueryBuilder('d')
+            .leftJoin('d.ternero', 't')
+            .where('t.id_ternero = :id', { id: terneroResult.id })
+            .andWhere('d.id_establecimiento = :est', { est: idEstablecimiento })
+            .orderBy('d.numero_episodio', 'DESC')
+            .getOne();
+          if (!last)
+            return {
+              success: false,
+              mensaje: `🤔 El ternero RP ${rpTernero} no tiene diarreas anotadas.`,
+            };
+          const desc = `la última diarrea (episodio #${last.numero_episodio}) del ternero RP ${rpTernero}`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'diarrea',
+            id: last.id_diarrea_ternero,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_diarrea',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'eliminar_evento': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const rpTernero = parseInt(body.rp_ternero) || 0;
+          const rpMadre = parseInt(body.rp_madre) || 0;
+          if (!rpTernero && !rpMadre)
+            return {
+              success: false,
+              mensaje: '👂 Decime el RP del ternero o de la vaca.',
+            };
+          let lastEvento: EventoEntity | null = null;
+          let label = '';
+          if (rpTernero) {
+            const r = await this.resolverTerneroIdEstricto(
+              rpTernero,
+              idEstablecimiento,
+            );
+            if ('error' in r) return { success: false, mensaje: `⚠️ ${r.error}` };
+            lastEvento = await this.eventoRepo
+              .createQueryBuilder('e')
+              .innerJoin('e.terneros', 't')
+              .where('t.id_ternero = :id', { id: r.id })
+              .andWhere('e.id_establecimiento = :est', { est: idEstablecimiento })
+              .orderBy('e.fecha_evento', 'DESC')
+              .getOne();
+            label = `ternero RP ${rpTernero}`;
+          } else {
+            const r = await this.resolverMadreIdEstricto(
+              rpMadre,
+              idEstablecimiento,
+            );
+            if ('error' in r) return { success: false, mensaje: `⚠️ ${r.error}` };
+            lastEvento = await this.eventoRepo
+              .createQueryBuilder('e')
+              .innerJoin('e.madres', 'm')
+              .where('m.id_madre = :id', { id: r.id })
+              .andWhere('e.id_establecimiento = :est', { est: idEstablecimiento })
+              .orderBy('e.fecha_evento', 'DESC')
+              .getOne();
+            label = `vaca RP ${rpMadre}`;
+          }
+          if (!lastEvento)
+            return {
+              success: false,
+              mensaje: `🤔 El ${label} no tiene eventos anotados.`,
+            };
+          const desc = `el último evento del ${label}`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'evento',
+            id: lastEvento.id_evento,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_evento',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'eliminar_litros': {
+          if (!userEntity)
+            return { success: false, mensaje: '🤔 No pude identificar tu usuario.' };
+          const registros: any[] =
+            await this.litrosService.findAll(idEstablecimiento);
+          if (!registros.length)
+            return {
+              success: false,
+              mensaje: '🤔 No hay registros de litros para borrar.',
+            };
+          const ultimo = registros[0];
+          const desc = `el último registro de litros (${ultimo.fecha ? new Date(ultimo.fecha).toLocaleDateString('es-AR') : 's/f'}, total ${ultimo.total} L)`;
+          await this.guardarPendiente(userEntity.id, {
+            tipo: 'confirmar_borrado',
+            recurso: 'litros',
+            id: ultimo.id_registro,
+            idEstablecimiento,
+            desc,
+          });
+          return {
+            success: true,
+            accion: 'eliminar_litros',
+            mensaje: `⚠️ ¿Seguro que borro ${desc}? Se borra para siempre.\nRespondé *sí* para confirmar o *no* para cancelar.`,
+          };
+        }
+
+        // ──────────────────────────────────────
         case 'crear_evento': {
           const terneroRps = body.id_ternero
             ? Array.isArray(body.id_ternero)
@@ -2327,6 +2630,12 @@ export class BotController {
                 'desasignar_rodeo',
                 'consultar_del',
                 'consultar_salud',
+                'eliminar_ternero',
+                'eliminar_madre',
+                'eliminar_evento',
+                'eliminar_tratamiento',
+                'eliminar_diarrea',
+                'eliminar_litros',
               ],
             },
             HttpStatus.BAD_REQUEST,
