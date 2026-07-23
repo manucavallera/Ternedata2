@@ -14,7 +14,8 @@ const ACCIONES_VALIDAS = [
   'consultar_rodeo', 'cambiar_perfil', 'registrar_calostrado',
   'consultar_madre', 'actualizar_estado_madre',
   'editar_diarrea', 'editar_tratamiento', 'editar_evento',
-  'registrar_litros',
+  'registrar_litros', 'crear_dieta', 'consultar_dieta',
+  'desasignar_rodeo', 'consultar_del', 'consultar_salud',
 ];
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -74,6 +75,11 @@ export class ClaudeService {
       'consultar_resumen CUANDO resumen cuantos tengo que se registro que hubo dame un resumen cuantos terneros: {"accion":"consultar_resumen","periodo":"hoy" o "semana" o "mes"}\n' +
       'asignar_rodeo CUANDO asignar a rodeo poner en rodeo agregar al grupo metelo en: {"accion":"asignar_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo"}\n' +
       'mover_rodeo CUANDO mover a rodeo cambiar de rodeo pasar al grupo pasarlo a otro: {"accion":"mover_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo destino"}\n' +
+      'desasignar_rodeo CUANDO sacar del rodeo quitar del rodeo desasignar sacalo del grupo sacar del lote afuera del rodeo: {"accion":"desasignar_rodeo","rp_terneros":[1,2,3],"rp_madres":[]}. Terneros en rp_terneros, vacas/madres en rp_madres. Solo el que mencionen.\n' +
+      'crear_dieta CUANDO dieta darle de comer racion alimentacion carga al rodeo comen le doy al rodeo: {"accion":"crear_dieta","nombre_rodeo":"nombre","modo":"nota" o "formula" o "mezcla","nota":"texto (modo nota)","kg_por_animal":0,"ingredientes":[{"nombre":"soja","kg":0}]}. modo nota = texto libre de qué comen. modo formula = X kg por animal (kg_por_animal). modo mezcla = varios ingredientes con kg totales (ej: "al rodeo X: 400 de soja, 300 de maíz" → mezcla con ingredientes). Elegí el modo según lo que diga.\n' +
+      'consultar_dieta CUANDO que come el rodeo dieta del rodeo ver dieta que le doy al rodeo racion del rodeo: {"accion":"consultar_dieta","nombre_rodeo":"nombre"}\n' +
+      'consultar_del CUANDO dias en leche DEL cuantos dias en leche desde que pario promedio dias en leche: {"accion":"consultar_del","rp_madre":0}. Con RP de una vaca = esa vaca. Sin RP = promedio del tambo.\n' +
+      'consultar_salud CUANDO resumen de salud como esta la sanidad mortalidad morbilidad cuantos enfermos estado sanitario: {"accion":"consultar_salud"}\n' +
       'crear_rodeo CUANDO crear rodeo nuevo grupo nuevo lote nuevo: {"accion":"crear_rodeo","nombre_rodeo":"nombre","descripcion":"opcional","tipo":"opcional"}\n' +
       'registrar_peso CUANDO pesa peso ternero pesaje kg pesar: {"accion":"registrar_peso","rp_ternero":0,"peso":0}\n' +
       'registrar_calostrado CUANDO calostro calostrado calostre encalostrar le di calostro tomo calostro mamadera sonda brix: {"accion":"registrar_calostrado","rp_ternero":0,"metodo_calostrado":"sonda","litros_calostrado":0,"grado_brix":0,"observaciones_calostrado":""}\n' +

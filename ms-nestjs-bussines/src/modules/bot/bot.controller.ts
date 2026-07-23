@@ -22,6 +22,8 @@ import { EventosService } from '../eventos/eventos.service';
 import { TratamientosService } from '../tratamientos/tratamientos.service';
 import { DiarreaTernerosService } from '../diarrea-terneros/diarrea-terneros.service';
 import { LitrosService } from '../litros/litros.service';
+import { DietasService } from '../dietas/dietas.service';
+import { ResumenSaludService } from '../resumen-salud/resumen-salud.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
@@ -67,7 +69,12 @@ interface BotRequestBody {
     | 'editar_diarrea'
     | 'editar_tratamiento'
     | 'editar_evento'
-    | 'registrar_litros';
+    | 'registrar_litros'
+    | 'crear_dieta'
+    | 'consultar_dieta'
+    | 'desasignar_rodeo'
+    | 'consultar_del'
+    | 'consultar_salud';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -93,6 +100,8 @@ export class BotController {
     private readonly tratamientosService: TratamientosService,
     private readonly diarreaTernerosService: DiarreaTernerosService,
     private readonly litrosService: LitrosService,
+    private readonly dietasService: DietasService,
+    private readonly resumenSaludService: ResumenSaludService,
     @InjectRepository(TerneroEntity)
     private readonly terneroRepo: Repository<TerneroEntity>,
     @InjectRepository(MadreEntity)
@@ -1165,6 +1174,327 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'crear_dieta': {
+          const nombreRodeo = String(
+            body.nombre_rodeo || body.rodeo || '',
+          ).trim();
+          if (!nombreRodeo) {
+            return {
+              success: false,
+              mensaje: '👂 ¿A qué rodeo le cargo la dieta? Decime el nombre.',
+            };
+          }
+          const rodeo = await this.rodeosRepo
+            .createQueryBuilder('r')
+            .where('r.id_establecimiento = :id', { id: idEstablecimiento })
+            .andWhere('LOWER(r.nombre) LIKE :nombre', {
+              nombre: `%${nombreRodeo.toLowerCase()}%`,
+            })
+            .getOne();
+          if (!rodeo) {
+            return {
+              success: false,
+              mensaje: `🤔 No encontré el rodeo "${nombreRodeo}".`,
+            };
+          }
+
+          const modo = ['nota', 'formula', 'mezcla'].includes(body.modo)
+            ? body.modo
+            : 'nota';
+          const dto: any = {
+            id_rodeo: rodeo.id_rodeo,
+            modo,
+            nombre: body.nombre_dieta || undefined,
+          };
+          if (modo === 'nota') {
+            dto.nota = String(body.nota || body.observaciones || '').trim();
+            if (!dto.nota) {
+              return {
+                success: false,
+                mensaje: '👂 ¿Qué come el rodeo? Decime la dieta.',
+              };
+            }
+          } else if (modo === 'formula') {
+            dto.kg_por_animal = parseFloat(body.kg_por_animal) || 0;
+            if (dto.kg_por_animal <= 0) {
+              return { success: false, mensaje: '👂 ¿Cuántos kg por animal?' };
+            }
+          } else {
+            const ingr = Array.isArray(body.ingredientes)
+              ? body.ingredientes
+                  .map((i: any) => ({
+                    nombre: String(i?.nombre || '').trim(),
+                    kg: parseFloat(i?.kg) || 0,
+                  }))
+                  .filter((i: any) => i.nombre && i.kg > 0)
+              : [];
+            if (!ingr.length) {
+              return {
+                success: false,
+                mensaje:
+                  '👂 Decime los ingredientes y los kg (ej: 400 de soja, 300 de maíz).',
+              };
+            }
+            dto.ingredientes = ingr;
+          }
+
+          console.log('🍽️ Creando dieta:', dto);
+          const dieta: any = await this.dietasService.crear(
+            dto,
+            idEstablecimiento,
+          );
+
+          let mensaje = `✅ Dieta cargada al rodeo *${rodeo.nombre}*`;
+          if (modo === 'nota') mensaje += `\n📝 ${dieta.nota}`;
+          if (modo === 'formula')
+            mensaje += `\n⚖️ ${dieta.kg_por_animal} kg/animal × ${dieta.cantidad_animales} = ${dieta.total_rodeo} kg`;
+          if (modo === 'mezcla') {
+            mensaje +=
+              '\n' +
+              dieta.ingredientes
+                .map((i: any) => `  • ${i.nombre}: ${i.kg} kg`)
+                .join('\n');
+            mensaje += `\n📊 Total: ${dieta.total_rodeo} kg (${dieta.cantidad_animales} animales${dieta.kg_por_animal != null ? ', ' + dieta.kg_por_animal + ' kg/animal' : ''})`;
+          }
+          if (nombreEstablecimiento)
+            mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
+
+          return {
+            success: true,
+            accion: 'crear_dieta',
+            mensaje,
+            data: dieta,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'consultar_dieta': {
+          const nombreRodeo = String(
+            body.nombre_rodeo || body.rodeo || '',
+          ).trim();
+          if (!nombreRodeo) {
+            return {
+              success: false,
+              mensaje: '👂 ¿De qué rodeo querés ver la dieta? Decime el nombre.',
+            };
+          }
+          const rodeo = await this.rodeosRepo
+            .createQueryBuilder('r')
+            .where('r.id_establecimiento = :id', { id: idEstablecimiento })
+            .andWhere('LOWER(r.nombre) LIKE :nombre', {
+              nombre: `%${nombreRodeo.toLowerCase()}%`,
+            })
+            .getOne();
+          if (!rodeo) {
+            return {
+              success: false,
+              mensaje: `🤔 No encontré el rodeo "${nombreRodeo}".`,
+            };
+          }
+
+          const dietas: any[] = await this.dietasService.listarPorRodeo(
+            rodeo.id_rodeo,
+            idEstablecimiento,
+          );
+          if (!dietas.length) {
+            return {
+              success: true,
+              accion: 'consultar_dieta',
+              mensaje: `🍽️ El rodeo *${rodeo.nombre}* no tiene dieta cargada.`,
+            };
+          }
+
+          const bloques = dietas.map((d) => {
+            const etq = d.nombre ? `${d.nombre}: ` : '';
+            if (d.modo === 'nota') return `📝 ${etq}${d.nota}`;
+            if (d.modo === 'formula')
+              return `⚖️ ${etq}${d.kg_por_animal} kg/animal × ${d.cantidad_animales} = ${d.total_rodeo} kg`;
+            return (
+              `🥣 ${etq}\n` +
+              d.ingredientes
+                .map((i: any) => `  • ${i.nombre}: ${i.kg} kg`)
+                .join('\n') +
+              `\n  📊 Total: ${d.total_rodeo} kg`
+            );
+          });
+
+          return {
+            success: true,
+            accion: 'consultar_dieta',
+            mensaje: `🍽️ Dieta del rodeo *${rodeo.nombre}*:\n${bloques.join('\n\n')}`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'desasignar_rodeo': {
+          const rpTerneros: number[] = (
+            Array.isArray(body.rp_terneros)
+              ? body.rp_terneros
+              : body.rp_ternero != null
+                ? [body.rp_ternero]
+                : []
+          )
+            .map(Number)
+            .filter((n) => n > 0);
+          const rpMadres: number[] = (
+            Array.isArray(body.rp_madres)
+              ? body.rp_madres
+              : body.rp_madre != null
+                ? [body.rp_madre]
+                : []
+          )
+            .map(Number)
+            .filter((n) => n > 0);
+
+          if (!rpTerneros.length && !rpMadres.length) {
+            return {
+              success: false,
+              mensaje:
+                '👂 Decime el RP del ternero o la vaca que querés sacar del rodeo.',
+            };
+          }
+
+          const sacados: string[] = [];
+          const noEncontrados: string[] = [];
+
+          if (rpTerneros.length) {
+            const { ids, errores } = await this.resolverTerneroIdsEstricto(
+              rpTerneros,
+              idEstablecimiento,
+            );
+            if (ids.length) {
+              await this.rodeosRepo.query(
+                `UPDATE terneros SET id_rodeo = NULL WHERE id_ternero = ANY($1) AND id_establecimiento = $2`,
+                [ids, idEstablecimiento],
+              );
+              sacados.push(`🐄 Terneros: ${rpTerneros.join(', ')}`);
+            }
+            if (errores.length) noEncontrados.push(...errores);
+          }
+
+          if (rpMadres.length) {
+            const madres = await this.madreRepo
+              .createQueryBuilder('m')
+              .where('m.id_establecimiento = :est', { est: idEstablecimiento })
+              .andWhere('m.rp_madre IN (:...rps)', { rps: rpMadres })
+              .getMany();
+            const encontradasRps = madres.map((m) => m.rp_madre);
+            if (madres.length) {
+              await this.madreRepo.query(
+                `UPDATE madres SET id_rodeo = NULL WHERE id_madre = ANY($1) AND id_establecimiento = $2`,
+                [madres.map((m) => m.id_madre), idEstablecimiento],
+              );
+              sacados.push(`🐮 Vacas: ${encontradasRps.join(', ')}`);
+            }
+            rpMadres
+              .filter((rp) => !encontradasRps.includes(rp))
+              .forEach((rp) => noEncontrados.push(`RP ${rp} (vaca) no encontrada`));
+          }
+
+          if (!sacados.length) {
+            return {
+              success: false,
+              mensaje: `🤔 No pude sacar nada del rodeo:\n${noEncontrados.join('\n')}`,
+            };
+          }
+          let mensaje = `✅ Sacado(s) del rodeo\n${sacados.join('\n')}`;
+          if (noEncontrados.length)
+            mensaje += `\n⚠️ No encontrados:\n${noEncontrados.join('\n')}`;
+          if (nombreEstablecimiento)
+            mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
+          return { success: true, accion: 'desasignar_rodeo', mensaje };
+        }
+
+        // ──────────────────────────────────────
+        case 'consultar_del': {
+          const rpMadre = parseInt(body.rp_madre) || 0;
+          const esAdmin = userEntity?.rol === 'admin';
+
+          if (rpMadre > 0) {
+            const m = await this.madreRepo.findOne({
+              where: { rp_madre: rpMadre, id_establecimiento: idEstablecimiento },
+            });
+            if (!m) {
+              return {
+                success: false,
+                mensaje: `👀 No encontré la madre RP ${rpMadre} en tu establecimiento.`,
+              };
+            }
+            if (m.estado !== 'En Tambo') {
+              return {
+                success: true,
+                accion: 'consultar_del',
+                mensaje: `🐮 La vaca RP ${rpMadre} está *${m.estado}*, no está en ordeñe (sin días en leche).`,
+              };
+            }
+            const ultimoTernero = await this.terneroRepo
+              .createQueryBuilder('t')
+              .where('t.id_madre = :id', { id: m.id_madre })
+              .andWhere('t.id_establecimiento = :est', { est: idEstablecimiento })
+              .orderBy('t.fecha_nacimiento', 'DESC')
+              .getOne();
+            if (!ultimoTernero || !ultimoTernero.fecha_nacimiento) {
+              return {
+                success: true,
+                accion: 'consultar_del',
+                mensaje: `🐮 La vaca RP ${rpMadre} está En Tambo pero no tiene parto registrado, no puedo calcular los días en leche.`,
+              };
+            }
+            const dias = Math.max(
+              0,
+              Math.floor(
+                (Date.now() -
+                  new Date(ultimoTernero.fecha_nacimiento).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              ),
+            );
+            return {
+              success: true,
+              accion: 'consultar_del',
+              mensaje: `🐮 Vaca RP *${rpMadre}*\n🥛 Días en leche: *${dias}*${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+            };
+          }
+
+          // Sin RP → promedio del tambo
+          const stats = await this.madresService.getEstadisticas(
+            idEstablecimiento,
+            esAdmin,
+            null,
+          );
+          if (stats.promedio_dias_en_leche == null) {
+            return {
+              success: true,
+              accion: 'consultar_del',
+              mensaje:
+                '🥛 Todavía no hay vacas en ordeñe con parto registrado para sacar el promedio de días en leche.',
+            };
+          }
+          return {
+            success: true,
+            accion: 'consultar_del',
+            mensaje: `🥛 Promedio de días en leche del tambo: *${stats.promedio_dias_en_leche}* días\n🐄 Vacas en tambo: ${stats.en_tambo}${nombreEstablecimiento ? '\n🏠 Campo: ' + nombreEstablecimiento : ''}`,
+          };
+        }
+
+        // ──────────────────────────────────────
+        case 'consultar_salud': {
+          const esAdmin = userEntity?.rol === 'admin';
+          const r = await this.resumenSaludService.obtenerResumenSalud(
+            idEstablecimiento,
+            esAdmin,
+            idEstablecimiento,
+          );
+          const mensaje =
+            `🩺 Salud — ${nombreEstablecimiento || 'tu campo'}\n` +
+            `🐄 Terneros: ${r.totalTerneros} (vivos ${r.ternerosVivos}, muertos ${r.ternerosMuertos})\n` +
+            `💀 Mortalidad: ${r.porcentajeMortalidad}%\n` +
+            `🤒 Enfermos: ${r.porcentajeTernerosEnfermos}% (sanos ${r.ternerosCompletamenteSanos})\n` +
+            `💉 Con tratamientos: ${r.ternerosConTratamientos} (${r.tratamientosTotal} en total)\n` +
+            `💩 Con diarrea: ${r.ternerosConDiarreas} (${r.episodiosDiarrea} episodios)`;
+          return { success: true, accion: 'consultar_salud', mensaje };
+        }
+
+        // ──────────────────────────────────────
         case 'crear_evento': {
           const terneroRps = body.id_ternero
             ? Array.isArray(body.id_ternero)
@@ -1992,6 +2322,11 @@ export class BotController {
                 'editar_tratamiento',
                 'editar_evento',
                 'registrar_litros',
+                'crear_dieta',
+                'consultar_dieta',
+                'desasignar_rodeo',
+                'consultar_del',
+                'consultar_salud',
               ],
             },
             HttpStatus.BAD_REQUEST,
