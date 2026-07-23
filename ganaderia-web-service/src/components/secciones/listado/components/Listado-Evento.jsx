@@ -92,7 +92,7 @@ const ListadoEvento = () => {
       console.log("🗑️ Eliminando evento:", modalEliminar.evento.id_evento);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

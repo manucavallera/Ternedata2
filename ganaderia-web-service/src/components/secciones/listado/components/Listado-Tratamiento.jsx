@@ -68,7 +68,7 @@ const ListadoTratamiento = () => {
       );
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {
@@ -173,7 +173,7 @@ const ListadoTratamiento = () => {
       console.log("📤 Actualizando tratamiento:", tratamientoActualizado);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "PATCH",
           headers: {

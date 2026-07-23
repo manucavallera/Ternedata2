@@ -94,7 +94,7 @@ const ListadoDiarreaTernero = () => {
       );
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/diarrea-terneros/delete-diarrea-by-id/${modalEliminar.diarrea.id_diarrea_ternero}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/diarrea-terneros/delete-diarrea-by-id/${modalEliminar.diarrea.id_diarrea_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {
