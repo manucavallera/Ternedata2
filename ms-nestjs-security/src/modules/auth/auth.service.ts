@@ -106,7 +106,12 @@ export class AuthService {
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+      auth: {
+        user: process.env.MAIL_USER,
+        // Gmail suele mostrar las contraseñas de aplicación separadas por
+        // espacios; SMTP necesita los 16 caracteres continuos.
+        pass: process.env.MAIL_PASS?.replace(/\s/g, ''),
+      },
       tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
 
@@ -231,7 +236,7 @@ export class AuthService {
       service: 'gmail',
       auth: {
         user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        pass: process.env.MAIL_PASS?.replace(/\s/g, ''),
       },
       tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
@@ -288,7 +293,7 @@ export class AuthService {
       service: 'gmail',
       auth: {
         user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        pass: process.env.MAIL_PASS?.replace(/\s/g, ''),
       },
       tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
     });
