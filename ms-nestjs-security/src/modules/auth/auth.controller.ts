@@ -58,8 +58,10 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('/resend-verification')
   @ApiOperation({ summary: 'Reenviar email de verificación' })
-  async resendVerification(@Body() body: { email: string }) {
-    return this.AuthService.resendVerification(body.email);
+  async resendVerification(
+    @Body() body: { email: string; platform?: 'web' | 'mobile' },
+  ) {
+    return this.AuthService.resendVerification(body.email, body.platform);
   }
 
   @Post('/forgot-password')

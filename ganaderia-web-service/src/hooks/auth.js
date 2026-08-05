@@ -9,7 +9,7 @@ export const useAuthSession = () => {
     const registroHooks = async (objectUsuario) => {
       
         try {
-            const { data, config, headers, status, statusText, request } = await securityApi.post(`/auth/register`, objectUsuario);
+            const { data, config, headers, status, statusText, request } = await securityApi.post(`/auth/register`, { ...objectUsuario, platform: "web" });
             return { data, config, headers, status, statusText, request };
         } catch (error) {
             return error?.response?.status ?? 0;
@@ -93,7 +93,7 @@ export const useAuthSession = () => {
 
     const resendVerificationHook = async (email) => {
         try {
-            const { data } = await securityApi.post(`/auth/resend-verification`, { email });
+            const { data } = await securityApi.post(`/auth/resend-verification`, { email, platform: "web" });
             return { success: true, data };
         } catch (error) {
             return { success: false, status: error.response?.status };

@@ -28,7 +28,7 @@ export class AuthService {
   // REGISTER (Sin cambios, sigue igual de bien)
   // =================================================================
   async register(registerAuthDto: RegisterAuthDto) {
-    const { name, email, password, invitationToken } = registerAuthDto;
+    const { name, email, password, invitationToken, platform } = registerAuthDto;
     const telefono = (registerAuthDto as any).telefono;
 
 
@@ -81,7 +81,12 @@ export class AuthService {
     const newUser = await this.usersRepository.save(userObject);
 
     // Enviar mail de verificación (no bloquea el registro si el mail falla)
-    await this.enviarMailVerificacion(newUser.id, newUser.email, newUser.name);
+    await this.enviarMailVerificacion(
+      newUser.id,
+      newUser.email,
+      newUser.name,
+      platform,
+    );
 
     return {
       message:
@@ -97,12 +102,13 @@ export class AuthService {
     userId: number,
     email: string,
     nombre: string,
+    platform?: 'web' | 'mobile',
   ): Promise<void> {
     const token = this.jwtService.sign(
       { id: userId, email, type: 'verify' },
       { expiresIn: '24h' },
     );
-    const link = `${process.env.FRONTEND_URL}/auth/verify-email?token=${token}`;
+    const link = `${this.obtenerUrlFrontend(platform)}/auth/verify-email?token=${token}`;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -138,6 +144,20 @@ export class AuthService {
     }
   }
 
+  private obtenerUrlFrontend(platform?: 'web' | 'mobile'): string {
+    const url =
+      platform === 'web'
+        ? process.env.WEB_FRONTEND_URL
+        : platform === 'mobile'
+          ? process.env.MOBILE_FRONTEND_URL
+          : process.env.FRONTEND_URL;
+
+    return (url || process.env.FRONTEND_URL || 'http://localhost:3000').replace(
+      /\/$/,
+      '',
+    );
+  }
+
   async verifyEmail(token: string): Promise<{ message: string }> {
     let payload: any;
     try {
@@ -166,7 +186,10 @@ export class AuthService {
     return { message: 'Email verificado. Ya podés iniciar sesión.' };
   }
 
-  async resendVerification(email: string): Promise<{ message: string }> {
+  async resendVerification(
+    email: string,
+    platform?: 'web' | 'mobile',
+  ): Promise<{ message: string }> {
     const msgGenerico = {
       message: 'Si la cuenta existe y no está verificada, te enviamos un nuevo email.',
     };
@@ -174,7 +197,7 @@ export class AuthService {
     if (!user || user.email_verificado) {
       return msgGenerico; // no revelamos si existe ni su estado
     }
-    await this.enviarMailVerificacion(user.id, user.email, user.name);
+    await this.enviarMailVerificacion(user.id, user.email, user.name, platform);
     return msgGenerico;
   }
 

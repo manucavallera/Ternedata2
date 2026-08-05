@@ -8,6 +8,7 @@ import {
   MaxLength,
   Matches,
   IsOptional,
+  IsIn,
 } from 'class-validator';
 
 export class RegisterAuthDto {
@@ -58,4 +59,13 @@ export class RegisterAuthDto {
   @IsOptional()
   @IsString()
   invitationToken?: string;
+
+  @ApiProperty({
+    description: 'Cliente que solicitó la verificación',
+    enum: ['web', 'mobile'],
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['web', 'mobile'])
+  platform?: 'web' | 'mobile';
 }
