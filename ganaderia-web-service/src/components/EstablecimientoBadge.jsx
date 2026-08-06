@@ -8,6 +8,7 @@ export default function EstablecimientoBadge() {
 
   // Si es admin global, siempre mostrar admin (no pisar con roles de invitación)
   const resolverRolReal = () => {
+    if (userPayload.rol === 'super_admin') return 'super_admin';
     if (userPayload.rol === 'admin') return 'admin';
     const currentFarmId = userPayload.id_establecimiento;
     const roleInFarm = userPayload.userEstablecimientos?.find(
@@ -21,6 +22,14 @@ export default function EstablecimientoBadge() {
   // Función para obtener colores e iconos según el rol
   const getRolInfo = (rol) => {
     const r = rol?.toLowerCase() || "";
+
+    if (r === "super_admin") {
+      return {
+        icon: "🛡️",
+        label: "Super Admin",
+        color: "bg-red-600 border-red-400",
+      };
+    }
 
     // Mapeo flexible para cubrir "dueno", "admin", "administrador"
     if (r.includes("admin") || r.includes("dueno")) {
