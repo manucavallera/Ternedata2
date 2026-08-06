@@ -75,7 +75,7 @@ export class EstablecimientoGuard implements CanActivate {
 
     request.id_establecimiento = efectivo;
     request.establecimientos_permitidos = permitidos;
-    request.es_admin = user.rol === 'admin';
+    request.es_admin = user.rol === 'admin' || user.rol === 'super_admin';
 
     return true;
   }

@@ -99,7 +99,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     // ⬅️ ParseIntPipe
-    if (req.user.rol !== UserRole.ADMIN && req.user.userId !== id) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && req.user.userId !== id) {
       throw new HttpException(
         'No tienes permisos para ver este usuario',
         HttpStatus.FORBIDDEN,
@@ -158,7 +158,7 @@ export class UsersController {
       );
     }
 
-    if (req.user.rol !== UserRole.ADMIN && updateUserDto.rol) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && updateUserDto.rol) {
       throw new HttpException(
         'No tienes permisos para cambiar tu rol',
         HttpStatus.FORBIDDEN,
@@ -166,7 +166,7 @@ export class UsersController {
     }
 
     // Solo admins pueden cambiar el establecimiento asignado
-    if (req.user.rol !== UserRole.ADMIN && updateUserDto['id_establecimiento'] !== undefined) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && updateUserDto['id_establecimiento'] !== undefined) {
       delete updateUserDto['id_establecimiento'];
     }
 

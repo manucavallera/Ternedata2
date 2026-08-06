@@ -26,6 +26,7 @@ export class UsersService {
   // Obtener todos los usuarios (sin mostrar contraseña)
   async findAll(): Promise<UserEntity[]> {
     return this.usersRepository.find({
+      relations: ['establecimientosAsignados'],
       select: [
         'id',
         'name',
@@ -33,6 +34,7 @@ export class UsersService {
         'rol',
         'estado',
         'telefono',
+        'id_establecimiento',
         'fecha_creacion',
         'ultimo_acceso',
       ],
@@ -259,6 +261,7 @@ export class UsersService {
   }
 
   async verificarPertenenciaAdmin(adminUser: any, targetUserId: number): Promise<void> {
+    if (adminUser?.rol === UserRole.SUPER_ADMIN) return;
     const target = await this.usersRepository.findOne({
       where: { id: targetUserId },
       select: ['id', 'id_establecimiento'],
