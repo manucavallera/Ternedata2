@@ -12,6 +12,14 @@ originSessionId: 00ff5f96-f190-4f62-9ba9-2bc7dea08b22
 - `.env` files ya no se suben a git
 - `.env.example` creado en ambos servicios backend
 
+### Modelo de administración global (sesión 2026-08-06)
+- Se formalizó el rol global `super_admin` en security y business; reemplaza el hack anterior basado en `userId === 2`.
+- `super_admin` puede ver todos los establecimientos y usuarios; los roles `admin`, `veterinario` y `operario` siguen siendo de alcance por establecimiento.
+- Commits desplegables: backend principal `21752c3`, `1733976`, `042fae5`; frontend desktop `78a3750`; mobile `8b6bcd6`.
+- La cuenta de Manuel (`manucavallera44@gmail.com`) fue promovida manualmente en DB con `rol = 'super_admin'`; requiere logout/login para renovar JWT.
+- Pendiente/recomendado: panel `/super-admin` separado, selector persistente de establecimiento, edición de roles por establecimiento, vista global usuario→campos→animales, auditoría de cambios, 2FA para superadmin y confirmaciones para acciones destructivas.
+- Auditoría propuesta: tabla de eventos con actor, acción, entidad, `target_user_id`, `id_establecimiento`, metadata, IP/UA y fecha; registrar cambio de rol, alta/baja, invitaciones, asignaciones y modificaciones sensibles.
+
 ### Funcionalidades nuevas
 - **Asignar madres a rodeos**: endpoints `POST /rodeos/:id/asignar-madres` y `POST /rodeos/:id/desasignar-madres`
 - **Paginación**: madres y terneros devuelven `{ data, total, page, limit, totalPages }`
@@ -158,6 +166,16 @@ Commiteado (`fix(frontend): CRIT+HIGH+MED...`):
 - Bot confirmado funcionando end-to-end: ternero RP 16, peso, sexo, fecha, establecimiento OK
 
 ## Pendientes
+
+### Sesión 2026-08-06 — Próximo trabajo: panel global superadmin
+
+- Diseño aprobado y guardado en `docs/superpowers/specs/2026-08-06-superadmin-panel-design.md`.
+- Plan aprobado y guardado en `docs/superpowers/plans/2026-08-06-superadmin-panel.md`.
+- Commits creados: `ffc176a` (diseño) y `3eb6781` (plan).
+- No se modificó código de producción todavía.
+- Primera etapa: Security como fuente de verdad; listar usuarios globales, email/rol/estado/establecimientos, cambiar rol, activar/desactivar; solo `super_admin`; mobile y auditoría quedan para etapas posteriores.
+- Próximo paso: elegir ejecución `subagent-driven` o `inline`, luego implementar Task 1 del plan (contrato global Security + tests).
+- Herramientas instaladas: RTK global, Code Review Graph construido/registrado, skills de Matt Pocock globales y Superpowers disponible.
 
 | # | Item | Descripción |
 |---|------|-------------|
