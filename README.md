@@ -1,104 +1,83 @@
-# Proyecto "Ganadería"
+# 🐄 TerneData — Plataforma AgTech para Gestión Ganadera
 
-## Microservices Architecture con NestJS y Next.js
+> ⚠️ **Nota:** El código fuente de este proyecto es privado por tratarse de un producto comercial bajo licencia. Este repositorio funciona como un *case study* para demostrar la arquitectura, el diseño de la solución y las tecnologías implementadas.
 
-Este repositorio implementa una arquitectura de microservicios basada en **NestJS** para el backend y **Next.js** para el frontend. Los microservicios están organizados de manera modular y escalable, siguiendo patrones de diseño robustos, y utilizando **PostgreSQL** como sistema de gestión de bases de datos.
+## 📖 Resumen del proyecto
 
-La arquitectura está compuesta por dos microservicios principales: **ms-nestjs-security** (Autenticación) y **ms-nestjs-business** (Lógica de negocio), y un frontend en **Next.js** que se comunica con estos servicios utilizando **Axios** y gestionando el estado con **Redux Toolkit**.
+TerneData es una plataforma AgTech multiplataforma para digitalizar la gestión diaria de establecimientos ganaderos. Centraliza la trazabilidad de madres y terneros, el seguimiento sanitario, los tratamientos, los rodeos y los indicadores productivos en una experiencia accesible desde escritorio y dispositivos móviles.
 
----
+La plataforma permite a productores y equipos de trabajo organizar la información del campo, reducir registros manuales y tomar decisiones basadas en datos actualizados.
 
-## STACK PERN
+## 🚀 Funcionalidades principales
 
-### Tecnologías Utilizadas
+- **Trazabilidad de animales:** registro y seguimiento de madres y terneros, incluyendo estado, peso, nacimiento, movimientos y observaciones.
+- **Gestión sanitaria:** tratamientos, episodios de diarrea, controles de salud y alertas de bajo crecimiento.
+- **Rodeos y establecimientos:** organización de animales por rodeo y administración de uno o varios establecimientos.
+- **Producción y planificación:** registro de litros de leche, calendario de eventos y calculadora de sustituto lácteo.
+- **Dashboard de indicadores:** cantidad de animales, mortalidad, ganancia diaria de peso, alertas sanitarias y estado del rodeo.
+- **Gestión de equipo:** usuarios, roles, invitaciones y permisos para productores, operarios y colaboradores.
+- **Autenticación segura:** registro, login, verificación de email, recuperación de contraseña y control de acceso mediante JWT.
+- **Experiencia multiplataforma:** aplicación web y aplicación mobile construida con React Native y Expo.
 
-#### Backend:
-- **NestJS**: Framework para Node.js que permite crear aplicaciones backend escalables y bien estructuradas.
-- **JWT (JSON Web Tokens)**: Implementación de autenticación y autorización en el microservicio de seguridad para validar sesiones de usuario.
-- **PostgreSQL**: Base de datos relacional para la persistencia de datos en ambos microservicios.
-- **TypeORM**: ORM utilizado para interactuar con la base de datos PostgreSQL.
-- **Guards de NestJS**: Utilizados en ambos microservicios para proteger rutas según el estado de autenticación del usuario.
-- **CORS**: Configuración para permitir la comunicación entre el frontend y los microservicios backend.
+## 🛠️ Arquitectura y stack tecnológico
 
-#### Frontend:
-- **Next.js**: Framework de React para la construcción de interfaces de usuario con renderizado del lado del servidor y generación estática.
-- **Redux Toolkit**: Utilizado para manejar el estado global de la aplicación, especialmente para la gestión del estado de autenticación.
-- **Axios**: Librería para realizar peticiones HTTP desde el frontend hacia los microservicios backend.
+TerneData está compuesto por servicios independientes de autenticación y lógica de negocio, consumidos por clientes web y mobile.
 
-#### Contenerización:
-- **Docker**: Utilizado para contenerizar tanto los microservicios como el frontend, asegurando un entorno consistente en cualquier máquina.
-- **Docker Compose**: Para orquestar los contenedores y simplificar la configuración de múltiples servicios.
+- **Web:** Next.js, React y Tailwind CSS.
+- **Mobile:** Expo, React Native y React Navigation.
+- **Backend:** NestJS, dividido en servicios de seguridad/autenticación y lógica de negocio.
+- **Base de datos:** PostgreSQL con TypeORM.
+- **Autenticación:** JWT, verificación de email, recuperación de contraseña, roles y permisos.
+- **Infraestructura:** Docker, Nginx y despliegue en EasyPanel.
+- **Lenguajes:** JavaScript en frontend y TypeScript en los servicios backend.
 
----
+## 📸 Interfaz y demostración
 
-## Arquitectura de Microservicios
+Las siguientes capturas utilizan datos de prueba.
 
-La aplicación sigue una **arquitectura de microservicios en capas**, donde cada microservicio se encarga de una responsabilidad específica y se comunica con los demás a través de APIs REST. La estructura de la aplicación se divide en las siguientes capas y componentes:
+### Dashboard principal
 
-### 1. Microservicio de Autenticación (**ms-nestjs-security**):
-- **Responsabilidad**: Gestiona la autenticación de usuarios utilizando JWT.
-- **Rutas protegidas**: Implementa Guards para proteger las rutas que requieren autenticación.
-- **Tecnología**: NestJS, JWT, TypeORM (para la persistencia de datos de usuarios), PostgreSQL.
+![Dashboard principal](./screenshot-dashboard.png)
 
-#### Funciones:
-- Registro de usuario.
-- Login de usuario y emisión de tokens JWT.
-- Protección de rutas con Guards, permitiendo el acceso solo a usuarios autenticados.
-- Configuración de CORS para permitir el acceso desde el frontend.
+Vista general de indicadores productivos, estado del rodeo, alertas sanitarias y métricas de crecimiento.
 
-### 2. Microservicio de Negocio (**ms-nestjs-business**):
-- **Responsabilidad**: Gestiona la lógica de negocio de la aplicación relacionada con la ganadería.
-- **Tecnología**: NestJS, TypeORM, PostgreSQL.
+### Módulo de trazabilidad
 
-#### Funciones:
-- Gestión de registros de ganado (altas, bajas y modificaciones).
-- Control de vacunaciones y tratamientos sanitarios.
-- Registro de compras y ventas de animales.
-- Reportes de producción y seguimiento del rendimiento del ganado.
-- Validación de peticiones utilizando DTOs y Pipes.
-- Integración con el microservicio de autenticación para validar el acceso mediante tokens JWT.
-- Exposición de APIs REST que interactúan con el frontend.
+![Trazabilidad](./screenshot-trazabilidad.png)
 
-### 3. Frontend (**ganaderia-web-service**):
-- **Responsabilidad**: Interfaz de usuario de la aplicación, interactúa con los microservicios a través de peticiones HTTP.
-- **Tecnología**: Next.js, Redux Toolkit, Axios.
+Interfaz para registrar y consultar información individual de madres y terneros.
 
-#### Funciones:
-- Gestión del estado global con Redux Toolkit (por ejemplo, estado de autenticación).
-- Rutas dinámicas protegidas, validando si el usuario está logueado antes de acceder a ciertas páginas.
-- Comunicación con los microservicios backend usando Axios para hacer peticiones a las rutas protegidas de autenticación y negocio.
-- Renderizado del lado del servidor utilizando Next.js para mejorar el SEO y la experiencia del usuario.
+### Gestión sanitaria
 
----
+![Gestión sanitaria](./screenshot-salud.png)
 
-## Estructura del Proyecto
+Registro de tratamientos, controles sanitarios y seguimiento de episodios de salud.
 
-### Capas y Patrones de Diseño
+### Aplicación mobile
 
-La arquitectura sigue un enfoque de **microservicios** con una estructura **modular** y basada en capas. El patrón de diseño utilizado permite una fácil escalabilidad y mantenibilidad:
+![Aplicación mobile](./screenshot-mobile.jpeg)
 
-### 1. Capa de Presentación (**Frontend**):
-- El frontend en **Next.js** se encarga de la interacción con el usuario, utilizando **Redux Toolkit** para gestionar el estado de autenticación y las rutas protegidas.
-- Rutas dinámicas en **Next.js** permiten que las páginas sean renderizadas según el estado de autenticación, y se valida si el usuario está logueado antes de acceder a rutas protegidas.
+Acceso móvil a las principales funciones de gestión del establecimiento.
 
-### 2. Capa de Aplicación (**Backend - Microservicios**):
-Cada microservicio sigue el **patrón MVC** (Modelo-Vista-Controlador), donde:
-- **Modelo**: Las entidades que representan los datos.
-- **Vista**: Las respuestas HTTP de las APIs.
-- **Controlador**: Los controladores que gestionan las peticiones HTTP.
-- **Utiliza DTOs** para validar y transferir datos entre capas y servicios.
-- **Guards** para proteger las rutas y permitir solo el acceso a usuarios autenticados mediante tokens JWT.
+## 🎯 Problema que resuelve
 
-### 3. Capa de Persistencia (**Base de Datos**):
-- **PostgreSQL** es la base de datos utilizada para la persistencia de datos. Se interactúa con ella mediante **TypeORM**, lo que facilita la conexión y ejecución de operaciones SQL de manera eficiente.
+La administración ganadera suele depender de cuadernos, planillas dispersas y comunicación informal entre los integrantes del campo. Esto dificulta mantener una trazabilidad confiable, identificar problemas sanitarios a tiempo y conocer el estado productivo real del establecimiento.
 
----
+TerneData concentra esa información en una única plataforma, permitiendo consultar y registrar datos desde cualquier dispositivo.
 
-## Configuración de Entorno
+## 🔐 Seguridad
 
-Cada microservicio tiene su propio archivo **.env** para la configuración de variables de entorno.
+La plataforma incluye:
 
+- Autenticación mediante JWT.
+- Verificación de email.
+- Recuperación y actualización de contraseña.
+- Gestión de roles y permisos.
+- Control de acceso por establecimiento.
+- Invitaciones para incorporar colaboradores al equipo.
 
+## 📱 Plataformas
 
-
-
+- Aplicación web para administración completa.
+- Aplicación mobile para registrar y consultar información desde el campo.
+- Backend API preparado para integrar nuevos clientes o servicios en el futuro.
