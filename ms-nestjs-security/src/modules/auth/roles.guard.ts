@@ -27,6 +27,9 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
+    // Super admin is a platform role and bypasses establishment-level roles.
+    if (user.rol === UserRole.SUPER_ADMIN) return true;
+
     console.log('👮‍♂️ RolesGuard revisando a:', user.username);
     console.log('📋 Roles requeridos:', requiredRoles);
     console.log('👤 Rol Global:', user.rol);
@@ -39,7 +42,9 @@ export class RolesGuard implements CanActivate {
     // Esto es lo que permite que el Veterinario pase aunque su rol base sea Operario
     if (user.userEstablecimientos && Array.isArray(user.userEstablecimientos)) {
       const hasSpecificRole = user.userEstablecimientos.some((ue) =>
-        requiredRoles.some((reqRole) => ue.rol === reqRole),
+        requiredRoles.some(
+          (reqRole) => ue.rol === reqRole || (reqRole === 'admin' && ue.rol === 'dueno'),
+        ),
       );
 
       if (hasSpecificRole) {

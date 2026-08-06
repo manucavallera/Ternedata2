@@ -27,6 +27,9 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
+    // Super admin is a platform role and bypasses establishment-level roles.
+    if (user.rol === 'super_admin') return true;
+
     // --- LOGS DE DEPURACIÓN (Borrar en producción) ---
     console.log('👮‍♂️ RolesGuard revisando a:', user.username);
     console.log('📋 Roles requeridos:', requiredRoles);

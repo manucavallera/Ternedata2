@@ -5,6 +5,7 @@ export enum UserRole {
   ADMIN = 'admin',
   VETERINARIO = 'veterinario',
   OPERARIO = 'operario',
+  SUPER_ADMIN = 'super_admin',
 }
 
 export const ROLES_KEY = 'roles';

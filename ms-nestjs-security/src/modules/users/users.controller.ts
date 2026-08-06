@@ -32,6 +32,9 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Crear nuevo usuario (solo admin)' })
   async create(@Body() createUserDto: CreateUserDto) {
+    if (createUserDto.rol === UserRole.SUPER_ADMIN) {
+      throw new HttpException('El rol super_admin no se puede asignar desde este endpoint', HttpStatus.FORBIDDEN);
+    }
     return await this.usersService.create(createUserDto);
   }
 
@@ -96,7 +99,7 @@ export class UsersController {
   @Get(':id')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    if (req.user.rol !== UserRole.ADMIN && req.user.userId !== id) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && req.user.userId !== id) {
       throw new HttpException(
         'No tienes permisos para ver este usuario',
         HttpStatus.FORBIDDEN,
@@ -112,14 +115,14 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Request() req,
   ) {
-    if (req.user.rol !== UserRole.ADMIN && req.user.userId !== id) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && req.user.userId !== id) {
       throw new HttpException(
         'No tienes permisos para actualizar este usuario',
         HttpStatus.FORBIDDEN,
       );
     }
 
-    if (req.user.rol !== UserRole.ADMIN && updateUserDto.rol) {
+    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && updateUserDto.rol) {
       throw new HttpException(
         'No tienes permisos para cambiar tu rol',
         HttpStatus.FORBIDDEN,
@@ -149,7 +152,11 @@ export class UsersController {
   async changeRole(
     @Param('id', ParseIntPipe) id: number,
     @Body('rol') rol: UserRole,
+    @Request() req,
   ) {
+    if (rol === UserRole.SUPER_ADMIN && req.user.rol !== UserRole.SUPER_ADMIN) {
+      throw new HttpException('Solo un super_admin puede asignar ese rol', HttpStatus.FORBIDDEN);
+    }
     return await this.usersService.changeRole(id, rol);
   }
 

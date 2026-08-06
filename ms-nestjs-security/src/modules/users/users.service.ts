@@ -24,8 +24,7 @@ export class UsersService {
   // 🔍 FIND ALL (Lógica de Dueño Multi-Campo)
   // ============================================================
   async findAll(currentUser: any): Promise<UserEntity[]> {
-    const esSuperAdmin =
-      currentUser.rol === 'super_admin' || currentUser.userId === 2;
+    const esSuperAdmin = currentUser.rol === UserRole.SUPER_ADMIN;
 
     // CASO 1: SUPER ADMIN
     if (esSuperAdmin) {
@@ -131,8 +130,7 @@ export class UsersService {
   // 👇 MODIFICADO: Estadísticas
   async getStats(currentUser: any) {
     let whereClause: any = {};
-    let esSuperAdmin =
-      currentUser.rol === 'super_admin' || currentUser.userId === 2;
+    let esSuperAdmin = currentUser.rol === UserRole.SUPER_ADMIN;
 
     if (!esSuperAdmin) {
       if (currentUser.rol === 'admin') {
