@@ -27,6 +27,12 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
+    // SUPER_ADMIN is a global role; an establishment assignment must never grant it.
+    if (requiredRoles.includes(UserRole.SUPER_ADMIN)) {
+      if (user.rol === UserRole.SUPER_ADMIN) return true;
+      throw new ForbiddenException('Acceso denegado. Se requiere super_admin');
+    }
+
     // Super admin is a platform role and bypasses establishment-level roles.
     if (user.rol === UserRole.SUPER_ADMIN) return true;
 

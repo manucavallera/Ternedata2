@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { ChangeUserRoleDto, CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -48,6 +48,13 @@ export class UsersController {
       );
     }
     return await this.usersService.findAll(req.user);
+  }
+
+  @Get('admin/global')
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Obtener usuarios globales (solo super_admin)' })
+  async findAllGlobal() {
+    return await this.usersService.findAllGlobal();
   }
 
   // 👇 MODIFICADO: Ahora recibe @Request() para filtrar estadísticas
@@ -140,24 +147,20 @@ export class UsersController {
   }
 
   @Put(':id/toggle-status')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Activar/Desactivar usuario (solo admin)' })
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Activar/Desactivar usuario (solo super_admin)' })
   async toggleStatus(@Param('id', ParseIntPipe) id: number) {
     return await this.usersService.toggleStatus(id);
   }
 
   @Put(':id/change-role')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Cambiar rol de usuario (solo admin)' })
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Cambiar rol de usuario (solo super_admin)' })
   async changeRole(
     @Param('id', ParseIntPipe) id: number,
-    @Body('rol') rol: UserRole,
-    @Request() req,
+    @Body() body: ChangeUserRoleDto,
   ) {
-    if (rol === UserRole.SUPER_ADMIN && req.user.rol !== UserRole.SUPER_ADMIN) {
-      throw new HttpException('Solo un super_admin puede asignar ese rol', HttpStatus.FORBIDDEN);
-    }
-    return await this.usersService.changeRole(id, rol);
+    return await this.usersService.changeRole(id, body.rol);
   }
 
   @Post('assign-establishment')
@@ -172,8 +175,8 @@ export class UsersController {
   }
 
   @Get(':id/establecimientos')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Obtener establecimientos asignados al usuario' })
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Obtener establecimientos asignados (solo super_admin)' })
   async getEstablecimientos(@Param('id', ParseIntPipe) id: number) {
     return await this.usersService.getEstablecimientos(id);
   }
