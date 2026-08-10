@@ -10,6 +10,7 @@ import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { TeamManager } from "@/components/TeamManager"; // 👈 1. AGREGAR ESTO
 import { setUserData, setEstablecimientoActual } from "@/store/auth/authSlice";
+import { SuperAdminUsersPanel } from "./SuperAdminUsersPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -992,7 +993,21 @@ const AdminPanel = () => {
       {/* Tabs */}
       <div className='bg-white rounded-lg shadow-md mb-6'>
         <div className='flex border-b overflow-x-auto scrollbar-hide'>
+          {usuarioSeguro?.rol === "super_admin" && (
+            <button
+              type='button'
+              onClick={() => setActiveTab("global")}
+              className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
+                activeTab === "global"
+                  ? "border-b-2 border-red-500 text-red-600"
+                  : "text-gray-600 hover:text-red-600"
+              }`}
+            >
+              🌐 Usuarios globales
+            </button>
+          )}
           <button
+            type='button'
             onClick={() => setActiveTab("usuarios")}
             className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
               activeTab === "usuarios"
@@ -1049,6 +1064,9 @@ const AdminPanel = () => {
           )}
         </div>
       </div>
+      {activeTab === "global" && usuarioSeguro?.rol === "super_admin" && (
+        <SuperAdminUsersPanel />
+      )}
       {/* TAB: USUARIOS */}
       {activeTab === "usuarios" && (
         <div className='bg-white rounded-lg shadow-md p-6'>
