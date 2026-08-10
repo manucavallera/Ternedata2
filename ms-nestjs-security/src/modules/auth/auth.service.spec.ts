@@ -77,4 +77,57 @@ describe('AuthService public session contract', () => {
 
     expectPublicUser(result.user as unknown as Record<string, unknown>);
   });
+
+  const createRegistrationService = () => {
+    const usersRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(async (user) => ({ id: 8, ...user })),
+    };
+    const service = new AuthService(
+      usersRepository as any,
+      {} as any,
+      { sign: jest.fn().mockReturnValue('verify-jwt') } as any,
+    );
+    jest
+      .spyOn(service as any, 'enviarMailVerificacion')
+      .mockResolvedValue(undefined);
+    return { service, usersRepository };
+  };
+
+  it('registro invitado crea operario no verificado y pide verificar email', async () => {
+    const { service, usersRepository } = createRegistrationService();
+
+    const result = await service.register({
+      name: 'Persona Invitada',
+      email: 'invitada@example.com',
+      password: 'clave123',
+      invitationToken: 'invite-1',
+      platform: 'web',
+    });
+
+    expect(usersRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rol: 'operario',
+        email_verificado: false,
+        id_establecimiento: null,
+      }),
+    );
+    expect(result.message).toContain('verificar tu cuenta');
+    expect(result.message.toLowerCase()).not.toContain('activación exitosa');
+  });
+
+  it('registro normal conserva admin no verificado', async () => {
+    const { service, usersRepository } = createRegistrationService();
+
+    await service.register({
+      name: 'Persona Administradora',
+      email: 'admin@example.com',
+      password: 'clave123',
+      platform: 'web',
+    });
+
+    expect(usersRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ rol: 'admin', email_verificado: false }),
+    );
+  });
 });

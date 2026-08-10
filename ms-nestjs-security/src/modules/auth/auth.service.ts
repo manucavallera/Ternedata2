@@ -40,7 +40,7 @@ export class AuthService {
   ) {}
 
   // =================================================================
-  // REGISTER (Sin cambios, sigue igual de bien)
+  // REGISTER
   // =================================================================
   async register(registerAuthDto: RegisterAuthDto) {
     const { name, email, password, invitationToken, platform } = registerAuthDto;
@@ -78,8 +78,9 @@ export class AuthService {
 
     const passwordHash = await hash(password, 10);
 
-    // Sin invitación → admin (crea su propio establecimiento)
-    // Con invitación → operario (será asignado al establecimiento del admin)
+    // Sin invitación → admin (crea su propio establecimiento).
+    // Con intención de invitación → operario. Business valida y acepta el
+    // token recién después de verificar email e iniciar sesión.
     const rol = invitationToken ? 'operario' : 'admin';
 
     const userObject = {
