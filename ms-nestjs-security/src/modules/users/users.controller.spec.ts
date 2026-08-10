@@ -1,4 +1,3 @@
-import { Reflector } from '@nestjs/core';
 import { UsersController } from './users.controller';
 import { UserRole } from './entity/users.entity';
 import { ROLES_KEY } from '../auth/roles.decorator';
@@ -38,4 +37,3 @@ describe('UsersController global administration', () => {
     expect(service.changeRole).toHaveBeenCalledWith(4, UserRole.VETERINARIO);
   });
 });
-
