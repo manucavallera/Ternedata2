@@ -15,8 +15,14 @@ import businessApi from "@/api/bussines-api";
 import securityApi from "@/api/security-api";
 import { equipoService } from "@/api/equipoRepo";
 import { saveRefreshedSession } from "@/hooks/saveRefreshedSession.mjs";
-import { clearAuthCredentials } from "@/utils/invitationContext.mjs";
-import { completePendingInvitation } from "@/utils/pendingInvitationFlow.mjs";
+import {
+  clearAuthCredentials,
+  resolveInvitation,
+} from "@/utils/invitationContext.mjs";
+import {
+  completePendingInvitation,
+  getInvitationFailure,
+} from "@/utils/pendingInvitationFlow.mjs";
 
 
 const LoginContent = () => {
@@ -101,15 +107,15 @@ const LoginContent = () => {
           }
         }
       } catch (err) {
+        const invitationFailure = getInvitationFailure(err);
         clearAuthCredentials(localStorage);
         dispatch(setAuthPayload({}));
         dispatch(setStatus("not-authenticated"));
         dispatch(setUserData({}));
         setUserAlert({
           status: true,
-          message:
-            err?.response?.data?.message ||
-            "No se pudo aceptar la invitación. Revisá el link o la cuenta usada.",
+          invitation: true,
+          message: invitationFailure.message,
         });
         return;
       }
@@ -225,7 +231,7 @@ const LoginContent = () => {
             </button>
 
             {userAlert?.status && (
-              <p className='bg-red-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2'>
+              <div className='bg-red-500 text-white text-center text-sm font-semibold p-2 rounded-md shadow-md mt-2'>
                 {userAlert?.message}
                 {userAlert?.verify && (
                   <>
@@ -235,7 +241,19 @@ const LoginContent = () => {
                     </a>
                   </>
                 )}
-              </p>
+                {userAlert?.invitation && (
+                  <button
+                    type='button'
+                    onClick={() => {
+                      resolveInvitation(localStorage);
+                      setUserAlert({ status: false, message: "" });
+                    }}
+                    className='block mx-auto mt-2 underline'
+                  >
+                    Descartar invitación e iniciar sesión normalmente
+                  </button>
+                )}
+              </div>
             )}
           </form>
         </div>

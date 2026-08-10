@@ -8,6 +8,7 @@ import { useRouterSession } from "@/utils/routerSession";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
 import { useSearchParams } from "next/navigation";
+import { readInvitation } from "@/utils/invitationContext.mjs";
 
 const Registercomponent = () => {
   const dispatch = useDispatch();
@@ -32,11 +33,11 @@ const Registercomponent = () => {
 
   useEffect(() => {
     const tokenUrl = searchParams.get("token");
-    const tokenStorage =
+    const storedInvitation =
       typeof window !== "undefined"
-        ? localStorage.getItem("backupToken")
-        : null;
-    const tokenFinal = tokenUrl || tokenStorage;
+        ? readInvitation(localStorage)
+        : { token: null, email: null };
+    const tokenFinal = tokenUrl || storedInvitation.token;
 
     if (tokenFinal) {
       setTokenCapturado(tokenFinal);
@@ -47,9 +48,9 @@ const Registercomponent = () => {
     }
 
     // Pre-llenar email si viene en la URL (desde la invitación)
-    const emailUrl = searchParams.get("email");
-    if (emailUrl) {
-      setValue("email", emailUrl);
+    const emailFinal = searchParams.get("email") || storedInvitation.email;
+    if (emailFinal) {
+      setValue("email", emailFinal);
     }
   }, [searchParams, setValue]);
 

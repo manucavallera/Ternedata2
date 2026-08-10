@@ -1,6 +1,9 @@
 import { InvitacionesService } from './invitaciones.service';
 import { RolEstablecimiento } from './roles.enum';
 import { Logger } from '@nestjs/common';
+import { InvitacionEntity } from './invitacion.entity';
+import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
+import { UserEntity } from '../users/entity/users.entity';
 
 describe('InvitacionesService', () => {
   const invitationRepo = {
@@ -14,6 +17,10 @@ describe('InvitacionesService', () => {
   const userEstablecimientoRepo = {
     findOne: jest.fn(),
     save: jest.fn(),
+  };
+  const userRepo = {
+    findOne: jest.fn(),
+    update: jest.fn(),
   };
   const usersService = {
     findOne: jest.fn(),
@@ -30,11 +37,24 @@ describe('InvitacionesService', () => {
     mailService as any,
   );
 
+  const transactionManager = {
+    getRepository: jest.fn((entity) => {
+      if (entity === InvitacionEntity) return invitationRepo;
+      if (entity === UserEstablecimientoEntity) return userEstablecimientoRepo;
+      if (entity === UserEntity) return userRepo;
+      throw new Error('Repositorio transaccional inesperado');
+    }),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     process.env.FRONTEND_URL = 'https://app.ternedata.test';
     invitationRepo.findOne.mockResolvedValue(null);
+    (invitationRepo as any).manager = {
+      transaction: jest.fn(async (callback) => callback(transactionManager)),
+    };
+    userRepo.findOne.mockResolvedValue({ id: 8, email: 'persona@example.com' });
   });
 
   afterEach(() => {
@@ -58,6 +78,61 @@ describe('InvitacionesService', () => {
     expect(result.link).toContain('email=persona%40example.com');
   });
 
+  it('normaliza el email al crear y enviar una invitación', async () => {
+    mailService.sendMail.mockResolvedValue({ accepted: ['persona@example.com'], rejected: [] });
+
+    const result = await service.generarLink(
+      4,
+      RolEstablecimiento.OPERARIO,
+      '  Persona@Example.com  ',
+    );
+
+    expect(invitationRepo.findOne).toHaveBeenCalledWith({
+      where: {
+        email: 'persona@example.com',
+        establecimientoId: 4,
+        usado: false,
+      },
+    });
+    expect(invitationRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'persona@example.com' }),
+    );
+    expect(mailService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'persona@example.com' }),
+    );
+    expect(result.emailEnviado).toBe('persona@example.com');
+  });
+
+  it('informa fallo cuando SMTP resuelve pero rechaza al destinatario', async () => {
+    mailService.sendMail.mockResolvedValue({
+      accepted: [],
+      rejected: ['persona@example.com'],
+    });
+
+    const result = await service.generarLink(
+      4,
+      RolEstablecimiento.OPERARIO,
+      'persona@example.com',
+    );
+
+    expect(result.emailEnviado).toBeNull();
+    expect(result.emailError).toBe('No se pudo enviar el correo');
+  });
+
+  it('normaliza el email al buscar invitaciones automáticas', async () => {
+    usersService.findOne.mockResolvedValue({ email: '  Persona@Example.com  ' });
+    invitationRepo.find.mockResolvedValue([]);
+
+    await service.aceptarPorEmail(8);
+
+    const where = invitationRepo.find.mock.calls[0][0].where;
+    expect(where.usado).toBe(false);
+    expect(where.email).toMatchObject({
+      _type: 'raw',
+      _objectLiteralParameters: { email: 'persona@example.com' },
+    });
+  });
+
   it('rechaza una invitación dirigida cuando el email no coincide', async () => {
     invitationRepo.findOne.mockResolvedValue({
       id: 10,
@@ -68,7 +143,7 @@ describe('InvitacionesService', () => {
       establecimientoId: 4,
       rol: RolEstablecimiento.OPERARIO,
     });
-    usersService.findOne.mockResolvedValue({ email: 'otro@example.com' });
+    userRepo.findOne.mockResolvedValue({ id: 8, email: 'otro@example.com' });
 
     await expect(service.aceptarLink('invite-1', 8)).rejects.toMatchObject({
       status: 403,
@@ -135,6 +210,7 @@ describe('InvitacionesService', () => {
       rol: RolEstablecimiento.VETERINARIO,
     });
     expect(invitationRepo.update).toHaveBeenCalledWith(10, { usado: true });
-    expect(usersService.assignEstablecimiento).toHaveBeenCalledWith(8, 4);
+    expect(userRepo.update).toHaveBeenCalledWith(8, { id_establecimiento: 4 });
+    expect((invitationRepo as any).manager.transaction).toHaveBeenCalledTimes(1);
   });
 });

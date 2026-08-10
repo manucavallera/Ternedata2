@@ -8,6 +8,7 @@ import {
   clearAuthCredentials,
   resolveInvitation,
 } from "@/utils/invitationContext.mjs";
+import { getInvitationFailure } from "@/utils/pendingInvitationFlow.mjs";
 
 function JoinContent() {
   const searchParams = useSearchParams();
@@ -15,6 +16,7 @@ function JoinContent() {
   const email = searchParams.get("email");
   const router = useRouter();
   const [status, setStatus] = useState("cargando");
+  const [failure, setFailure] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -71,9 +73,7 @@ function JoinContent() {
       }
     } catch {
       // Si falla el refresh, forzar re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("userSelected");
-      localStorage.removeItem("NEXT_JS_AUTH");
+      clearAuthCredentials(localStorage);
       window.location.href = "/auth/login";
       return;
     }
@@ -94,7 +94,14 @@ function JoinContent() {
         resolveInvitation(localStorage);
         await refrescarYRedirigir();
       } else {
-        setStatus("error");
+        const invitationFailure = getInvitationFailure(error);
+        setFailure(invitationFailure);
+        if (invitationFailure.kind === "wrong_account") {
+          clearAuthCredentials(localStorage);
+          setStatus("wrong_account");
+        } else {
+          setStatus("error");
+        }
       }
     }
   };
@@ -167,6 +174,24 @@ function JoinContent() {
           </>
         )}
 
+        {status === "wrong_account" && (
+          <>
+            <div className='text-5xl mb-4'>🔒</div>
+            <h2 className='text-2xl font-bold text-red-600 mb-2'>
+              Esta invitación pertenece a otra cuenta
+            </h2>
+            <p className='text-gray-600 mb-6'>{failure?.message}</p>
+            <button
+              onClick={() => {
+                window.location.href = "/auth/login";
+              }}
+              className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold'
+            >
+              Iniciar con la cuenta invitada
+            </button>
+          </>
+        )}
+
         {status === "error" && (
           <>
             <div className='text-5xl mb-4'>❌</div>
@@ -174,16 +199,19 @@ function JoinContent() {
               Link inválido o expirado
             </h2>
             <p className='text-gray-600 mb-2'>
-              Este link ya fue usado o expiró.
+              {failure?.message || "Este link ya fue usado o expiró."}
             </p>
             <p className='text-gray-500 text-sm mb-6'>
               Pedile al administrador que genere un nuevo link de invitación.
             </p>
             <button
-              onClick={() => router.push("/")}
+              onClick={() => {
+                resolveInvitation(localStorage);
+                router.push("/");
+              }}
               className='text-blue-600 font-semibold hover:underline'
             >
-              Volver al Inicio
+              Descartar invitación y volver al inicio
             </button>
           </>
         )}

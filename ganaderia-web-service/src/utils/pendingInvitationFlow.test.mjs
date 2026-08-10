@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readInvitation } from "./invitationContext.mjs";
-import { completePendingInvitation } from "./pendingInvitationFlow.mjs";
+import {
+  completePendingInvitation,
+  getInvitationFailure,
+} from "./pendingInvitationFlow.mjs";
 
 const createStorage = (initial = {}) => {
   const values = new Map(Object.entries(initial));
@@ -78,4 +81,29 @@ test("sin invitaciones pendientes informa none", async () => {
   });
 
   assert.deepEqual(result, { accepted: false, source: "none" });
+});
+
+test("una caída del sondeo automático no bloquea un login normal", async () => {
+  const result = await completePendingInvitation({
+    storage: createStorage(),
+    acceptToken: async () => assert.fail("no debe aceptar token"),
+    acceptByEmail: async () => {
+      throw new Error("Business caído");
+    },
+  });
+
+  assert.deepEqual(result, { accepted: false, source: "none" });
+});
+
+test("clasifica 403 como cuenta incorrecta y 400 como link inválido", () => {
+  assert.deepEqual(
+    getInvitationFailure({
+      response: { status: 403, data: { message: "Usá la cuenta invitada" } },
+    }),
+    { kind: "wrong_account", message: "Usá la cuenta invitada" },
+  );
+  assert.deepEqual(
+    getInvitationFailure({ response: { status: 400, data: {} } }),
+    { kind: "invalid", message: "Link inválido, usado o expirado" },
+  );
 });

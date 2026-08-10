@@ -1,5 +1,26 @@
 import { readInvitation, resolveInvitation } from "./invitationContext.mjs";
 
+export const getInvitationFailure = (error) => {
+  const status = error?.response?.status;
+  const message = error?.response?.data?.message;
+  if (status === 403) {
+    return {
+      kind: "wrong_account",
+      message: message || "Esta invitación pertenece a otra cuenta",
+    };
+  }
+  if (status === 400) {
+    return {
+      kind: "invalid",
+      message: message || "Link inválido, usado o expirado",
+    };
+  }
+  return {
+    kind: "temporary",
+    message: message || "No se pudo aceptar la invitación",
+  };
+};
+
 export const completePendingInvitation = async ({
   storage,
   acceptToken,
@@ -18,7 +39,12 @@ export const completePendingInvitation = async ({
     return { accepted: true, source: "token" };
   }
 
-  const result = await acceptByEmail();
+  let result;
+  try {
+    result = await acceptByEmail();
+  } catch {
+    return { accepted: false, source: "none" };
+  }
   if (Number(result?.aceptadas) > 0) {
     return { accepted: true, source: "email" };
   }
