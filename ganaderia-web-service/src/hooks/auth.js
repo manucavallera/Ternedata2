@@ -1,6 +1,7 @@
 import { useDispatch } from 'react-redux';
 import securityApi from '@/api/security-api';
 import { setAuthPayload, setStatus, setUserData } from '@/store/auth';
+import { clearAuthCredentials } from '@/utils/invitationContext.mjs';
 
 export const useAuthSession = () => {
     
@@ -23,7 +24,7 @@ export const useAuthSession = () => {
            
             // ✅ Verificar que estamos en el navegador antes de usar localStorage
             if (data && typeof window !== "undefined") {
-                localStorage.clear();
+                clearAuthCredentials(localStorage);
                 localStorage.setItem('token',data?.token);
                 localStorage.setItem('userSelected',JSON.stringify(data?.user));
             }
@@ -35,7 +36,7 @@ export const useAuthSession = () => {
         } catch (error) {
             // ✅ Verificar que estamos en el navegador antes de usar localStorage
             if (typeof window !== "undefined") {
-                localStorage.clear();
+                clearAuthCredentials(localStorage);
             }
             dispatch(setAuthPayload({}));
             dispatch(setStatus("not-authenticated"));

@@ -118,3 +118,9 @@ export class UpdateUserDto {
   @IsOptional()
   id_establecimiento?: number | null;
 }
+
+export class ChangeUserRoleDto {
+  @ApiProperty({ enum: UserRole })
+  @IsEnum(UserRole)
+  rol: UserRole;
+}

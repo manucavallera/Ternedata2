@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { equipoService } from "@/api/equipoRepo";
+import { getInvitationDeliveryState } from "./invitationDeliveryState.mjs";
 
 const ROL_COLORS = {
   dueno: "bg-purple-100 text-purple-800",
@@ -100,6 +101,9 @@ export const TeamManager = ({ establecimientoId }) => {
   };
 
   const expirado = (fecha) => new Date() > new Date(fecha);
+  const deliveryState = invResult
+    ? getInvitationDeliveryState(invResult)
+    : null;
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
@@ -289,7 +293,7 @@ export const TeamManager = ({ establecimientoId }) => {
                     <option value="veterinario">🩺 Veterinario</option>
                   </select>
                 </div>
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
                     type="button"
                     onClick={cerrarModal}
@@ -308,9 +312,14 @@ export const TeamManager = ({ establecimientoId }) => {
               </form>
             ) : (
               <div className="space-y-4">
-                {invResult.emailEnviado ? (
+                {deliveryState.kind === "sent" ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
                     ✅ Email enviado a <strong>{invResult.emailEnviado}</strong>
+                  </div>
+                ) : deliveryState.kind === "email_failed" ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                    ⚠️ No se pudo enviar el correo. La invitación sigue válida:
+                    copiá el link y envialo manualmente.
                   </div>
                 ) : (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
@@ -320,7 +329,7 @@ export const TeamManager = ({ establecimientoId }) => {
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 break-all">
                   {invResult.link}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => copiarLink(invResult.link)}
                     className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors"

@@ -13,6 +13,7 @@ import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { equipoService } from "@/api/equipoRepo";
 import businessApi from "@/api/bussines-api";
+import { canAccessAdminPanel } from "./navbarAccess.mjs";
 
 function Navbar() {
   const dispatch = useDispatch();
@@ -265,10 +266,10 @@ function Navbar() {
                 </li>
               )}
 
-              {userPayload?.rol === "admin" && (
+              {canAccessAdminPanel(userPayload?.rol) && (
                 <li>
                   <Link
-                    href='/panel-admin'
+                    href='/admin/panel'
                     className='relative flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all cursor-pointer'
                   >
                     <span className='text-xs sm:text-sm font-semibold'>🎛️ Admin</span>
@@ -313,9 +314,9 @@ function Navbar() {
                       </svg>
                       Mi Perfil
                     </Link>
-                    {userPayload?.rol === "admin" && (
+                    {canAccessAdminPanel(userPayload?.rol) && (
                       <Link
-                        href='/panel-admin'
+                        href='/admin/panel'
                         onClick={() => setIsProfileOpen(false)}
                         className='block w-full text-center px-3 py-2 hover:bg-gray-200 text-black-500 flex items-center justify-center gap-2 text-sm'
                       >
@@ -457,9 +458,9 @@ function Navbar() {
               </div>
             )}
 
-            {userPayload?.rol === "admin" && (
+            {canAccessAdminPanel(userPayload?.rol) && (
               <Link
-                href='/panel-admin'
+                href='/admin/panel'
                 onClick={() => setIsMobileMenuOpen(false)}
                 className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
               >

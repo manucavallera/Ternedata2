@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UserEntity, UserRole } from './entity/users.entity';
@@ -10,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserEstablecimientoEntity } from './entity/user-establecimiento.entity';
+import { Establecimiento } from './entity/establecimiento.entity';
 
 @Injectable()
 export class UsersService {
@@ -18,7 +20,56 @@ export class UsersService {
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstablecimientoRepository: Repository<UserEstablecimientoEntity>,
+    @InjectRepository(Establecimiento)
+    @Optional()
+    private readonly establecimientoRepository: Repository<Establecimiento>,
   ) {}
+
+  /** Global platform view. Never expose the password or reset-token columns. */
+  async findAllGlobal() {
+    const users = await this.usersRepository.find({
+      relations: ['establecimiento', 'userEstablecimientos'],
+      select: [
+        'id', 'name', 'email', 'rol', 'estado', 'id_establecimiento',
+        'ultimo_acceso',
+      ],
+      order: { fecha_creacion: 'DESC' },
+    });
+
+    const establishmentIds = [
+      ...new Set(
+        users.flatMap((user) => [
+          user.id_establecimiento,
+          ...(user.userEstablecimientos || []).map((assignment) => assignment.establecimientoId),
+        ]).filter((id): id is number => Number.isInteger(id)),
+      ),
+    ];
+    const establishments = establishmentIds.length && this.establecimientoRepository
+      ? await this.establecimientoRepository.findBy({ id: In(establishmentIds) })
+      : [];
+    const names = new Map(establishments.map((establishment) => [establishment.id, establishment.nombre]));
+
+    return users.map((user) => {
+      const assignedIds = (user.userEstablecimientos || []).map(
+        (assignment) => assignment.establecimientoId,
+      );
+      const ids = [...new Set([
+        ...(Number.isInteger(user.id_establecimiento) ? [user.id_establecimiento] : []),
+        ...assignedIds,
+      ])];
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        rol: user.rol,
+        estado: user.estado,
+        id_establecimiento: user.id_establecimiento,
+        establecimiento: user.establecimiento?.nombre || names.get(user.id_establecimiento) || null,
+        establecimientosAsignados: ids.map((id) => ({ id, nombre: names.get(id) || null })),
+        ultimo_acceso: user.ultimo_acceso,
+      };
+    });
+  }
 
   // ============================================================
   // 🔍 FIND ALL (Lógica de Dueño Multi-Campo)
@@ -284,6 +335,18 @@ export class UsersService {
   }
 
   async changeRole(id: number, newRole: UserRole): Promise<UserEntity> {
+    if (!Object.values(UserRole).includes(newRole)) {
+      throw new HttpException('Rol inválido', HttpStatus.BAD_REQUEST);
+    }
+    const user = await this.findOne(id);
+    if (user.rol === UserRole.SUPER_ADMIN && newRole !== UserRole.SUPER_ADMIN) {
+      const activeSuperAdmins = await this.usersRepository.count({
+        where: { rol: UserRole.SUPER_ADMIN, estado: 'activo' },
+      });
+      if (activeSuperAdmins <= 1) {
+        throw new ConflictException('No se puede degradar al último super_admin activo');
+      }
+    }
     await this.usersRepository.update(id, { rol: newRole });
     return await this.findOne(id);
   }
@@ -291,6 +354,14 @@ export class UsersService {
   async toggleStatus(id: number): Promise<UserEntity> {
     const user = await this.findOne(id);
     const newStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
+    if (user.rol === UserRole.SUPER_ADMIN && newStatus === 'inactivo') {
+      const activeSuperAdmins = await this.usersRepository.count({
+        where: { rol: UserRole.SUPER_ADMIN, estado: 'activo' },
+      });
+      if (activeSuperAdmins <= 1) {
+        throw new ConflictException('No se puede desactivar al último super_admin activo');
+      }
+    }
     await this.usersRepository.update(id, { estado: newStatus });
     return await this.findOne(id);
   }

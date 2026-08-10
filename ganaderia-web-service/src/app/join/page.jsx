@@ -3,6 +3,12 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { equipoService } from "@/api/equipoRepo";
 import securityApi from "@/api/security-api";
+import {
+  captureInvitation,
+  clearAuthCredentials,
+  resolveInvitation,
+} from "@/utils/invitationContext.mjs";
+import { getInvitationFailure } from "@/utils/pendingInvitationFlow.mjs";
 
 function JoinContent() {
   const searchParams = useSearchParams();
@@ -10,6 +16,7 @@ function JoinContent() {
   const email = searchParams.get("email");
   const router = useRouter();
   const [status, setStatus] = useState("cargando");
+  const [failure, setFailure] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -17,10 +24,11 @@ function JoinContent() {
       return;
     }
 
+    captureInvitation(localStorage, { token, email });
+
     const tokenAuth = localStorage.getItem("token");
 
     if (!tokenAuth) {
-      localStorage.setItem("pendingInviteToken", token);
       setStatus("login_required");
       return;
     }
@@ -36,10 +44,7 @@ function JoinContent() {
           userSelected.email.toLowerCase() !== email.toLowerCase()
         ) {
           // El usuario logueado no es el destinatario → limpiar sesión y pedir login
-          localStorage.removeItem("token");
-          localStorage.removeItem("userSelected");
-          localStorage.removeItem("NEXT_JS_AUTH");
-          localStorage.setItem("pendingInviteToken", token);
+          clearAuthCredentials(localStorage);
           setStatus("login_required");
           return;
         }
@@ -68,9 +73,7 @@ function JoinContent() {
       }
     } catch {
       // Si falla el refresh, forzar re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("userSelected");
-      localStorage.removeItem("NEXT_JS_AUTH");
+      clearAuthCredentials(localStorage);
       window.location.href = "/auth/login";
       return;
     }
@@ -81,23 +84,33 @@ function JoinContent() {
     try {
       await equipoService.unirseAlEquipo(t);
       setStatus("exito");
-      localStorage.removeItem("pendingInviteToken");
+      resolveInvitation(localStorage);
       // Refrescar JWT con el nuevo id_establecimiento y redirigir al dashboard
       await refrescarYRedirigir();
     } catch (error) {
       // 409 = ya eres miembro: el join YA ocurrió antes, solo refrescar JWT
       if (error?.response?.status === 409) {
         setStatus("ya_miembro_refresh");
+        resolveInvitation(localStorage);
         await refrescarYRedirigir();
       } else {
-        setStatus("error");
+        const invitationFailure = getInvitationFailure(error);
+        setFailure(invitationFailure);
+        if (invitationFailure.kind === "wrong_account") {
+          clearAuthCredentials(localStorage);
+          setStatus("wrong_account");
+        } else if (invitationFailure.kind === "temporary") {
+          setStatus("temporary_error");
+        } else {
+          setStatus("error");
+        }
       }
     }
   };
 
   const navegarConBackup = (ruta) => {
     if (token && typeof window !== "undefined") {
-      localStorage.setItem("backupToken", token);
+      captureInvitation(localStorage, { token, email });
     }
     const emailParam = email ? `&email=${encodeURIComponent(email)}` : "";
     router.push(`${ruta}?token=${token}${emailParam}`);
@@ -163,6 +176,43 @@ function JoinContent() {
           </>
         )}
 
+        {status === "wrong_account" && (
+          <>
+            <div className='text-5xl mb-4'>🔒</div>
+            <h2 className='text-2xl font-bold text-red-600 mb-2'>
+              Esta invitación pertenece a otra cuenta
+            </h2>
+            <p className='text-gray-600 mb-6'>{failure?.message}</p>
+            <button
+              onClick={() => {
+                window.location.href = "/auth/login";
+              }}
+              className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold'
+            >
+              Iniciar con la cuenta invitada
+            </button>
+          </>
+        )}
+
+        {status === "temporary_error" && (
+          <>
+            <div className='text-5xl mb-4'>📡</div>
+            <h2 className='text-2xl font-bold text-amber-600 mb-2'>
+              No pudimos validar la invitación
+            </h2>
+            <p className='text-gray-600 mb-6'>
+              {failure?.message}. La invitación sigue guardada; revisá tu
+              conexión e intentá nuevamente.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold'
+            >
+              Reintentar
+            </button>
+          </>
+        )}
+
         {status === "error" && (
           <>
             <div className='text-5xl mb-4'>❌</div>
@@ -170,16 +220,19 @@ function JoinContent() {
               Link inválido o expirado
             </h2>
             <p className='text-gray-600 mb-2'>
-              Este link ya fue usado o expiró.
+              {failure?.message || "Este link ya fue usado o expiró."}
             </p>
             <p className='text-gray-500 text-sm mb-6'>
               Pedile al administrador que genere un nuevo link de invitación.
             </p>
             <button
-              onClick={() => router.push("/")}
+              onClick={() => {
+                resolveInvitation(localStorage);
+                router.push("/");
+              }}
               className='text-blue-600 font-semibold hover:underline'
             >
-              Volver al Inicio
+              Descartar invitación y volver al inicio
             </button>
           </>
         )}

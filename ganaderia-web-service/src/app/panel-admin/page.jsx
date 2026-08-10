@@ -4,6 +4,7 @@ import { useAuthContext } from "@/context/authContext";
 import { useSelector } from "react-redux";
 import { redirect } from "next/navigation";
 import AdminPanel from "@/components/secciones/admin/AdminPanel";
+import { canAccessAdminPanel } from "@/components/navbarAccess.mjs";
 
 export default function PanelAdminPage() {
   const { isLoggedIn, isLoading } = useAuthContext();
@@ -22,7 +23,7 @@ export default function PanelAdminPage() {
     return null;
   }
 
-  if (userPayload && userPayload.rol !== "admin") {
+  if (userPayload && !canAccessAdminPanel(userPayload.rol)) {
     redirect("/admin/dashboard");
     return null;
   }

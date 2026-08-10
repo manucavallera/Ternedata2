@@ -8,6 +8,7 @@ import { useRouterSession } from "@/utils/routerSession";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
 import { useSearchParams } from "next/navigation";
+import { readInvitation } from "@/utils/invitationContext.mjs";
 
 const Registercomponent = () => {
   const dispatch = useDispatch();
@@ -32,11 +33,11 @@ const Registercomponent = () => {
 
   useEffect(() => {
     const tokenUrl = searchParams.get("token");
-    const tokenStorage =
+    const storedInvitation =
       typeof window !== "undefined"
-        ? localStorage.getItem("backupToken")
-        : null;
-    const tokenFinal = tokenUrl || tokenStorage;
+        ? readInvitation(localStorage)
+        : { token: null, email: null };
+    const tokenFinal = tokenUrl || storedInvitation.token;
 
     if (tokenFinal) {
       setTokenCapturado(tokenFinal);
@@ -47,9 +48,9 @@ const Registercomponent = () => {
     }
 
     // Pre-llenar email si viene en la URL (desde la invitación)
-    const emailUrl = searchParams.get("email");
-    if (emailUrl) {
-      setValue("email", emailUrl);
+    const emailFinal = searchParams.get("email") || storedInvitation.email;
+    if (emailFinal) {
+      setValue("email", emailFinal);
     }
   }, [searchParams, setValue]);
 
@@ -81,7 +82,7 @@ const Registercomponent = () => {
         setuserAlert(dataAlert);
       } else {
         const mensajeExito = tokenParaEnviar
-          ? "✅ ¡REGISTRO Y ACTIVACIÓN EXITOSA! Redirigiendo..."
+          ? "✅ Registro exitoso. Verificá tu email antes de continuar."
           : "✅ ¡Registro exitoso! Te enviamos un correo para verificar tu email. Revisá tu casilla (y la carpeta de spam) y confirmá antes de iniciar sesión.";
 
         const dataAlert = {
@@ -94,10 +95,8 @@ const Registercomponent = () => {
         // Sin token hay que verificar el email primero: damos más tiempo para
         // leer el aviso antes de redirigir.
         setTimeout(() => {
-          // Si había token de invitación, lo pasamos al login en la URL
-          // para que se procese automáticamente después del login
           if (tokenParaEnviar) {
-            window.location.href = `/auth/login?token=${tokenParaEnviar}`;
+            window.location.href = "/auth/login";
           } else {
             window.location.href = "/auth/login";
           }

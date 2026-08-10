@@ -49,10 +49,10 @@ export class RegisterAuthDto {
   })
   password: string;
 
-  // 👇 AGREGADO: Campo opcional para recibir el token
+  // Intención de incorporación; Business valida el token después del login.
   @ApiProperty({
     description:
-      'Token de invitación para activar cuenta automáticamente (Opcional)',
+      'Token de invitación pendiente. Requiere verificar email y aceptar en Business.',
     required: false,
     example: 'uuid-de-invitacion-1234',
   })
