@@ -99,6 +99,8 @@ function JoinContent() {
         if (invitationFailure.kind === "wrong_account") {
           clearAuthCredentials(localStorage);
           setStatus("wrong_account");
+        } else if (invitationFailure.kind === "temporary") {
+          setStatus("temporary_error");
         } else {
           setStatus("error");
         }
@@ -188,6 +190,25 @@ function JoinContent() {
               className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold'
             >
               Iniciar con la cuenta invitada
+            </button>
+          </>
+        )}
+
+        {status === "temporary_error" && (
+          <>
+            <div className='text-5xl mb-4'>📡</div>
+            <h2 className='text-2xl font-bold text-amber-600 mb-2'>
+              No pudimos validar la invitación
+            </h2>
+            <p className='text-gray-600 mb-6'>
+              {failure?.message}. La invitación sigue guardada; revisá tu
+              conexión e intentá nuevamente.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className='w-full bg-blue-600 text-white py-3 rounded-lg font-bold'
+            >
+              Reintentar
             </button>
           </>
         )}

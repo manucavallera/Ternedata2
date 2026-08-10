@@ -1,6 +1,6 @@
 import { InvitacionesService } from './invitaciones.service';
 import { RolEstablecimiento } from './roles.enum';
-import { Logger } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import { InvitacionEntity } from './invitacion.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { UserEntity } from '../users/entity/users.entity';
@@ -38,6 +38,7 @@ describe('InvitacionesService', () => {
   );
 
   const transactionManager = {
+    query: jest.fn(),
     getRepository: jest.fn((entity) => {
       if (entity === InvitacionEntity) return invitationRepo;
       if (entity === UserEstablecimientoEntity) return userEstablecimientoRepo;
@@ -89,11 +90,18 @@ describe('InvitacionesService', () => {
 
     expect(invitationRepo.findOne).toHaveBeenCalledWith({
       where: {
-        email: 'persona@example.com',
+        email: expect.objectContaining({
+          _type: 'raw',
+          _objectLiteralParameters: { email: 'persona@example.com' },
+        }),
         establecimientoId: 4,
         usado: false,
       },
     });
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      ['invitacion:4:persona@example.com'],
+    );
     expect(invitationRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'persona@example.com' }),
     );
@@ -131,6 +139,21 @@ describe('InvitacionesService', () => {
       _type: 'raw',
       _objectLiteralParameters: { email: 'persona@example.com' },
     });
+  });
+
+  it('continúa el lote si una invitación ya fue consumida en paralelo', async () => {
+    usersService.findOne.mockResolvedValue({ email: 'persona@example.com' });
+    invitationRepo.find.mockResolvedValue([
+      { token: 'usada', expiracion: new Date(Date.now() + 60_000) },
+      { token: 'vigente', expiracion: new Date(Date.now() + 60_000) },
+    ]);
+    const aceptar = jest
+      .spyOn(service, 'aceptarLink')
+      .mockRejectedValueOnce(new HttpException('Link ya usado', 400))
+      .mockResolvedValueOnce({ message: 'ok', establecimientoId: 4 });
+
+    await expect(service.aceptarPorEmail(8)).resolves.toEqual({ aceptadas: 1 });
+    expect(aceptar).toHaveBeenCalledTimes(2);
   });
 
   it('rechaza una invitación dirigida cuando el email no coincide', async () => {

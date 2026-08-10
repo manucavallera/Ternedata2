@@ -34,15 +34,6 @@ export class InvitacionesService {
   ) {
     const normalizedEmail = email?.trim().toLowerCase();
 
-    if (normalizedEmail) {
-      const pendiente = await this.invitacionRepo.findOne({
-        where: { email: normalizedEmail, establecimientoId, usado: false },
-      });
-      if (pendiente) {
-        throw new ConflictException('Ya existe una invitación pendiente para ese email en este establecimiento');
-      }
-    }
-
     const token = uuidv4();
     const expiracion = new Date();
     expiracion.setHours(expiracion.getHours() + 48);
@@ -58,8 +49,33 @@ export class InvitacionesService {
       datosInvitacion.email = normalizedEmail;
     }
 
-    const invitacion = this.invitacionRepo.create(datosInvitacion);
-    await this.invitacionRepo.save(invitacion);
+    if (normalizedEmail) {
+      await this.invitacionRepo.manager.transaction(async (manager) => {
+        // El lock por destinatario evita dos invitaciones simultáneas para el
+        // mismo establecimiento sin depender del casing histórico del email.
+        await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+          `invitacion:${establecimientoId}:${normalizedEmail}`,
+        ]);
+        const repo = manager.getRepository(InvitacionEntity);
+        const pendiente = await repo.findOne({
+          where: {
+            email: Raw((alias) => `LOWER(TRIM(${alias})) = :email`, {
+              email: normalizedEmail,
+            }),
+            establecimientoId,
+            usado: false,
+          },
+        });
+        if (pendiente) {
+          throw new ConflictException(
+            'Ya existe una invitación pendiente para ese email en este establecimiento',
+          );
+        }
+        await repo.save(repo.create(datosInvitacion));
+      });
+    } else {
+      await this.invitacionRepo.save(this.invitacionRepo.create(datosInvitacion));
+    }
 
     let emailEnviado: string | null = null;
     let emailError: string | null = null;
@@ -154,9 +170,14 @@ export class InvitacionesService {
         await this.aceptarLink(inv.token, userId);
         aceptadas++;
       } catch (error) {
-        if (error instanceof HttpException && error.getStatus() === HttpStatus.CONFLICT) {
-          aceptadas++;
-          continue;
+        if (error instanceof HttpException) {
+          if (error.getStatus() === HttpStatus.CONFLICT) aceptadas++;
+          if (
+            error.getStatus() === HttpStatus.CONFLICT ||
+            error.getStatus() === HttpStatus.BAD_REQUEST
+          ) {
+            continue;
+          }
         }
         throw error;
       }
