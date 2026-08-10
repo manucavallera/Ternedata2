@@ -1,11 +1,21 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  UserEntity,
+  UserStatus,
+} from 'src/modules/users/entity/users.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    @InjectRepository(UserEntity)
+    private readonly usersRepository: Repository<UserEntity>,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -14,15 +24,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // 👇 AQUÍ ESTÁ LA MAGIA: Pasamos la lista de granjas al usuario request
+    const userId = Number(payload.sub || payload.id);
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['userEstablecimientos'],
+    });
+
+    if (!user || user.estado === UserStatus.INACTIVO) {
+      throw new UnauthorizedException('Usuario inexistente o inactivo');
+    }
+
     return {
-      userId: payload.sub || payload.id,
-      id: payload.sub || payload.id,
-      username: payload.name,
-      rol: payload.rol, // Rol Global (ej. Operario)
-      id_establecimiento: payload.id_establecimiento,
-      // 👇 ¡ESTO ES LO QUE FALTABA!
-      userEstablecimientos: payload.userEstablecimientos || [],
+      userId: user.id,
+      id: user.id,
+      username: user.name,
+      rol: user.rol,
+      id_establecimiento: user.id_establecimiento,
+      userEstablecimientos: user.userEstablecimientos || [],
     };
   }
 }
