@@ -13,6 +13,7 @@ import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { equipoService } from "@/api/equipoRepo";
 import businessApi from "@/api/bussines-api";
+import { canAccessAdminPanel } from "./navbarAccess.mjs";
 
 function Navbar() {
   const dispatch = useDispatch();
@@ -265,7 +266,7 @@ function Navbar() {
                 </li>
               )}
 
-              {userPayload?.rol === "admin" && (
+              {canAccessAdminPanel(userPayload?.rol) && (
                 <li>
                   <Link
                     href='/panel-admin'
@@ -313,7 +314,7 @@ function Navbar() {
                       </svg>
                       Mi Perfil
                     </Link>
-                    {userPayload?.rol === "admin" && (
+                    {canAccessAdminPanel(userPayload?.rol) && (
                       <Link
                         href='/panel-admin'
                         onClick={() => setIsProfileOpen(false)}
@@ -457,7 +458,7 @@ function Navbar() {
               </div>
             )}
 
-            {userPayload?.rol === "admin" && (
+            {canAccessAdminPanel(userPayload?.rol) && (
               <Link
                 href='/panel-admin'
                 onClick={() => setIsMobileMenuOpen(false)}
