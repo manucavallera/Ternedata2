@@ -81,7 +81,7 @@ const Registercomponent = () => {
         setuserAlert(dataAlert);
       } else {
         const mensajeExito = tokenParaEnviar
-          ? "✅ ¡REGISTRO Y ACTIVACIÓN EXITOSA! Redirigiendo..."
+          ? "✅ Registro exitoso. Verificá tu email antes de continuar."
           : "✅ ¡Registro exitoso! Te enviamos un correo para verificar tu email. Revisá tu casilla (y la carpeta de spam) y confirmá antes de iniciar sesión.";
 
         const dataAlert = {
@@ -94,10 +94,8 @@ const Registercomponent = () => {
         // Sin token hay que verificar el email primero: damos más tiempo para
         // leer el aviso antes de redirigir.
         setTimeout(() => {
-          // Si había token de invitación, lo pasamos al login en la URL
-          // para que se procese automáticamente después del login
           if (tokenParaEnviar) {
-            window.location.href = `/auth/login?token=${tokenParaEnviar}`;
+            window.location.href = "/auth/login";
           } else {
             window.location.href = "/auth/login";
           }

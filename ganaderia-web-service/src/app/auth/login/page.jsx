@@ -3,22 +3,25 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { useRouter } from "next/navigation";
 
 // Hooks y Contextos propios
 import { useAuthSession } from "@/hooks/auth";
 import { useRouterSession } from "@/utils/routerSession";
 import { setStatusRegister, setStatusSessionUser } from "@/store/register";
+import { setAuthPayload, setStatus, setUserData } from "@/store/auth";
 import { useAuthContext } from "@/context/authContext";
 import ClientOnly from "@/components/ClientOnly";
 import businessApi from "@/api/bussines-api";
 import securityApi from "@/api/security-api";
+import { equipoService } from "@/api/equipoRepo";
+import { saveRefreshedSession } from "@/hooks/saveRefreshedSession.mjs";
+import { clearAuthCredentials } from "@/utils/invitationContext.mjs";
+import { completePendingInvitation } from "@/utils/pendingInvitationFlow.mjs";
 
 
 const LoginContent = () => {
   const dispatch = useDispatch();
 
-  const router = useRouter();
   const { loginHooks } = useAuthSession();
   const { sessionLogin, isLoading: routerLoading } = useRouterSession();
   const { login, isLoading: authLoading } = useAuthContext();
@@ -75,44 +78,45 @@ const LoginContent = () => {
         localStorage.setItem("userSelected", JSON.stringify(userPayload));
       }
 
-      login(res.data.token);
-      dispatch(setStatusSessionUser(true));
-
-      // Guardar pendingToken antes de limpiar (puede ser invitación sin email)
-      const pendingToken = localStorage.getItem("pendingInviteToken") || localStorage.getItem("backupToken");
-      localStorage.removeItem("backupToken");
-      localStorage.removeItem("pendingInviteToken");
-
-      // Intentar aceptar invitaciones pendientes por email
       try {
-        const result = await businessApi.post("/invitaciones/aceptar-automatico");
-        if (result?.data?.aceptadas > 0) {
-          // Hubo invitaciones procesadas → refrescar JWT con id_establecimiento actualizado
+        const invitationResult = await completePendingInvitation({
+          storage: localStorage,
+          acceptToken: (token) => equipoService.unirseAlEquipo(token),
+          acceptByEmail: async () => {
+            const { data } = await businessApi.post(
+              "/invitaciones/aceptar-automatico",
+            );
+            return data;
+          },
+        });
+
+        if (invitationResult.accepted) {
           const { data } = await securityApi.post("/auth/refresh");
           if (data?.token) {
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("userSelected", JSON.stringify({
-              id: data.user.id,
-              name: data.user.name,
-              email: data.user.email,
-              rol: data.user.rol,
-              estado: data.user.estado,
-              telefono: data.user.telefono,
-              id_establecimiento: data.user.id_establecimiento,
-            }));
+            saveRefreshedSession(data, localStorage);
             login(data.token);
+            dispatch(setStatusSessionUser(true));
+            window.location.href = "/admin/dashboard";
+            return;
           }
         }
       } catch (err) {
-        // Si falla (sin invitaciones o error), continuar normalmente
+        clearAuthCredentials(localStorage);
+        dispatch(setAuthPayload({}));
+        dispatch(setStatus("not-authenticated"));
+        dispatch(setUserData({}));
+        setUserAlert({
+          status: true,
+          message:
+            err?.response?.data?.message ||
+            "No se pudo aceptar la invitación. Revisá el link o la cuenta usada.",
+        });
+        return;
       }
 
-      // Si había un token de invitación pendiente, procesarlo en /join
-      if (pendingToken) {
-        router.push(`/join?token=${pendingToken}`);
-      } else {
-        sessionLogin(true);
-      }
+      login(res.data.token);
+      dispatch(setStatusSessionUser(true));
+      sessionLogin(true);
     }
   });
 
