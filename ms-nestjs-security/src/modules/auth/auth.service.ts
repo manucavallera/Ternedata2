@@ -6,11 +6,26 @@ import { RegisterAuthDto } from './dto/register.dto';
 import { hash, compare } from 'bcrypt';
 import { LoginAuthDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { UserInterface } from './interface/user.interface';
+import {
+  PublicSessionUser,
+  UserInterface,
+} from './interface/user.interface';
 import { UserEstablecimientoEntity } from 'src/modules/users/entity/user-establecimiento.entity';
 // 👇 1. IMPORTAMOS NODEMAILER
 import * as nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
+
+const toPublicSessionUser = (user: UserEntity): PublicSessionUser => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  rol: user.rol,
+  estado: user.estado,
+  telefono: user.telefono,
+  id_establecimiento: user.id_establecimiento,
+  email_verificado: user.email_verificado,
+  userEstablecimientos: user.userEstablecimientos || [],
+});
 
 @Injectable()
 export class AuthService {
@@ -235,7 +250,7 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload, { expiresIn: '7d' });
-    return { user, token };
+    return { user: toPublicSessionUser(user), token };
   }
 
   // =================================================================
@@ -370,7 +385,7 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload, { expiresIn: '7d' });
-    return { user, token };
+    return { user: toPublicSessionUser(user), token };
   }
 
   // =================================================================

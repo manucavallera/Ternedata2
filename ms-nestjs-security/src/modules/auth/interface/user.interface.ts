@@ -5,8 +5,21 @@ export interface token {
     token:any
   }
   
-  // Interfaz combinada que incluye los datos básicos del usuario y los datos adicionales
-  export interface UserInterface {
-    user: UserEntity; // Información básica del usuario
-    token; // Datos adicionales del usuario
-  }
+export type PublicSessionUser = Pick<
+  UserEntity,
+  | 'id'
+  | 'name'
+  | 'email'
+  | 'rol'
+  | 'estado'
+  | 'telefono'
+  | 'id_establecimiento'
+  | 'email_verificado'
+  | 'userEstablecimientos'
+>;
+
+// Contrato público de login/refresh: nunca incluye secretos de la entidad.
+export interface UserInterface {
+  user: PublicSessionUser;
+  token: string;
+}
