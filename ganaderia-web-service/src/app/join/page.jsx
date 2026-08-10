@@ -3,6 +3,11 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { equipoService } from "@/api/equipoRepo";
 import securityApi from "@/api/security-api";
+import {
+  captureInvitation,
+  clearAuthCredentials,
+  resolveInvitation,
+} from "@/utils/invitationContext.mjs";
 
 function JoinContent() {
   const searchParams = useSearchParams();
@@ -17,10 +22,11 @@ function JoinContent() {
       return;
     }
 
+    captureInvitation(localStorage, { token, email });
+
     const tokenAuth = localStorage.getItem("token");
 
     if (!tokenAuth) {
-      localStorage.setItem("pendingInviteToken", token);
       setStatus("login_required");
       return;
     }
@@ -36,10 +42,7 @@ function JoinContent() {
           userSelected.email.toLowerCase() !== email.toLowerCase()
         ) {
           // El usuario logueado no es el destinatario → limpiar sesión y pedir login
-          localStorage.removeItem("token");
-          localStorage.removeItem("userSelected");
-          localStorage.removeItem("NEXT_JS_AUTH");
-          localStorage.setItem("pendingInviteToken", token);
+          clearAuthCredentials(localStorage);
           setStatus("login_required");
           return;
         }
@@ -81,13 +84,14 @@ function JoinContent() {
     try {
       await equipoService.unirseAlEquipo(t);
       setStatus("exito");
-      localStorage.removeItem("pendingInviteToken");
+      resolveInvitation(localStorage);
       // Refrescar JWT con el nuevo id_establecimiento y redirigir al dashboard
       await refrescarYRedirigir();
     } catch (error) {
       // 409 = ya eres miembro: el join YA ocurrió antes, solo refrescar JWT
       if (error?.response?.status === 409) {
         setStatus("ya_miembro_refresh");
+        resolveInvitation(localStorage);
         await refrescarYRedirigir();
       } else {
         setStatus("error");
@@ -97,7 +101,7 @@ function JoinContent() {
 
   const navegarConBackup = (ruta) => {
     if (token && typeof window !== "undefined") {
-      localStorage.setItem("backupToken", token);
+      captureInvitation(localStorage, { token, email });
     }
     const emailParam = email ? `&email=${encodeURIComponent(email)}` : "";
     router.push(`${ruta}?token=${token}${emailParam}`);
