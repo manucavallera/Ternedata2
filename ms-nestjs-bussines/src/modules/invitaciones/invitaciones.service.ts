@@ -58,6 +58,9 @@ export class InvitacionesService {
     const invitacion = this.invitacionRepo.create(datosInvitacion);
     await this.invitacionRepo.save(invitacion);
 
+    let emailEnviado: string | null = null;
+    let emailError: string | null = null;
+
     if (email) {
       try {
         await this.mailService.sendMail({
@@ -71,8 +74,10 @@ export class InvitacionesService {
             <a href="${process.env.FRONTEND_URL}/join?token=${token}&email=${encodeURIComponent(email)}">Aceptar Invitación</a>
           `,
         });
+        emailEnviado = email;
         this.logger.log(`Invitación enviada a ${email}`);
       } catch (error) {
+        emailError = 'No se pudo enviar el correo';
         this.logger.error(`Error enviando invitación a ${email}`, error);
       }
     }
@@ -81,7 +86,8 @@ export class InvitacionesService {
     return {
       link: `${process.env.FRONTEND_URL}/join?token=${token}${emailParam}`,
       token: token,
-      emailEnviado: email || null,
+      emailEnviado,
+      emailError,
     };
   }
 
