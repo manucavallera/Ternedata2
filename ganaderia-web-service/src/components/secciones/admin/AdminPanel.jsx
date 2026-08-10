@@ -1065,7 +1065,7 @@ const AdminPanel = () => {
         </div>
       </div>
       {activeTab === "global" && usuarioSeguro?.rol === "super_admin" && (
-        <SuperAdminUsersPanel />
+        <SuperAdminUsersPanel currentUserId={usuarioSeguro.id} />
       )}
       {/* TAB: USUARIOS */}
       {activeTab === "usuarios" && (

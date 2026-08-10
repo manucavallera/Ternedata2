@@ -109,3 +109,35 @@ test("una respuesta 401 cierra la sesión y conserva el error HTTP", async () =>
     error: true,
   });
 });
+
+test("refreshCurrentSession renueva el JWT y publica la sesión fresca", async () => {
+  const calls = [];
+  let refreshedSession = null;
+  const api = {
+    post: async (...args) => {
+      calls.push(args);
+      return {
+        data: {
+          token: "jwt-fresco",
+          user: { id: 5, rol: "admin", email: "self@example.com" },
+        },
+        status: 200,
+      };
+    },
+  };
+
+  const client = createSuperAdminUsersClient({
+    api,
+    onSessionRefreshed: (session) => {
+      refreshedSession = session;
+    },
+  });
+  const result = await client.refreshCurrentSession();
+
+  assert.deepEqual(calls, [["/auth/refresh"]]);
+  assert.deepEqual(refreshedSession, {
+    token: "jwt-fresco",
+    user: { id: 5, rol: "admin", email: "self@example.com" },
+  });
+  assert.equal(result.status, 200);
+});

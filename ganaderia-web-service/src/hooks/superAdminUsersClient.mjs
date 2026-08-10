@@ -1,4 +1,8 @@
-export const createSuperAdminUsersClient = ({ api, onUnauthorized }) => {
+export const createSuperAdminUsersClient = ({
+  api,
+  onUnauthorized,
+  onSessionRefreshed,
+}) => {
   const request = async (send) => {
     try {
       const response = await send();
@@ -21,5 +25,11 @@ export const createSuperAdminUsersClient = ({ api, onUnauthorized }) => {
       request(() => api.put(`/users/${id}/toggle-status`)),
     getUserEstablishments: (id) =>
       request(() => api.get(`/users/${id}/establecimientos`)),
+    refreshCurrentSession: () =>
+      request(async () => {
+        const response = await api.post("/auth/refresh");
+        onSessionRefreshed?.(response.data);
+        return response;
+      }),
   };
 };

@@ -4,44 +4,53 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSuperAdminUsers } from "@/hooks/useSuperAdminUsers";
 import {
+  getUserErrorMessage,
+  isSuccessfulResponse,
+  runConfirmedUserMutation,
+} from "./superAdminUsersActions.mjs";
+import {
   filterGlobalUsers,
   getAssignedEstablishments,
 } from "./superAdminUsersViewModel.mjs";
 
 const ROLES = ["admin", "veterinario", "operario", "super_admin"];
 
-const isSuccess = (status) => status >= 200 && status < 300;
-
-const getErrorMessage = (response, fallback) => {
-  const message = response?.data?.message;
-  return Array.isArray(message) ? message.join(". ") : message || fallback;
-};
-
-export const SuperAdminUsersPanel = () => {
-  const { listGlobalUsers, changeUserRole, toggleUserStatus } =
-    useSuperAdminUsers();
+export const SuperAdminUsersPanel = ({ currentUserId }) => {
+  const {
+    listGlobalUsers,
+    changeUserRole,
+    toggleUserStatus,
+    getUserEstablishments,
+    refreshCurrentSession,
+  } = useSuperAdminUsers();
   const [users, setUsers] = useState([]);
   const [roleFilter, setRoleFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [expandedUserId, setExpandedUserId] = useState(null);
+  const [establishmentDetails, setEstablishmentDetails] = useState({});
+  const [detailsLoadingId, setDetailsLoadingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const mutationFeedback = { setPendingAction, setError, setNotice };
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setError("");
     const response = await listGlobalUsers();
 
-    if (isSuccess(response.status) && Array.isArray(response.data)) {
+    if (isSuccessfulResponse(response.status) && Array.isArray(response.data)) {
       setUsers(response.data);
       setLoading(false);
       return true;
     }
 
     setError(
-      getErrorMessage(response, "No se pudieron cargar los usuarios globales"),
+      getUserErrorMessage(
+        response,
+        "No se pudieron cargar los usuarios globales",
+      ),
     );
     setLoading(false);
     return false;
@@ -62,44 +71,93 @@ export const SuperAdminUsersPanel = () => {
 
   const handleRoleChange = async (user, nextRole) => {
     if (nextRole === user.rol) return;
-    if (
-      !window.confirm(
-        `¿Cambiar el rol de ${user.email} de ${user.rol} a ${nextRole}?`,
-      )
-    ) {
-      return;
-    }
+    const isCurrentUser = user.id === currentUserId;
 
-    setPendingAction(`role-${user.id}`);
-    setError("");
-    setNotice("");
-    const response = await changeUserRole(user.id, nextRole);
-    if (isSuccess(response.status)) {
-      const refreshed = await loadUsers();
-      if (refreshed) setNotice("Rol actualizado correctamente");
-    } else {
-      setError(getErrorMessage(response, "No se pudo cambiar el rol"));
-    }
-    setPendingAction(null);
+    return runConfirmedUserMutation({
+      confirmAction: (message) => window.confirm(message),
+      confirmationMessage: `¿Cambiar el rol de ${user.email} de ${user.rol} a ${nextRole}?${
+        isCurrentUser ? " Tu sesión se renovará inmediatamente." : ""
+      }`,
+      pendingKey: `role-${user.id}`,
+      request: () => changeUserRole(user.id, nextRole),
+      onSuccess: async () => {
+        if (!isCurrentUser) return loadUsers();
+
+        const refreshResponse = await refreshCurrentSession();
+        if (!isSuccessfulResponse(refreshResponse.status)) {
+          throw new Error(
+            getUserErrorMessage(
+              refreshResponse,
+              "El rol cambió, pero no se pudo renovar la sesión",
+            ),
+          );
+        }
+        window.location.assign("/admin/dashboard");
+        return true;
+      },
+      successMessage: "Rol actualizado correctamente",
+      fallbackError: "No se pudo cambiar el rol",
+      feedback: mutationFeedback,
+    });
   };
 
   const handleStatusChange = async (user) => {
     const action = user.estado === "activo" ? "desactivar" : "activar";
-    if (!window.confirm(`¿Querés ${action} la cuenta de ${user.email}?`)) {
+    return runConfirmedUserMutation({
+      confirmAction: (message) => window.confirm(message),
+      confirmationMessage: `¿Querés ${action} la cuenta de ${user.email}?`,
+      pendingKey: `status-${user.id}`,
+      request: () => toggleUserStatus(user.id),
+      onSuccess: loadUsers,
+      successMessage: "Estado actualizado correctamente",
+      fallbackError: "No se pudo cambiar el estado",
+      feedback: mutationFeedback,
+    });
+  };
+
+  const handleToggleDetails = async (user) => {
+    if (expandedUserId === user.id) {
+      setExpandedUserId(null);
       return;
     }
 
-    setPendingAction(`status-${user.id}`);
+    setDetailsLoadingId(user.id);
     setError("");
-    setNotice("");
-    const response = await toggleUserStatus(user.id);
-    if (isSuccess(response.status)) {
-      const refreshed = await loadUsers();
-      if (refreshed) setNotice("Estado actualizado correctamente");
+    const response = await getUserEstablishments(user.id);
+    if (
+      isSuccessfulResponse(response.status) &&
+      Array.isArray(response.data)
+    ) {
+      const summaries = getAssignedEstablishments(user);
+      const namesById = new Map(
+        summaries.map((establishment) => [
+          establishment.id,
+          establishment.nombre,
+        ]),
+      );
+      const ids = [
+        ...new Set([
+          ...summaries.map((establishment) => establishment.id),
+          ...response.data,
+        ]),
+      ];
+      setEstablishmentDetails((current) => ({
+        ...current,
+        [user.id]: ids.map((id) => ({
+          id,
+          nombre: namesById.get(id) || `Establecimiento #${id}`,
+        })),
+      }));
+      setExpandedUserId(user.id);
     } else {
-      setError(getErrorMessage(response, "No se pudo cambiar el estado"));
+      setError(
+        getUserErrorMessage(
+          response,
+          "No se pudieron cargar los establecimientos asignados",
+        ),
+      );
     }
-    setPendingAction(null);
+    setDetailsLoadingId(null);
   };
 
   return (
@@ -196,8 +254,11 @@ export const SuperAdminUsersPanel = () => {
             </thead>
             <tbody className='divide-y divide-gray-100'>
               {filteredUsers.map((user) => {
-                const assigned = getAssignedEstablishments(user);
+                const assigned =
+                  establishmentDetails[user.id] ||
+                  getAssignedEstablishments(user);
                 const expanded = expandedUserId === user.id;
+                const detailsLoading = detailsLoadingId === user.id;
                 const rolePending = pendingAction === `role-${user.id}`;
                 const statusPending = pendingAction === `status-${user.id}`;
 
@@ -246,15 +307,16 @@ export const SuperAdminUsersPanel = () => {
                       <td className='p-3'>
                         <button
                           type='button'
-                          onClick={() =>
-                            setExpandedUserId(expanded ? null : user.id)
-                          }
+                          onClick={() => handleToggleDetails(user)}
+                          disabled={detailsLoading}
                           className='text-sm font-medium text-blue-600 hover:text-blue-800'
                           aria-expanded={expanded}
                         >
-                          {assigned.length === 1
-                            ? "1 establecimiento"
-                            : `${assigned.length} establecimientos`}
+                          {detailsLoading
+                            ? "Cargando..."
+                            : assigned.length === 1
+                              ? "1 establecimiento"
+                              : `${assigned.length} establecimientos`}
                         </button>
                       </td>
                       <td className='p-3 text-right'>
