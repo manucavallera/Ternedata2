@@ -13,7 +13,9 @@ const dataSource = new DataSource({
   username: env('DB_USERNAME_DESARROLLO', 'DB_USERNAME_PRODUCCION'),
   password: env('DB_PASSWORD_DESARROLLO', 'DB_PASSWORD_PRODUCCION'),
   database: env('DB_NAME_DESARROLLO', 'DB_NAME_PRODUCCION'),
-  entities: ['src/modules/**/*.entity.ts'],
+  // Las migraciones usan SQL directo. Evitar cargar entidades acá porque el
+  // CLI de TypeORM no registra automáticamente el alias `src/*` de tsconfig.
+  entities: [],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
   ssl: false,
