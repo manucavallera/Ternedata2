@@ -191,8 +191,12 @@ function Navbar() {
 
               {/* Hamburger button - Mobile */}
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className='lg:hidden flex items-center hover:text-green-200 transition-colors'
+                type='button'
+                onClick={() => setIsMobileMenuOpen((open) => !open)}
+                aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls='mobile-navigation-menu'
+                className='lg:hidden flex items-center p-2 -m-2 rounded-lg hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-white transition-colors'
               >
                 <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor' className='w-6 h-6'>
                   {isMobileMenuOpen ? (
@@ -339,12 +343,39 @@ function Navbar() {
               </li>
             </ul>
           )}
+
+          {status === "authenticated" && statusSession !== false && (
+            <button
+              type='button'
+              onClick={onClickLogOut}
+              className='lg:hidden flex items-center gap-1 rounded-lg bg-red-500 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-green-400'
+              aria-label='Cerrar sesión'
+              title='Cerrar sesión'
+            >
+              <svg
+                xmlns='http://www.w3.org/2000/svg'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={2}
+                stroke='currentColor'
+                className='h-4 w-4'
+                aria-hidden='true'
+              >
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m-3-3h9m0 0-3-3m3 3-3 3'
+                />
+              </svg>
+              Salir
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && status === "authenticated" && (
-        <div className='lg:hidden absolute top-full left-0 right-0 bg-green-500 shadow-lg z-50 py-4 px-3'>
+        <div id='mobile-navigation-menu' className='lg:hidden absolute top-full left-0 right-0 bg-green-500 shadow-lg z-50 py-4 px-3'>
           <div className='flex flex-col gap-3'>
             <button
               onClick={onclickIngreso}
