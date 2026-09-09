@@ -157,8 +157,15 @@ export class HistorialService {
         (t) =>
           `SELECT valid_from::date d FROM ${t.hist}
              WHERE id_establecimiento = $1 AND valid_from::date BETWEEN $2 AND $3`,
-      ).join('\nUNION\n');
-      const sql = `SELECT DISTINCT d FROM (${subconsultas}) x ORDER BY d;`;
+      );
+      subconsultas.push(
+        `SELECT fecha d FROM ternero_pesajes
+           WHERE id_establecimiento = $1 AND fecha BETWEEN $2 AND $3`,
+        `SELECT fecha_hora::date d FROM ternero_calostrados
+           WHERE id_establecimiento = $1 AND fecha_hora::date BETWEEN $2 AND $3`,
+      );
+      const union = subconsultas.join('\nUNION\n');
+      const sql = `SELECT DISTINCT d FROM (${union}) x ORDER BY d;`;
       const rows = await this.dataSource.query(sql, [
         idEstablecimiento,
         desde,

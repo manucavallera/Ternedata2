@@ -375,6 +375,13 @@ describe('🧪 SEGUNDA TANDA — backend y multi-establecimiento', () => {
     expect(colostrum.status).toBe(200);
     expect(colostrum.data.calostrados).toHaveLength(2);
 
+    const calendar = await businessApi.get(
+      '/historial/dias-con-cambios?desde=2026-01-01&hasta=2026-02-28',
+      auth(state.establishmentA),
+    );
+    expect(calendar.status).toBe(200);
+    expect(calendar.data).toEqual(expect.arrayContaining(['2026-01-15', '2026-01-30']));
+
     const updated = await businessApi.patch(
       `/terneros/${state.calvesA[0]}/calostrados/${firstColostrum.data.id_calostrado}`,
       { grado_brix: 23 },
