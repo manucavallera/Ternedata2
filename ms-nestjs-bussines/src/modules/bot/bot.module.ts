@@ -33,6 +33,8 @@ import { Establecimiento } from '../establecimientos/entities/establecimiento.en
 import { Rodeos } from '../rodeos/entities/rodeos.entity';
 import { RegistroLitrosEntity } from '../litros/entities/registro-litros.entity';
 import { RodeoDietaEntity } from '../dietas/entities/rodeo-dieta.entity';
+import { PesajeTerneroEntity } from '../terneros/entities/pesaje-ternero.entity';
+import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero.entity';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { RodeoDietaEntity } from '../dietas/entities/rodeo-dieta.entity';
       Rodeos,
       RegistroLitrosEntity,
       RodeoDietaEntity,
+      PesajeTerneroEntity,
+      CalostradoTerneroEntity,
     ]),
   ],
   controllers: [BotController],
