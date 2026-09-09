@@ -131,6 +131,34 @@ export const useBussinesMicroservicio = () => {
     }
   };
 
+  // SEGUIMIENTO DEL TERNERO: mismo contrato que mobile
+  const seguimientoRequest = async (method, url, data) => {
+    try {
+      const response = await businessApi.request({ method, url, data });
+      return { data: response.data, status: response.status };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        sessionLogOutMethod(dispatch);
+        logAuthMethod(dispatch, router);
+      }
+      return {
+        status: error.response?.status || 500,
+        data: error.response?.data,
+        error: true,
+        message: error.response?.data?.message || error.message,
+      };
+    }
+  };
+
+  const obtenerPesajesSeguimientoHook = (id) => seguimientoRequest('get', `/terneros/${id}/pesajes`);
+  const crearPesajeSeguimientoHook = (id, data) => seguimientoRequest('post', `/terneros/${id}/pesajes`, data);
+  const actualizarPesajeSeguimientoHook = (id, pesajeId, data) => seguimientoRequest('patch', `/terneros/${id}/pesajes/${pesajeId}`, data);
+  const eliminarPesajeSeguimientoHook = (id, pesajeId) => seguimientoRequest('delete', `/terneros/${id}/pesajes/${pesajeId}`);
+  const obtenerCalostradosSeguimientoHook = (id) => seguimientoRequest('get', `/terneros/${id}/calostrados`);
+  const crearCalostradoSeguimientoHook = (id, data) => seguimientoRequest('post', `/terneros/${id}/calostrados`, data);
+  const actualizarCalostradoSeguimientoHook = (id, calostradoId, data) => seguimientoRequest('patch', `/terneros/${id}/calostrados/${calostradoId}`, data);
+  const eliminarCalostradoSeguimientoHook = (id, calostradoId) => seguimientoRequest('delete', `/terneros/${id}/calostrados/${calostradoId}`);
+
   //seccion EVENTO
   const crearEventoHook = async (objectEvento) => {
     try {
@@ -1068,6 +1096,14 @@ export const useBussinesMicroservicio = () => {
     // NUEVO: Peso diario
     agregarPesoDiarioHook,
     obtenerHistorialCompletoHook,
+    obtenerPesajesSeguimientoHook,
+    crearPesajeSeguimientoHook,
+    actualizarPesajeSeguimientoHook,
+    eliminarPesajeSeguimientoHook,
+    obtenerCalostradosSeguimientoHook,
+    crearCalostradoSeguimientoHook,
+    actualizarCalostradoSeguimientoHook,
+    eliminarCalostradoSeguimientoHook,
     //seccion EVENTO
     crearEventoHook,
     crearMultiplesEventosHook,

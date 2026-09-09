@@ -1,6 +1,7 @@
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import SeguimientoTernero from "./SeguimientoTernero";
 import {
   LineChart,
   Line,
@@ -52,6 +53,7 @@ const ListadoTernero = () => {
   });
 
   const [modalEliminar, setModalEliminar] = useState({ isOpen: false, ternero: null });
+  const [seguimientoTernero, setSeguimientoTernero] = useState(null);
   const [modalEditar, setModalEditar] = useState({ isOpen: false, ternero: null });
   const [formEditar, setFormEditar] = useState({ estado: 'Vivo', sexo: 'Macho', semen: '', observaciones: '' });
 
@@ -644,6 +646,9 @@ const ListadoTernero = () => {
                   <button onClick={() => abrirModalHistorial(ternero)} className='py-2 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg font-medium transition-colors'>
                     📊 Historial
                   </button>
+                  <button onClick={() => setSeguimientoTernero(ternero)} className='py-2 bg-teal-700 hover:bg-teal-600 text-white text-xs rounded-lg font-medium transition-colors'>
+                    📅 Seguimiento
+                  </button>
                   <button onClick={() => abrirModalCalostrado(ternero)} className='py-2 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-lg font-medium transition-colors'>
                     🍼 Calostrado
                   </button>
@@ -855,6 +860,12 @@ const ListadoTernero = () => {
                           title='Usar nuevo sistema de peso diario'
                         >
                           ⚖️ Peso Diario
+                        </button>
+                        <button
+                          onClick={() => setSeguimientoTernero(ternero)}
+                          className='w-full px-2 py-1 bg-teal-700 hover:bg-teal-600 text-white text-xs rounded transition-colors'
+                        >
+                          📅 Seguimiento
                         </button>
                         {ternero.metodo_calostrado && (
                           <button
@@ -1721,6 +1732,13 @@ const ListadoTernero = () => {
               Siguiente →
             </button>
           </div>
+        )}
+        {seguimientoTernero && (
+          <SeguimientoTernero
+            ternero={seguimientoTernero}
+            onClose={() => setSeguimientoTernero(null)}
+            onSaved={() => cargarTerneroLista()}
+          />
         )}
       </div>
     </div>
