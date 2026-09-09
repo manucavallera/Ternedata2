@@ -218,7 +218,6 @@ const FormularioTernero = ({ setStep }) => {
       peso_15d: 0,
       peso_30d: 0,
       peso_45d: 0,
-      peso_largado: parseFloat(formData.peso_nacer) * 15,
       peso_ideal: parseFloat(formData.peso_ideal),
       estimativo: "",
       observaciones: formData.observaciones.trim(),
