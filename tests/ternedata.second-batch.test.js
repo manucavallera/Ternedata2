@@ -22,6 +22,8 @@ const state = {
   treatmentA: null,
   eventA: null,
   diarrheaA: null,
+  pesajeA: [],
+  calostradoA: [],
   profileChanged: false,
 };
 
@@ -183,6 +185,18 @@ describe('🧪 SEGUNDA TANDA — backend y multi-establecimiento', () => {
       state.treatmentA && `/tratamientos/delete-tratamiento-by-id/${state.treatmentA}`,
       auth(state.establishmentA),
     );
+    for (const id of state.pesajeA) {
+      await safeDelete(
+        `/terneros/${state.calvesA[0]}/pesajes/${id}`,
+        auth(state.establishmentA),
+      );
+    }
+    for (const id of state.calostradoA) {
+      await safeDelete(
+        `/terneros/${state.calvesA[0]}/calostrados/${id}`,
+        auth(state.establishmentA),
+      );
+    }
     for (const id of [state.calfB, ...state.calvesA]) {
       await safeDelete(id && `/terneros/delete-ternero-by-id/${id}`, auth(id === state.calfB ? state.establishmentB : state.establishmentA));
     }
@@ -289,6 +303,111 @@ describe('🧪 SEGUNDA TANDA — backend y multi-establecimiento', () => {
     expect(calf.status).toBe(200);
     expect(calf.data.metodo_calostrado).toBe('sonda');
     expect(Number(calf.data.litros_calostrado)).toBe(2.2);
+  });
+
+  test('Seguimiento guarda pesos por fecha y múltiples tomas de calostrado', async () => {
+    const firstWeight = await businessApi.post(
+      `/terneros/${state.calvesA[0]}/pesajes`,
+      { fecha: '2026-01-30', peso: 42, observaciones: 'TEST 15d' },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(firstWeight.status);
+    expect(firstWeight.data.rp_ternero).toBeTruthy();
+    state.pesajeA.push(firstWeight.data.id_pesaje);
+
+    const duplicateDate = await businessApi.post(
+      `/terneros/${state.calvesA[0]}/pesajes`,
+      { fecha: '2026-01-30', peso: 43 },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(duplicateDate.status);
+    expect(duplicateDate.data.id_pesaje).toBe(firstWeight.data.id_pesaje);
+    expect(Number(duplicateDate.data.peso)).toBe(43);
+
+    const secondWeight = await businessApi.post(
+      `/terneros/${state.calvesA[0]}/pesajes`,
+      { fecha: '2026-02-14', peso: 51 },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(secondWeight.status);
+    state.pesajeA.push(secondWeight.data.id_pesaje);
+
+    const weights = await businessApi.get(
+      `/terneros/${state.calvesA[0]}/pesajes`,
+      auth(state.establishmentA),
+    );
+    expect(weights.status).toBe(200);
+    expect(weights.data.rp_ternero).toBe(firstWeight.data.rp_ternero);
+    expect(weights.data.pesajes).toHaveLength(2);
+    expect(weights.data.hitos['15d'].peso).toBeTruthy();
+
+    const firstColostrum = await businessApi.post(
+      `/terneros/${state.calvesA[0]}/calostrados`,
+      {
+        fecha_hora: '2026-01-15T08:30:00.000Z',
+        metodo: 'mamadera',
+        litros: 2.5,
+        grado_brix: 22.5,
+        observaciones: 'TEST primera toma',
+      },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(firstColostrum.status);
+    state.calostradoA.push(firstColostrum.data.id_calostrado);
+
+    const secondColostrum = await businessApi.post(
+      `/terneros/${state.calvesA[0]}/calostrados`,
+      {
+        fecha_hora: '2026-01-15T14:30:00.000Z',
+        metodo: 'sonda',
+        litros: 1.5,
+        grado_brix: 20,
+      },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(secondColostrum.status);
+    state.calostradoA.push(secondColostrum.data.id_calostrado);
+
+    const colostrum = await businessApi.get(
+      `/terneros/${state.calvesA[0]}/calostrados`,
+      auth(state.establishmentA),
+    );
+    expect(colostrum.status).toBe(200);
+    expect(colostrum.data.calostrados).toHaveLength(2);
+
+    const updated = await businessApi.patch(
+      `/terneros/${state.calvesA[0]}/calostrados/${firstColostrum.data.id_calostrado}`,
+      { grado_brix: 23 },
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(updated.status);
+    expect(Number(updated.data.grado_brix)).toBe(23);
+
+    const deleted = await businessApi.delete(
+      `/terneros/${state.calvesA[0]}/calostrados/${secondColostrum.data.id_calostrado}`,
+      auth(state.establishmentA),
+    );
+    expect([200, 201]).toContain(deleted.status);
+    state.calostradoA = [firstColostrum.data.id_calostrado];
+  });
+
+  test('Seguimiento no permite fecha futura ni acceso desde otro establecimiento', async () => {
+    await expectRejectedWith(
+      businessApi.post(
+        `/terneros/${state.calvesA[0]}/pesajes`,
+        { fecha: '2099-01-01', peso: 60 },
+        auth(state.establishmentA),
+      ),
+      [400, 422],
+    );
+
+    await expectRejectedWith(
+      businessApi.get(
+        `/terneros/${state.calvesA[0]}/pesajes`,
+        auth(state.establishmentB),
+      ),
+      [403, 404],
+    );
   });
 
   test('Pesos oficiales 15, 30 y 45 días quedan guardados y aparecen en historial', async () => {

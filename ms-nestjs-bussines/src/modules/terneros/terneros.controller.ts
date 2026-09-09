@@ -19,6 +19,14 @@ import {
 } from './dto/create-ternero.dto';
 import { UpdateTerneroDto } from './dto/update-ternero.dto';
 import {
+  CreatePesajeTerneroDto,
+  UpdatePesajeTerneroDto,
+} from './dto/pesaje-ternero.dto';
+import {
+  CreateCalostradoTerneroDto,
+  UpdateCalostradoTerneroDto,
+} from './dto/calostrado-ternero.dto';
+import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
@@ -237,6 +245,121 @@ export class TernerosController {
       updateCalostradoDto,
       req.id_establecimiento,
       req.es_admin,
+    );
+  }
+
+  @Post('/:id_ternero/pesajes')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Registrar o actualizar el pesaje del día' })
+  async crearPesaje(
+    @Param('id_ternero') id_ternero: string,
+    @Body() dto: CreatePesajeTerneroDto,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.crearPesaje(
+      +id_ternero,
+      req.id_establecimiento,
+      dto,
+    );
+  }
+
+  @Get('/:id_ternero/pesajes')
+  @ApiOperation({ summary: 'Obtener seguimiento de pesos del ternero' })
+  async listarPesajes(@Param('id_ternero') id_ternero: string, @Req() req: any) {
+    return this.ternerosService.listarPesajes(
+      +id_ternero,
+      req.id_establecimiento,
+    );
+  }
+
+  @Patch('/:id_ternero/pesajes/:id_pesaje')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Editar un pesaje del ternero' })
+  async actualizarPesaje(
+    @Param('id_ternero') id_ternero: string,
+    @Param('id_pesaje') id_pesaje: string,
+    @Body() dto: UpdatePesajeTerneroDto,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.actualizarPesaje(
+      +id_ternero,
+      +id_pesaje,
+      req.id_establecimiento,
+      dto,
+    );
+  }
+
+  @Delete('/:id_ternero/pesajes/:id_pesaje')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Eliminar un pesaje del ternero' })
+  async eliminarPesaje(
+    @Param('id_ternero') id_ternero: string,
+    @Param('id_pesaje') id_pesaje: string,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.eliminarPesaje(
+      +id_ternero,
+      +id_pesaje,
+      req.id_establecimiento,
+    );
+  }
+
+  @Post('/:id_ternero/calostrados')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Registrar una toma de calostrado' })
+  async crearCalostrado(
+    @Param('id_ternero') id_ternero: string,
+    @Body() dto: CreateCalostradoTerneroDto,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.crearCalostrado(
+      +id_ternero,
+      req.id_establecimiento,
+      dto,
+    );
+  }
+
+  @Get('/:id_ternero/calostrados')
+  @ApiOperation({ summary: 'Obtener tomas de calostrado del ternero' })
+  async listarCalostrados(
+    @Param('id_ternero') id_ternero: string,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.listarCalostrados(
+      +id_ternero,
+      req.id_establecimiento,
+    );
+  }
+
+  @Patch('/:id_ternero/calostrados/:id_calostrado')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Editar una toma de calostrado' })
+  async actualizarCalostradoRegistro(
+    @Param('id_ternero') id_ternero: string,
+    @Param('id_calostrado') id_calostrado: string,
+    @Body() dto: UpdateCalostradoTerneroDto,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.actualizarCalostradoRegistro(
+      +id_ternero,
+      +id_calostrado,
+      req.id_establecimiento,
+      dto,
+    );
+  }
+
+  @Delete('/:id_ternero/calostrados/:id_calostrado')
+  @Roles('admin', 'veterinario', 'operario')
+  @ApiOperation({ summary: 'Eliminar una toma de calostrado' })
+  async eliminarCalostrado(
+    @Param('id_ternero') id_ternero: string,
+    @Param('id_calostrado') id_calostrado: string,
+    @Req() req: any,
+  ) {
+    return this.ternerosService.eliminarCalostrado(
+      +id_ternero,
+      +id_calostrado,
+      req.id_establecimiento,
     );
   }
 

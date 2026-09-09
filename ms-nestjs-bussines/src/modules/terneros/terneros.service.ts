@@ -18,6 +18,16 @@ import { TerneroEntity } from './entities/ternero.entity';
 import { Repository } from 'typeorm';
 import { MadreEntity } from '../madres/entities/madre.entity';
 import { Rodeos } from '../rodeos/entities/rodeos.entity';
+import { PesajeTerneroEntity } from './entities/pesaje-ternero.entity';
+import { CalostradoTerneroEntity } from './entities/calostrado-ternero.entity';
+import {
+  CreatePesajeTerneroDto,
+  UpdatePesajeTerneroDto,
+} from './dto/pesaje-ternero.dto';
+import {
+  CreateCalostradoTerneroDto,
+  UpdateCalostradoTerneroDto,
+} from './dto/calostrado-ternero.dto';
 
 interface UpdateCalostradoDto {
   metodo_calostrado?: string;
@@ -38,7 +48,306 @@ export class TernerosService {
     private readonly madreRepository: Repository<MadreEntity>,
     @InjectRepository(Rodeos)
     private readonly rodeoRepository: Repository<Rodeos>,
+    @InjectRepository(PesajeTerneroEntity)
+    private readonly pesajeRepository: Repository<PesajeTerneroEntity>,
+    @InjectRepository(CalostradoTerneroEntity)
+    private readonly calostradoRepository: Repository<CalostradoTerneroEntity>,
   ) {}
+
+  private async obtenerTerneroParaSeguimiento(
+    idTernero: number,
+    idEstablecimiento: number,
+  ): Promise<TerneroEntity> {
+    if (!idEstablecimiento) {
+      throw new ForbiddenException('Debe especificar un establecimiento');
+    }
+
+    const ternero = await this.terneroRepository.findOne({
+      where: {
+        id_ternero: idTernero,
+        id_establecimiento: idEstablecimiento,
+      },
+    });
+
+    if (!ternero) {
+      throw new NotFoundException(
+        'Ternero no encontrado o no pertenece a su establecimiento',
+      );
+    }
+    return ternero;
+  }
+
+  private validarFechaNoFutura(valor: string): void {
+    const fecha = new Date(valor);
+    if (Number.isNaN(fecha.getTime())) {
+      throw new HttpException('La fecha no es válida', HttpStatus.BAD_REQUEST);
+    }
+    if (fecha.getTime() > Date.now()) {
+      throw new HttpException(
+        'La fecha no puede ser futura',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  private enriquecerPesaje(
+    pesaje: PesajeTerneroEntity,
+    ternero: TerneroEntity,
+    anterior?: PesajeTerneroEntity,
+  ) {
+    const fechaPesaje = new Date(pesaje.fecha);
+    const nacimiento = new Date(ternero.fecha_nacimiento);
+    const diasDesdeNacimiento = Math.max(
+      0,
+      Math.floor(
+        (Date.UTC(
+          fechaPesaje.getUTCFullYear(),
+          fechaPesaje.getUTCMonth(),
+          fechaPesaje.getUTCDate(),
+        ) -
+          Date.UTC(
+            nacimiento.getUTCFullYear(),
+            nacimiento.getUTCMonth(),
+            nacimiento.getUTCDate(),
+          )) /
+          86400000,
+      ),
+    );
+    const gananciaDesdeAnterior = anterior
+      ? Number((pesaje.peso - anterior.peso).toFixed(2))
+      : Number((pesaje.peso - ternero.peso_nacer).toFixed(2));
+    const diasDesdeAnterior = anterior
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(pesaje.fecha).getTime() -
+              new Date(anterior.fecha).getTime()) /
+              86400000,
+          ),
+        )
+      : Math.max(1, diasDesdeNacimiento);
+
+    return {
+      ...pesaje,
+      rp_ternero: ternero.rp_ternero,
+      dias_desde_nacimiento: diasDesdeNacimiento,
+      ganancia_desde_anterior: gananciaDesdeAnterior,
+      aumento_diario_promedio: Number(
+        (gananciaDesdeAnterior / diasDesdeAnterior).toFixed(3),
+      ),
+    };
+  }
+
+  private async obtenerPesajesDelTernero(
+    idTernero: number,
+    idEstablecimiento: number,
+  ): Promise<{ ternero: TerneroEntity; pesajes: PesajeTerneroEntity[] }> {
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const pesajes = await this.pesajeRepository.find({
+      where: { id_ternero: idTernero, id_establecimiento: idEstablecimiento },
+      order: { fecha: 'ASC' },
+    });
+    return { ternero, pesajes };
+  }
+
+  async crearPesaje(
+    idTernero: number,
+    idEstablecimiento: number,
+    dto: CreatePesajeTerneroDto,
+  ): Promise<any> {
+    this.validarFechaNoFutura(dto.fecha);
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const existente = this.pesajeRepository.findOne
+      ? await this.pesajeRepository.findOne({
+          where: {
+            id_ternero: idTernero,
+            id_establecimiento: idEstablecimiento,
+            fecha: dto.fecha as any,
+          },
+        })
+      : null;
+
+    const pesaje = existente ||
+      this.pesajeRepository.create({
+        id_ternero: idTernero,
+        id_establecimiento: idEstablecimiento,
+        fecha: dto.fecha as any,
+        peso: dto.peso,
+        observaciones: dto.observaciones,
+      });
+
+    if (existente) {
+      existente.peso = dto.peso;
+      existente.observaciones = dto.observaciones;
+    }
+
+    const guardado = await this.pesajeRepository.save(pesaje);
+    return this.enriquecerPesaje(guardado, ternero);
+  }
+
+  async listarPesajes(idTernero: number, idEstablecimiento: number): Promise<any> {
+    const { ternero, pesajes } = await this.obtenerPesajesDelTernero(
+      idTernero,
+      idEstablecimiento,
+    );
+    const enriquecidos = pesajes.map((pesaje, index) =>
+      this.enriquecerPesaje(pesaje, ternero, pesajes[index - 1]),
+    );
+    const hitos = [15, 30, 45].reduce((resultado, dias) => {
+      const candidato = enriquecidos
+        .map((pesaje) => ({
+          ...pesaje,
+          diferencia: Math.abs(pesaje.dias_desde_nacimiento - dias),
+        }))
+        .filter((pesaje) => pesaje.diferencia <= 3)
+        .sort((a, b) => a.diferencia - b.diferencia)[0];
+      resultado[`${dias}d`] = candidato || null;
+      return resultado;
+    }, {} as Record<string, any>);
+
+    return {
+      id_ternero: ternero.id_ternero,
+      rp_ternero: ternero.rp_ternero,
+      fecha_nacimiento: ternero.fecha_nacimiento,
+      peso_nacer: ternero.peso_nacer,
+      peso_largado: ternero.peso_largado ?? null,
+      pesajes: enriquecidos,
+      hitos,
+    };
+  }
+
+  async actualizarPesaje(
+    idTernero: number,
+    idPesaje: number,
+    idEstablecimiento: number,
+    dto: UpdatePesajeTerneroDto,
+  ): Promise<any> {
+    if (dto.fecha) this.validarFechaNoFutura(dto.fecha);
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const pesaje = await this.pesajeRepository.findOne({
+      where: {
+        id_pesaje: idPesaje,
+        id_ternero: idTernero,
+        id_establecimiento: idEstablecimiento,
+      },
+    });
+    if (!pesaje) throw new NotFoundException('Pesaje no encontrado');
+    Object.assign(pesaje, dto);
+    return this.enriquecerPesaje(
+      await this.pesajeRepository.save(pesaje),
+      ternero,
+    );
+  }
+
+  async eliminarPesaje(
+    idTernero: number,
+    idPesaje: number,
+    idEstablecimiento: number,
+  ): Promise<{ message: string }> {
+    await this.obtenerTerneroParaSeguimiento(idTernero, idEstablecimiento);
+    const resultado = await this.pesajeRepository.delete({
+      id_pesaje: idPesaje,
+      id_ternero: idTernero,
+      id_establecimiento: idEstablecimiento,
+    });
+    if (!resultado.affected) throw new NotFoundException('Pesaje no encontrado');
+    return { message: 'Pesaje eliminado con éxito' };
+  }
+
+  async crearCalostrado(
+    idTernero: number,
+    idEstablecimiento: number,
+    dto: CreateCalostradoTerneroDto,
+  ): Promise<any> {
+    this.validarFechaNoFutura(dto.fecha_hora);
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const calostrado = this.calostradoRepository.create({
+      id_ternero: idTernero,
+      id_establecimiento: idEstablecimiento,
+      fecha_hora: dto.fecha_hora as any,
+      metodo: dto.metodo,
+      litros: dto.litros,
+      grado_brix: dto.grado_brix,
+      observaciones: dto.observaciones,
+    });
+    const guardado = await this.calostradoRepository.save(calostrado);
+    return { ...guardado, rp_ternero: ternero.rp_ternero };
+  }
+
+  async listarCalostrados(
+    idTernero: number,
+    idEstablecimiento: number,
+  ): Promise<any> {
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const calostrados = await this.calostradoRepository.find({
+      where: { id_ternero: idTernero, id_establecimiento: idEstablecimiento },
+      order: { fecha_hora: 'ASC' },
+    });
+    return {
+      id_ternero: ternero.id_ternero,
+      rp_ternero: ternero.rp_ternero,
+      calostrados: calostrados.map((calostrado) => ({
+        ...calostrado,
+        rp_ternero: ternero.rp_ternero,
+      })),
+    };
+  }
+
+  async actualizarCalostradoRegistro(
+    idTernero: number,
+    idCalostrado: number,
+    idEstablecimiento: number,
+    dto: UpdateCalostradoTerneroDto,
+  ): Promise<any> {
+    if (dto.fecha_hora) this.validarFechaNoFutura(dto.fecha_hora);
+    const ternero = await this.obtenerTerneroParaSeguimiento(
+      idTernero,
+      idEstablecimiento,
+    );
+    const calostrado = await this.calostradoRepository.findOne({
+      where: {
+        id_calostrado: idCalostrado,
+        id_ternero: idTernero,
+        id_establecimiento: idEstablecimiento,
+      },
+    });
+    if (!calostrado) throw new NotFoundException('Calostrado no encontrado');
+    Object.assign(calostrado, dto);
+    const guardado = await this.calostradoRepository.save(calostrado);
+    return { ...guardado, rp_ternero: ternero.rp_ternero };
+  }
+
+  async eliminarCalostrado(
+    idTernero: number,
+    idCalostrado: number,
+    idEstablecimiento: number,
+  ): Promise<{ message: string }> {
+    await this.obtenerTerneroParaSeguimiento(idTernero, idEstablecimiento);
+    const resultado = await this.calostradoRepository.delete({
+      id_calostrado: idCalostrado,
+      id_ternero: idTernero,
+      id_establecimiento: idEstablecimiento,
+    });
+    if (!resultado.affected) {
+      throw new NotFoundException('Calostrado no encontrado');
+    }
+    return { message: 'Calostrado eliminado con éxito' };
+  }
 
   private async obtenerORodeoTambo(idEstablecimiento: number): Promise<Rodeos> {
     let rodeoTambo = await this.rodeoRepository.findOne({
