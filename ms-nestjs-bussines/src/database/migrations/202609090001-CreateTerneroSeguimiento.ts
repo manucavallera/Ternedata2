@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateTerneroSeguimiento202609090001 implements MigrationInterface {
-  name = 'CreateTerneroSeguimiento202609090001';
+export class CreateTerneroSeguimiento2026090921000 implements MigrationInterface {
+  name = 'CreateTerneroSeguimiento2026090921000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
