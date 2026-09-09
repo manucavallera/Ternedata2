@@ -117,10 +117,10 @@ export class CreateTerneroSeguimiento2026090921000 implements MigrationInterface
         await queryRunner.query(
           `INSERT INTO ternero_calostrados
             (id_ternero, id_establecimiento, fecha_hora, metodo, litros, grado_brix, observaciones)
-           SELECT $1, $2, $3, $4, $5, $6, $7
+           SELECT $1, $2, $3, CAST($4 AS VARCHAR(20)), $5, $6, $7
            WHERE NOT EXISTS (
              SELECT 1 FROM ternero_calostrados
-             WHERE id_ternero = $1 AND fecha_hora = $3 AND metodo = $4
+             WHERE id_ternero = $1 AND fecha_hora = $3 AND metodo = CAST($4 AS VARCHAR(20))
            )`,
           [
             ternero.id_ternero,
