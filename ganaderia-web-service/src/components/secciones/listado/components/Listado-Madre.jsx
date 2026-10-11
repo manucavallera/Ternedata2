@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import businessApi from "@/api/bussines-api";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
@@ -140,7 +141,7 @@ const ListadoMadre = () => {
       console.log("🗑️ Eliminando madre:", modalEliminar.madre.id_madre);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/madres/delete-madre-by-id/${modalEliminar.madre.id_madre}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/madres/delete-madre-by-id/${modalEliminar.madre.id_madre}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

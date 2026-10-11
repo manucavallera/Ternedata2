@@ -1,5 +1,6 @@
 require('dotenv').config({ path: __dirname + '/.env.test' });
 const axios = require('axios');
+const { retryOn429, saveSession, readSession } = require('./helpers/http');
 
 const SECURITY_URL = process.env.SECURITY_URL;
 const BUSINESS_URL = process.env.BUSSINES_URL;
@@ -8,6 +9,8 @@ const PASSWORD = process.env.TEST_PASSWORD;
 
 const securityApi = axios.create({ baseURL: SECURITY_URL, timeout: 20000 });
 const businessApi = axios.create({ baseURL: BUSINESS_URL, timeout: 20000 });
+retryOn429(securityApi);
+retryOn429(businessApi);
 
 const state = {
   token: null,
@@ -82,13 +85,20 @@ const createCalf = async (establishmentId, rp, motherId) => {
 
 describe('🧪 SEGUNDA TANDA — backend y multi-establecimiento', () => {
   beforeAll(async () => {
-    const login = await securityApi.post('/auth/login', {
-      email: EMAIL,
-      password: PASSWORD,
-    });
-    expect([200, 201]).toContain(login.status);
-    state.token = login.data.token;
-    state.userId = login.data.user.id;
+    const session = readSession(EMAIL);
+    if (session) {
+      state.token = session.token;
+      state.userId = session.userId;
+    } else {
+      const login = await securityApi.post('/auth/login', {
+        email: EMAIL,
+        password: PASSWORD,
+      });
+      expect([200, 201]).toContain(login.status);
+      state.token = login.data.token;
+      state.userId = login.data.user.id;
+      saveSession(EMAIL, state.token, state.userId);
+    }
 
     const profile = await securityApi.get('/users/profile/me', auth());
     expect(profile.status).toBe(200);
@@ -499,6 +509,7 @@ describe('🧪 SEGUNDA TANDA — backend y multi-establecimiento', () => {
     const loginOriginal = await securityApi.post('/auth/login', { email: EMAIL, password: PASSWORD });
     expect([200, 201]).toContain(loginOriginal.status);
     state.token = loginOriginal.data.token;
+    saveSession(EMAIL, state.token, state.userId);
   });
 
   test('Dos establecimientos quedan aislados en los listados', async () => {

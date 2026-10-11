@@ -5,9 +5,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { LoggingInterceptor } from './interceptors/loggins.interceptors';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Detrás del proxy de EasyPanel: sin esto el rate limit ve a todos los usuarios con la IP del proxy.
+  app.set('trust proxy', 1);
   app.useGlobalInterceptors(new LoggingInterceptor());
   const configService = app.get(ConfigService);
 

@@ -322,9 +322,21 @@ export class UsersService {
       throw new ConflictException('El email ya está registrado');
     }
 
+    // El teléfono es único: vacío se guarda como null para no chocar entre usuarios sin teléfono
+    const telefono = createUserDto.telefono?.trim() || null;
+    if (telefono) {
+      const existingPhone = await this.usersRepository.findOne({
+        where: { telefono },
+      });
+      if (existingPhone) {
+        throw new ConflictException('El teléfono ya está registrado por otro usuario');
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const newUser = this.usersRepository.create({
       ...createUserDto,
+      telefono,
       password: hashedPassword,
     });
     return await this.usersRepository.save(newUser);

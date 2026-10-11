@@ -9,7 +9,11 @@ import { useSelector } from "react-redux";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { TeamManager } from "@/components/TeamManager"; // 👈 1. AGREGAR ESTO
-import { setUserData, setEstablecimientoActual } from "@/store/auth/authSlice";
+import {
+  setAuthPayload,
+  setUserData,
+  setEstablecimientoActual,
+} from "@/store/auth/authSlice";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -45,6 +49,7 @@ const AdminPanel = () => {
     actualizarEstablecimientoHook,
     eliminarEstablecimientoHook,
     toggleEstadoEstablecimientoHook,
+    toggleEstadoUsuarioHook,
     obtenerResumenSaludHook, // ⬅️ AGREGAR ESTO
   } = useBussinesMicroservicio();
 
@@ -462,13 +467,20 @@ const AdminPanel = () => {
 
   const toggleEstadoUsuario = async (id) => {
     try {
-      await axios.put(
-        `${API_URL}/users/${id}/toggle-status`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        },
-      );
+      // Security reserva este endpoint a super_admin; el admin usa el de Business,
+      // que valida que el usuario pertenezca a uno de sus establecimientos.
+      if (usuarioSeguro?.rol === "super_admin") {
+        await axios.put(
+          `${API_URL}/users/${id}/toggle-status`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          },
+        );
+      } else {
+        const response = await toggleEstadoUsuarioHook(id);
+        if (response?.status !== 200) throw new Error(`toggle-status ${response}`);
+      }
       showAlert("Estado actualizado correctamente", "success");
       cargarUsuarios();
       cargarEstadisticas();
@@ -601,6 +613,21 @@ const AdminPanel = () => {
               },
             );
             console.log("✅ Auto-asignación de dueño completada");
+          }
+
+          // El acceso al establecimiento nuevo viaja en el token: renovarlo para usarlo sin volver a loguearse
+          try {
+            const { data } = await axios.post(
+              `${API_URL}/auth/refresh`,
+              {},
+              { headers: { Authorization: `Bearer ${getToken()}` } },
+            );
+            if (data?.token) {
+              localStorage.setItem("token", data.token);
+              dispatch(setAuthPayload(data.token));
+            }
+          } catch (error) {
+            console.error("No se pudo renovar la sesión:", error);
           }
         }
 
@@ -929,6 +956,17 @@ const AdminPanel = () => {
           Gestiona usuarios, establecimientos y configuración del sistema
         </p>
       </div>
+      {/* Avisos de resultado (éxito o error) de las acciones del panel */}
+      {alert.show && (
+        <div
+          role='status'
+          className={`fixed top-20 right-4 z-50 max-w-sm rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-lg ${
+            alert.type === "error" ? "bg-red-600" : "bg-green-600"
+          }`}
+        >
+          {alert.message}
+        </div>
+      )}
       {/* Estadísticas Globales */}
       {stats && (
         <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-8'>

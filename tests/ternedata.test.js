@@ -1,5 +1,6 @@
 require('dotenv').config({ path: __dirname + '/.env.test' });
 const axios = require('axios');
+const { retryOn429, saveSession } = require('./helpers/http');
 
 const SECURITY_URL = process.env.SECURITY_URL;
 const BUSSINES_URL = process.env.BUSSINES_URL;
@@ -23,6 +24,8 @@ const state = {
 // APIs con token dinámico
 const secApi = axios.create({ baseURL: SECURITY_URL });
 const busApi = axios.create({ baseURL: BUSSINES_URL });
+retryOn429(secApi);
+retryOn429(busApi);
 
 const authHeader = () => ({ Authorization: `Bearer ${state.token}` });
 
@@ -49,6 +52,7 @@ describe('🔐 AUTH', () => {
     expect(res.data.user.email).toBe(EMAIL);
     state.token = res.data.token;
     state.userId = res.data.user.id;
+    saveSession(EMAIL, state.token, state.userId);
   });
 
   test('Login con contraseña incorrecta → 401', async () => {
@@ -477,20 +481,14 @@ describe('🧹 CLEANUP - Eliminar datos de prueba', () => {
 
   test('Eliminar evento', async () => {
     if (!state.eventoId) return;
-    try {
-      await busApi.delete(`/eventos/delete-evento-by-id/${state.eventoId}`, { headers: authHeader() });
-    } catch { /* endpoint puede no existir */ }
+    const res = await busApi.delete(`/eventos/delete-evento-by-id/${state.eventoId}`, { headers: authHeader() });
+    expect([200, 201, 204]).toContain(res.status);
   });
 
   test('Eliminar establecimiento', async () => {
     if (!state.establecimientoId) return;
-    try {
-      const res = await busApi.delete(`/establecimientos/${state.establecimientoId}`, { headers: authHeader() });
-      expect([200, 201]).toContain(res.status);
-    } catch (err) {
-      // Si falla por FK, loguear pero no bloquear
-      console.warn('  ⚠️  No se pudo eliminar establecimiento (probable FK):', err.response?.status);
-    }
+    const res = await busApi.delete(`/establecimientos/${state.establecimientoId}`, { headers: authHeader() });
+    expect([200, 201, 204]).toContain(res.status);
   });
 
   test('Resumen de IDs creados/eliminados', () => {
@@ -548,37 +546,24 @@ describe('🎟️ INVITACIONES', () => {
   });
 
   test('Registrar usuario con token de invitación → rol operario o ya existe', async () => {
-    if (!invitacionToken) return;
-    try {
-      const res = await secApi.post('/auth/register', {
-        name: 'Operario Test',
-        email: 'invitado_test@ternedata.com',
-        password: 'test1234',
-        invitationToken,
-      });
-      expect([200, 201]).toContain(res.status);
-      console.log('  ✅ Operario registrado, rol:', res.data.rol);
-    } catch (err) {
-      const status = err.response?.status;
-      console.log('  ℹ️ Register respondió:', status, err.response?.data?.message || err.message);
-      // 409 = ya existe, 400 = validación, 500 = error interno → todos son aceptables en test
-      expect(true).toBe(true);
-    }
+    expect(invitacionToken).toBeTruthy();
+    const res = await secApi.post('/auth/register', {
+      name: 'Operario Test',
+      email: 'invitado_test@ternedata.com',
+      password: 'test1234',
+      invitationToken: invitacionToken,
+    }, { validateStatus: () => true });
+    // 409 = el invitado ya quedó registrado en una corrida anterior
+    expect([200, 201, 409]).toContain(res.status);
   });
 
-  test('Login con usuario invitado → token válido', async () => {
-    try {
-      const res = await secApi.post('/auth/login', {
-        email: 'invitado_test@ternedata.com',
-        password: 'test1234',
-      });
-      expect([200, 201]).toContain(res.status);
-      expect(res.data).toHaveProperty('token');
-      expect(res.data.user.rol).toBe('operario');
-    } catch (err) {
-      // Si no existe el usuario (no se creó antes), saltear
-      console.warn('  ⚠️ Usuario invitado no existe, saltear login test');
-    }
+  test('Login con usuario invitado sin verificar email → 403', async () => {
+    const res = await secApi.post('/auth/login', {
+      email: 'invitado_test@ternedata.com',
+      password: 'test1234',
+    }, { validateStatus: () => true });
+    expect(res.status).toBe(403);
+    expect(res.data.message).toMatch(/verific/i);
   });
 
   test('Listar invitaciones pendientes del establecimiento', async () => {

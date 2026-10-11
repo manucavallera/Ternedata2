@@ -34,7 +34,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       isGlobal: true,
       load: [configuration],
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -14,18 +14,29 @@ export default function EstablecimientoSelector() {
 
   const [establecimientos, setEstablecimientos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fallos, setFallos] = useState(0);
 
   // Recargar cuando el usuario obtiene un establecimiento (ej: después de crear uno nuevo)
   useEffect(() => {
     cargarEstablecimientos();
   }, [userPayload?.id_establecimiento]);
 
+  // Si la carga falla (ej: 429 por rate limit), reintentar solo unas veces antes de pedirlo a mano
+  useEffect(() => {
+    if (fallos === 0 || fallos > 4) return;
+    const timer = setTimeout(cargarEstablecimientos, 15000);
+    return () => clearTimeout(timer);
+  }, [fallos]);
+
   const cargarEstablecimientos = async () => {
     try {
       setLoading(true);
       const response = await obtenerEstablecimientosHook();
 
-      if (response?.status === 200) {
+      if (response?.status !== 200) {
+        setFallos((n) => n + 1);
+      } else {
+        setFallos(0);
         // Filtrar solo establecimientos activos
         const establecimientosActivos = response.data.filter(
           (e) => e.estado === "activo"
@@ -55,7 +66,7 @@ export default function EstablecimientoSelector() {
       }
     } catch (error) {
       console.error("Error al cargar establecimientos:", error);
-      setEstablecimientos([]);
+      setFallos((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -80,6 +91,18 @@ export default function EstablecimientoSelector() {
 
   if (loading) {
     return <div className='text-white text-xs sm:text-sm'>Cargando...</div>;
+  }
+
+  if (fallos > 0 && establecimientos.length === 0) {
+    return (
+      <button
+        type='button'
+        onClick={cargarEstablecimientos}
+        className='text-white text-xs sm:text-sm font-semibold border border-white rounded px-2 sm:px-3 py-1 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white'
+      >
+        ⚠️ No se cargaron los establecimientos. Reintentar
+      </button>
+    );
   }
 
   return (

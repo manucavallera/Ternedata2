@@ -1,4 +1,5 @@
 import { useBussinesMicroservicio } from "@/hooks/bussines";
+import businessApi from "@/api/bussines-api";
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import SeguimientoTernero from "./SeguimientoTernero";
@@ -341,7 +342,7 @@ const ListadoTernero = () => {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/terneros/patch-ternero-by-id/${modalPesoOficial.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/terneros/patch-ternero-by-id/${modalPesoOficial.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "PATCH",
           headers: {
@@ -379,7 +380,7 @@ const ListadoTernero = () => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/terneros/delete-ternero-by-id/${modalEliminar.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/terneros/delete-ternero-by-id/${modalEliminar.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {
