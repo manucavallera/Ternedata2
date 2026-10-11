@@ -15,6 +15,7 @@ import {
 import { UsersService } from '../users/users.service';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { RolEstablecimiento } from '../invitaciones/roles.enum';
+import { OrganizacionTipo } from './organizacion-tipo.enum';
 
 @Injectable()
 export class EstablecimientosService {
@@ -34,8 +35,13 @@ export class EstablecimientosService {
     userId: number,
   ): Promise<Establecimiento> {
     try {
+      const dto = {
+        ...createDto,
+        tipo_organizacion:
+          createDto.tipo_organizacion ?? OrganizacionTipo.GANADERIA,
+      };
       const nuevoEstablecimiento =
-        this.establecimientoRepository.create(createDto);
+        this.establecimientoRepository.create(dto);
       const guardado =
         await this.establecimientoRepository.save(nuevoEstablecimiento);
 

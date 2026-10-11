@@ -14,6 +14,7 @@ import {
   setUserData,
   setEstablecimientoActual,
 } from "@/store/auth/authSlice";
+import { useSuperAdminUsers } from "@/hooks/useSuperAdminUsers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -60,6 +61,11 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(false);
   const [usuarioSeguro, setUsuarioSeguro] = useState(null);
   const [verificando, setVerificando] = useState(true);
+  const [globalUsers, setGlobalUsers] = useState([]);
+  const [globalRoleFilter, setGlobalRoleFilter] = useState("todos");
+  const [globalStatusFilter, setGlobalStatusFilter] = useState("todos");
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const { listGlobalUsers, changeUserRole, toggleUserStatus } = useSuperAdminUsers();
 
   // Estados para modal de usuarios
   const [showModalUsuario, setShowModalUsuario] = useState(false);
@@ -325,6 +331,34 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const cargarUsuariosGlobales = async () => {
+    setGlobalLoading(true);
+    const response = await listGlobalUsers();
+    if (response.status === 200) setGlobalUsers(response.data || []);
+    else if (response.status) showAlert(response.data?.message || "No se pudo cargar el panel global", "error");
+    setGlobalLoading(false);
+  };
+
+  const cambiarRolGlobal = async (user) => {
+    const rol = window.prompt("Nuevo rol (admin, veterinario, operario, super_admin):", user.rol);
+    if (!rol || rol === user.rol) return;
+    if (!window.confirm(`¿Cambiar el rol de ${user.email} a ${rol}?`)) return;
+    const response = await changeUserRole(user.id, rol);
+    if (response.status >= 200 && response.status < 300) {
+      showAlert("Rol actualizado correctamente", "success");
+      cargarUsuariosGlobales();
+    } else showAlert(response.data?.message || "No se pudo cambiar el rol", "error");
+  };
+
+  const cambiarEstadoGlobal = async (user) => {
+    if (!window.confirm(`¿${user.estado === "activo" ? "Desactivar" : "Activar"} a ${user.email}?`)) return;
+    const response = await toggleUserStatus(user.id);
+    if (response.status >= 200 && response.status < 300) {
+      showAlert("Estado actualizado correctamente", "success");
+      cargarUsuariosGlobales();
+    } else showAlert(response.data?.message || "No se pudo cambiar el estado", "error");
   };
 
   const cargarEstadisticas = async () => {
@@ -732,6 +766,10 @@ const AdminPanel = () => {
     cargarTodo();
   }, []);
 
+  useEffect(() => {
+    if (usuarioSeguro?.rol === "super_admin") cargarUsuariosGlobales();
+  }, [usuarioSeguro?.rol]);
+
   // ⬅️ NUEVO: Cargar datos comparativos cuando cambien los establecimientos
   useEffect(() => {
     if (establecimientos.length > 0) {
@@ -1040,6 +1078,14 @@ const AdminPanel = () => {
           >
             👥 <span className='hidden sm:inline'>Gestión de </span>Usuarios
           </button>
+          {usuarioSeguro?.rol === "super_admin" && (
+            <button
+              onClick={() => setActiveTab("global")}
+              className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${activeTab === "global" ? "border-b-2 border-red-500 text-red-600" : "text-gray-600 hover:text-red-600"}`}
+            >
+              🌐 Usuarios globales
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("establecimientos")}
             className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
@@ -1087,6 +1133,29 @@ const AdminPanel = () => {
           )}
         </div>
       </div>
+      {activeTab === "global" && usuarioSeguro?.rol === "super_admin" && (
+        <div className='bg-white rounded-lg shadow-md p-6'>
+          <div className='flex flex-wrap justify-between gap-3 items-center mb-6'>
+            <h2 className='text-2xl font-bold text-gray-800'>Usuarios globales</h2>
+            <div className='flex gap-2'>
+              <select value={globalRoleFilter} onChange={(e) => setGlobalRoleFilter(e.target.value)} className='border rounded px-2 py-1 text-sm'>
+                <option value='todos'>Todos los roles</option><option value='admin'>Admin</option><option value='veterinario'>Veterinario</option><option value='operario'>Operario</option><option value='super_admin'>Super admin</option>
+              </select>
+              <select value={globalStatusFilter} onChange={(e) => setGlobalStatusFilter(e.target.value)} className='border rounded px-2 py-1 text-sm'>
+                <option value='todos'>Todos los estados</option><option value='activo'>Activo</option><option value='inactivo'>Inactivo</option>
+              </select>
+              <button onClick={cargarUsuariosGlobales} className='bg-gray-100 rounded px-3 py-1 text-sm'>Actualizar</button>
+            </div>
+          </div>
+          {globalLoading ? <p className='py-8 text-center text-gray-500'>Cargando usuarios globales...</p> : (
+            <div className='overflow-x-auto'><table className='w-full'><thead className='bg-gray-50'><tr><th className='p-3 text-left'>Usuario</th><th className='p-3 text-left'>Rol</th><th className='p-3 text-left'>Estado</th><th className='p-3 text-left'>Establecimientos</th><th className='p-3 text-right'>Acciones</th></tr></thead><tbody className='divide-y'>
+              {globalUsers.filter((user) => (globalRoleFilter === "todos" || user.rol === globalRoleFilter) && (globalStatusFilter === "todos" || user.estado === globalStatusFilter)).map((user) => (
+                <tr key={user.id}><td className='p-3'><div className='font-medium'>{user.name}</div><div className='text-sm text-gray-500'>{user.email}</div></td><td className='p-3 capitalize'>{user.rol}</td><td className='p-3 capitalize'>{user.estado}</td><td className='p-3'>{(user.establecimientosAsignados || []).map((est) => est.nombre || `#${est.id}`).join(", ") || user.establecimiento || "—"}</td><td className='p-3 text-right'><button onClick={() => cambiarRolGlobal(user)} className='text-blue-600 mr-3 text-sm'>Cambiar rol</button><button onClick={() => cambiarEstadoGlobal(user)} className='text-red-600 text-sm'>{user.estado === "activo" ? "Desactivar" : "Activar"}</button></td></tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
       {/* TAB: USUARIOS */}
       {activeTab === "usuarios" && (
         <div className='bg-white rounded-lg shadow-md p-6'>

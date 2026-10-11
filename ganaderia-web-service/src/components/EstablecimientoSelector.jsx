@@ -4,6 +4,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { setEstablecimientoActual } from "@/store/auth";
 import { useEffect, useState } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  esContextoForrajeria,
+  obtenerRutaInicio,
+} from "@/app/forrajeria/context";
 
 export default function EstablecimientoSelector() {
   const dispatch = useDispatch();
@@ -11,6 +16,8 @@ export default function EstablecimientoSelector() {
     (state) => state.auth
   );
   const { obtenerEstablecimientosHook } = useBussinesMicroservicio();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [establecimientos, setEstablecimientos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,12 +87,21 @@ export default function EstablecimientoSelector() {
 
   const handleChange = (e) => {
     const establecimientoId = e.target.value ? parseInt(e.target.value) : null;
+    const seleccionado = establecimientos.find(
+      (est) => est.id_establecimiento === establecimientoId
+    );
     dispatch(setEstablecimientoActual(establecimientoId));
 
     if (establecimientoId) {
       localStorage.setItem("establecimientoActual", establecimientoId);
     } else {
       localStorage.removeItem("establecimientoActual");
+    }
+
+    // Redirigir solo al cambiar de tipo de organización (ganadería ↔ forrajería)
+    const enForrajeria = pathname.startsWith("/forrajeria");
+    if (seleccionado && esContextoForrajeria(seleccionado) !== enForrajeria) {
+      router.push(obtenerRutaInicio(seleccionado));
     }
   };
 
@@ -130,7 +146,7 @@ export default function EstablecimientoSelector() {
         <option value=''>📊 Seleccionar Establecimiento</option>
         {establecimientos.map((est) => (
           <option key={est.id_establecimiento} value={est.id_establecimiento}>
-            🏢 {est.nombre}
+          {est.tipo_organizacion === "forrajeria" ? "🌾" : "🐄"} {est.nombre}
           </option>
         ))}
       </select>

@@ -6,6 +6,7 @@ import { Establecimiento } from './entities/establecimiento.entity';
 // 👇 1. Importar la entidad intermedia
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { UsersModule } from '../users/users.module';
+import { OrganizacionTipoGuard } from '../auth/organizacion-tipo.guard';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [EstablecimientosController],
-  providers: [EstablecimientosService],
-  exports: [EstablecimientosService],
+  providers: [EstablecimientosService, OrganizacionTipoGuard],
+  // TypeOrmModule: los controladores que usan OrganizacionTipoGuard necesitan el repositorio de Establecimiento
+  exports: [EstablecimientosService, OrganizacionTipoGuard, TypeOrmModule],
 })
 export class EstablecimientosModule {}

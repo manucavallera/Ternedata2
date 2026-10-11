@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { UserEstablecimientoEntity } from '../../users/entity/user-establecimiento.entity';
 import { InvitacionEntity } from '../../invitaciones/invitacion.entity';
+import { OrganizacionTipo } from '../organizacion-tipo.enum';
 
 @Entity('establecimientos')
 export class Establecimiento {
@@ -16,6 +17,13 @@ export class Establecimiento {
 
   @Column({ type: 'varchar', length: 100 })
   nombre: string;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: OrganizacionTipo.GANADERIA,
+  })
+  tipo_organizacion: OrganizacionTipo;
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   ubicacion: string;
