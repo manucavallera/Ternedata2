@@ -277,7 +277,7 @@ function Navbar() {
                 </li>
               )}
 
-              {userPayload?.rol === "admin" && (
+              {["admin", "super_admin"].includes(userPayload?.rol) && (
                 <li>
                   <Link
                     href='/panel-admin'
@@ -325,7 +325,7 @@ function Navbar() {
                       </svg>
                       Mi Perfil
                     </Link>
-                    {userPayload?.rol === "admin" && (
+                    {["admin", "super_admin"].includes(userPayload?.rol) && (
                       <Link
                         href='/panel-admin'
                         onClick={() => setIsProfileOpen(false)}
@@ -496,7 +496,7 @@ function Navbar() {
               </div>
             )}
 
-            {userPayload?.rol === "admin" && (
+            {["admin", "super_admin"].includes(userPayload?.rol) && (
               <Link
                 href='/panel-admin'
                 onClick={() => setIsMobileMenuOpen(false)}

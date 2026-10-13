@@ -162,7 +162,7 @@ test.describe('Listados: edición y baja', () => {
   test('resumen de salud carga sus indicadores', async ({ page }) => {
     await abrirListado(page, 'Resumen Salud');
     for (const titulo of ['Indicadores Clave', 'Tratamientos', 'Diarreas', 'Análisis Cruzado']) {
-      await expect(page.getByRole('heading', { name: titulo }).first()).toBeVisible();
+      await expect(page.getByRole('heading', { name: titulo }).first()).toBeVisible({ timeout: 90000 }); // puede esperar el reintento de un 429
     }
   });
 });

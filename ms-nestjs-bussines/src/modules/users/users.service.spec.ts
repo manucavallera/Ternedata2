@@ -66,6 +66,12 @@ describe('UsersService.verificarPertenenciaAdmin', () => {
     await expect(service.verificarPertenenciaAdmin(admin, 20)).rejects.toThrow(ForbiddenException);
   });
 
+  it('rechaza operar sobre un super_admin aunque comparta establecimiento', async () => {
+    usersRepository.findOne.mockResolvedValue({ id: 20, rol: 'super_admin', id_establecimiento: 1 });
+
+    await expect(service.verificarPertenenciaAdmin(admin, 20)).rejects.toThrow(ForbiddenException);
+  });
+
   it('super_admin opera sobre cualquiera', async () => {
     await expect(
       service.verificarPertenenciaAdmin({ userId: 1, rol: 'super_admin' }, 20),

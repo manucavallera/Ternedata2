@@ -276,9 +276,12 @@ export class UsersService {
     if (adminUser?.rol === UserRole.SUPER_ADMIN) return;
     const target = await this.usersRepository.findOne({
       where: { id: targetUserId },
-      select: ['id', 'id_establecimiento'],
+      select: ['id', 'rol', 'id_establecimiento'],
     });
     if (!target) return; // findOne lanzará 404 más adelante
+    if (target.rol === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
+    }
 
     // Sin establecimiento principal se mira su pertenencia a equipos; si no tiene
     // ninguno, no es de nadie y solo lo opera un super_admin.

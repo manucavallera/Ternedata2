@@ -136,13 +136,24 @@ export class UsersController {
       );
     }
 
+    if (req.user.rol !== UserRole.SUPER_ADMIN) {
+      if (updateUserDto.rol === UserRole.SUPER_ADMIN) {
+        throw new HttpException('El rol super_admin no se puede asignar desde este endpoint', HttpStatus.FORBIDDEN);
+      }
+      await this.usersService.verificarAlcance(req.user, id);
+      if (updateUserDto.id_establecimiento) {
+        await this.usersService.verificarEstablecimientos(req.user, [updateUserDto.id_establecimiento]);
+      }
+    }
+
     return await this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Desactivar usuario (solo admin)' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    await this.usersService.verificarAlcance(req.user, id);
     return await this.usersService.remove(id);
   }
 
@@ -167,7 +178,10 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   async assignEstablecimiento(
     @Body() body: { userId: number; establecimientoId: number },
+    @Request() req,
   ) {
+    await this.usersService.verificarAlcance(req.user, body.userId);
+    await this.usersService.verificarEstablecimientos(req.user, [body.establecimientoId]);
     return this.usersService.assignEstablecimiento(
       body.userId,
       body.establecimientoId,
@@ -187,7 +201,10 @@ export class UsersController {
   async syncEstablecimientos(
     @Param('id', ParseIntPipe) id: number,
     @Body('ids') ids: number[],
+    @Request() req,
   ) {
+    await this.usersService.verificarAlcance(req.user, id);
+    await this.usersService.verificarEstablecimientos(req.user, ids || []);
     await this.usersService.syncEstablecimientos(id, ids);
     return { ok: true };
   }

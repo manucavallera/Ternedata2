@@ -85,7 +85,7 @@ test.describe('Panel de administración', () => {
     });
   });
 
-  test('usuarios: crear un operario, verlo en la tabla, desactivarlo y eliminarlo', async ({ page }) => {
+  test('usuarios: crear un operario, verlo en la tabla, cambiarle el rol, desactivarlo y eliminarlo', async ({ page }) => {
     // La baja de usuario es lógica: contra producción dejaría usuarios de prueba para siempre.
     test.skip(!ES_LOCAL, 'solo en entorno local');
     const email = `e2e_operario_${Date.now() % 99999}@ternedata.com`;
@@ -109,6 +109,22 @@ test.describe('Panel de administración', () => {
       expect((await alta).status()).toBeLessThan(300);
       await expect(filaUsuario).toBeVisible();
       await expect(filaUsuario).toContainText('TEST E2E Operario');
+    });
+
+    await test.step('cambiar el rol desde la pantalla', async () => {
+      await filaUsuario.getByTitle('Editar').click();
+      const m = modal(page, 'Editar Usuario');
+      await expect(m.locator('select').first()).toHaveValue('operario');
+      await m.locator('select').first().selectOption('veterinario');
+      const guardado = esperarEscritura(page, '/users/');
+      await m.getByRole('button', { name: '💾 Guardar' }).click();
+      const respuesta = await guardado;
+      expect(respuesta.status(), `${respuesta.url()} ${await respuesta.text()}`).toBeLessThan(300);
+      await expect(filaUsuario).toContainText('veterinario');
+      // El rol queda guardado, no solo pintado en la tabla.
+      await page.reload();
+      await page.getByRole('button', { name: '👥 Gestión de Usuarios' }).click();
+      await expect(filaUsuario).toContainText('veterinario');
     });
 
     await test.step('desactivar', async () => {
@@ -154,9 +170,15 @@ test.describe('Panel de administración', () => {
     await expect(pendiente).toHaveCount(0);
   });
 
+  test('un admin común no ve la pestaña de usuarios globales', async ({ page }) => {
+    await abrirPanel(page, '👥 Gestión de Usuarios');
+    await expect(page.getByRole('button', { name: '🌐 Usuarios globales' })).toHaveCount(0);
+  });
+
   test('dashboard comparativo y configuración cargan', async ({ page }) => {
     await abrirPanel(page, '📊 Dashboard Comparativo');
-    await expect(page.getByRole('heading', { name: 'Ranking de Establecimientos' })).toBeVisible();
+    // Pide un resumen por establecimiento: con muchos puede tocar el límite por minuto y esperar el reintento.
+    await expect(page.getByRole('heading', { name: 'Ranking de Establecimientos' })).toBeVisible({ timeout: 90000 });
     await expect(page.getByRole('columnheader', { name: 'Mortalidad' })).toBeVisible();
     await page.getByRole('button', { name: '⚙️ Config' }).click();
     await expect(page.locator('main, body').getByRole('heading').filter({ hasText: /Config|Alert/i }).first()).toBeVisible();
