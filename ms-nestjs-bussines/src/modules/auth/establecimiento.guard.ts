@@ -26,11 +26,6 @@ export class EstablecimientoGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // --- LOGS DE CONTROL ---
-    console.log('🔐 EstablecimientoGuard - Usuario:', user?.username);
-    console.log('🏢 ID Principal:', user?.id_establecimiento);
-    console.log('🚜 Granjas Extra:', user?.userEstablecimientos?.length || 0);
-
     if (!user) {
       throw new UnauthorizedException('Usuario no autenticado');
     }
@@ -75,7 +70,10 @@ export class EstablecimientoGuard implements CanActivate {
 
     request.id_establecimiento = efectivo;
     request.establecimientos_permitidos = permitidos;
-    request.es_admin = user.rol === 'admin' || user.rol === 'super_admin';
+    // Solo el super_admin ve sin filtro de establecimiento. El rol 'admin' lo tiene
+    // cualquiera que se registra: con este flag en true los servicios le devolvían
+    // registros de otros campos.
+    request.es_admin = user.rol === 'super_admin';
 
     return true;
   }

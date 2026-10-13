@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { RolEstablecimientoModule } from './modules/auth/rol-establecimiento.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
@@ -40,6 +41,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       load: [configuration],
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    RolEstablecimientoModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

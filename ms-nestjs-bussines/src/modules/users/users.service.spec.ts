@@ -4,40 +4,39 @@ import { UsersService } from './users.service';
 describe('UsersService.verificarPertenenciaAdmin', () => {
   const usersRepository = { findOne: jest.fn() };
   const userEstRepo = { find: jest.fn() };
-  const admin = {
-    userId: 10,
-    rol: 'admin',
-    id_establecimiento: 1,
-    userEstablecimientos: [{ establecimientoId: 1 }],
+  // El actor administra los establecimientos 1 y 2, y es operario en el 3.
+  const rolEstablecimiento = {
+    rolEn: jest.fn(async (_user: any, id: number) =>
+      [1, 2].includes(id) ? 'admin' : id === 3 ? 'operario' : null,
+    ),
   };
+  const admin = { userId: 10, rol: 'admin', id_establecimiento: 1 };
   let service: UsersService;
 
-  // user_establecimientos por usuario: el admin (10) pertenece al 1 y al 2
-  const asignaciones = (porUsuario: Record<number, number[]>) =>
-    userEstRepo.find.mockImplementation(({ where }) =>
-      Promise.resolve(
-        (porUsuario[where.userId] || []).map((establecimientoId) => ({
-          establecimientoId,
-        })),
-      ),
-    );
+  // Membresías del usuario sobre el que se opera cuando no tiene establecimiento principal.
+  const membresiasDelUsuario = (ids: number[]) =>
+    userEstRepo.find.mockResolvedValue(ids.map((establecimientoId) => ({ establecimientoId })));
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(usersRepository as any, userEstRepo as any);
-    asignaciones({ 10: [1, 2] });
+    service = new UsersService(
+      usersRepository as any,
+      userEstRepo as any,
+      rolEstablecimiento as any,
+    );
+    membresiasDelUsuario([]);
   });
 
-  it('permite operar sobre un usuario de un establecimiento del admin', async () => {
-    usersRepository.findOne.mockResolvedValue({ id: 20, id_establecimiento: 1 });
-
-    await expect(service.verificarPertenenciaAdmin(admin, 20)).resolves.toBeUndefined();
-  });
-
-  it('permite si el establecimiento se asignó al admin después de emitido el token', async () => {
+  it('permite operar sobre un usuario de un establecimiento que el actor administra', async () => {
     usersRepository.findOne.mockResolvedValue({ id: 20, id_establecimiento: 2 });
 
     await expect(service.verificarPertenenciaAdmin(admin, 20)).resolves.toBeUndefined();
+  });
+
+  it('rechaza si el actor solo es operario en el establecimiento del usuario', async () => {
+    usersRepository.findOne.mockResolvedValue({ id: 20, id_establecimiento: 3 });
+
+    await expect(service.verificarPertenenciaAdmin(admin, 20)).rejects.toThrow(ForbiddenException);
   });
 
   it('rechaza a un usuario de otro establecimiento', async () => {
@@ -52,16 +51,16 @@ describe('UsersService.verificarPertenenciaAdmin', () => {
     await expect(service.verificarPertenenciaAdmin(admin, 20)).rejects.toThrow(ForbiddenException);
   });
 
-  it('permite a un usuario sin principal que es miembro de un establecimiento del admin', async () => {
+  it('permite a un usuario sin principal que es miembro de un establecimiento que el actor administra', async () => {
     usersRepository.findOne.mockResolvedValue({ id: 20, id_establecimiento: null });
-    asignaciones({ 10: [1, 2], 20: [2] });
+    membresiasDelUsuario([99, 2]);
 
     await expect(service.verificarPertenenciaAdmin(admin, 20)).resolves.toBeUndefined();
   });
 
   it('rechaza a un usuario sin principal que es miembro solo de establecimientos ajenos', async () => {
     usersRepository.findOne.mockResolvedValue({ id: 20, id_establecimiento: null });
-    asignaciones({ 10: [1, 2], 20: [99] });
+    membresiasDelUsuario([99]);
 
     await expect(service.verificarPertenenciaAdmin(admin, 20)).rejects.toThrow(ForbiddenException);
   });

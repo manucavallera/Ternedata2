@@ -221,6 +221,7 @@ export class MadresService {
 
       return { ...madre, dias_en_leche: calcularDiasEnLeche(madre) };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener la madre con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -252,6 +253,7 @@ export class MadresService {
 
       return savedMadre;
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al actualizar la madre con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -275,6 +277,7 @@ export class MadresService {
         message: 'Madre eliminada con éxito',
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al eliminar la madre con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -342,6 +345,7 @@ export class MadresService {
         id_rodeo: idRodeo || null,
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener estadísticas: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,

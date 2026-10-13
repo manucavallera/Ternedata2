@@ -142,7 +142,11 @@ export class UsersController {
       }
       await this.usersService.verificarAlcance(req.user, id);
       if (updateUserDto.id_establecimiento) {
-        await this.usersService.verificarEstablecimientos(req.user, [updateUserDto.id_establecimiento]);
+        if (req.user.userId === id) {
+          await this.usersService.verificarPertenencia(req.user, updateUserDto.id_establecimiento);
+        } else {
+          await this.usersService.verificarEstablecimientos(req.user, [updateUserDto.id_establecimiento]);
+        }
       }
     }
 

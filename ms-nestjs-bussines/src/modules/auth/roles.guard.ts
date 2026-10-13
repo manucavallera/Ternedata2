@@ -6,12 +6,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY, UserRole } from './roles.decorator';
+import { RolEstablecimientoService } from './rol-establecimiento.service';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private readonly rolEstablecimiento: RolEstablecimientoService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
@@ -21,7 +25,8 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
+    const { user } = request;
 
     if (!user) {
       throw new ForbiddenException('Usuario no autenticado');
@@ -30,48 +35,33 @@ export class RolesGuard implements CanActivate {
     // Super admin is a platform role and bypasses establishment-level roles.
     if (user.rol === 'super_admin') return true;
 
-    // --- LOGS DE DEPURACIÓN (Borrar en producción) ---
-    console.log('👮‍♂️ RolesGuard revisando a:', user.username);
-    console.log('📋 Roles requeridos:', requiredRoles);
-    console.log('👤 Rol Global:', user.rol);
-    console.log(
-      '🚜 Granjas con permisos:',
-      user.userEstablecimientos?.length || 0,
-    );
-    // --------------------------------------------------
-
-    // 1. CHEQUEO GLOBAL (¿Es Admin del sistema o su rol base coincide?)
-    const hasGlobalRole = requiredRoles.some((role) => user.rol === role);
-    if (hasGlobalRole) {
-      console.log('✅ Acceso concedido por Rol Global');
-      return true;
-    }
-
-    // 2. CHEQUEO ESPECÍFICO (¿Es Veterinario en alguna granja?)
-    // 👇 ESTA ES LA PARTE QUE FALTABA EN TU CÓDIGO ACTUAL 👇
-    if (user.userEstablecimientos && Array.isArray(user.userEstablecimientos)) {
-      // Buscamos si en ALGUNA granja tiene el rol que pide el endpoint.
-      // 'dueno' (dueño de la granja, asignado al crear el establecimiento)
-      // equivale a 'admin' dentro de esa granja: el creador nunca tiene
-      // rol 'admin' global, solo 'dueno' por-granja.
-      const hasSpecificRole = user.userEstablecimientos.some((ue) =>
-        requiredRoles.some(
-          (reqRole) =>
-            ue.rol === reqRole || (reqRole === 'admin' && ue.rol === 'dueno'),
-        ),
-      );
-
-      if (hasSpecificRole) {
-        console.log('✅ Acceso concedido por Rol Específico de Granja');
-        return true;
-      }
-    }
-
-    console.log(
-      '⛔ Acceso denegado. No tienes el rol necesario ni global ni en granjas.',
-    );
-    throw new ForbiddenException(
+    const denegado = new ForbiddenException(
       `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
     );
+
+    // Con un establecimiento en juego (lo fija EstablecimientoGuard) vale el rol
+    // que el usuario tiene EN ESE establecimiento, no el de algún otro.
+    if (request.id_establecimiento) {
+      const rol = await this.rolEstablecimiento.rolEn(
+        user,
+        request.id_establecimiento,
+      );
+      if (rol && requiredRoles.includes(rol)) return true;
+      throw denegado;
+    }
+
+    // Sin establecimiento en juego (crear uno, usuarios, invitaciones) alcanza con
+    // el rol global o el de alguna granja ('dueno' equivale a 'admin'): cada
+    // controller valida después contra el establecimiento que toca.
+    const tieneRol =
+      requiredRoles.some((role) => user.rol === role) ||
+      (user.userEstablecimientos || []).some((ue: any) =>
+        requiredRoles.some(
+          (role) => ue.rol === role || (role === 'admin' && ue.rol === 'dueno'),
+        ),
+      );
+    if (tieneRol) return true;
+
+    throw denegado;
   }
 }

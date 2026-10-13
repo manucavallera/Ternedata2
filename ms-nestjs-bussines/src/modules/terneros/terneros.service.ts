@@ -649,6 +649,7 @@ export class TernerosService {
 
       return ternero;
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener el ternero con el ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -725,6 +726,7 @@ export class TernerosService {
 
       return terneroActualizado;
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al actualizar el ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -745,6 +747,7 @@ export class TernerosService {
       await this.terneroRepository.remove(ternero);
       return { message: 'Ternero eliminado con éxito' };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al eliminar el ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -796,6 +799,7 @@ export class TernerosService {
         message: 'Datos de calostrado actualizados exitosamente',
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al actualizar calostrado del ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -831,6 +835,7 @@ export class TernerosService {
 
       return terneroActualizado;
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al agregar peso diario al ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -868,6 +873,7 @@ export class TernerosService {
 
       return response;
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener historial completo del ternero con ID ${id}: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,

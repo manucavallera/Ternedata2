@@ -11,6 +11,7 @@ import { UserEstablecimientoEntity } from './entity/user-establecimiento.entity'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
 
 @Injectable()
 export class UsersService {
@@ -19,6 +20,7 @@ export class UsersService {
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstRepo: Repository<UserEstablecimientoEntity>,
+    private readonly rolEstablecimiento: RolEstablecimientoService,
   ) {}
 
   // ===== MÉTODOS EXISTENTES (mejorados) =====
@@ -289,19 +291,11 @@ export class UsersService {
       ? [target.id_establecimiento]
       : await this.getEstablecimientos(targetUserId);
 
-    const adminEstIds = [
-      adminUser?.id_establecimiento,
-      ...(adminUser?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
-    ].filter(Boolean);
-
-    if (targetEstIds.some((id) => adminEstIds.includes(id))) return;
-
-    // Fallback a DB: cubre establecimientos creados/asignados después de
-    // emitido el JWT (array de arriba viene congelado del token de login).
-    const enDb = targetEstIds.length ? await this.getEstablecimientos(adminUser?.userId) : [];
-    if (!targetEstIds.some((id) => enDb.includes(id))) {
-      throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
+    // No alcanza con compartir un establecimiento: hay que administrarlo.
+    for (const id of targetEstIds) {
+      if ((await this.rolEstablecimiento.rolEn(adminUser, id)) === 'admin') return;
     }
+    throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
   }
 
   async generarTokenBot(userId: number): Promise<{ token: string; expires: Date }> {
