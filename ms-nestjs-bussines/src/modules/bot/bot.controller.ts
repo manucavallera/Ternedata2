@@ -760,6 +760,19 @@ export class BotController {
       return { ok: true, modo: MODE, estado: estado.mensaje };
     }
 
+    // 1.b) Número o chat sin cuenta: no se gasta audio ni Claude en alguien que no puede registrar.
+    if (estado?.usuario_no_encontrado) {
+      const aviso =
+        msg._origen === 'telegram'
+          ? '📵 Todavía no te conozco. Generá tu código de vinculación desde la app (en tu perfil) y mandámelo acá.'
+          : '📵 Este número no está vinculado a ninguna cuenta de TerneData. Cargá tu teléfono en tu perfil de la app y volvé a escribirme.';
+      console.log('📵 [webhook] usuario no encontrado:', msg.phone);
+      if (esLive) {
+        await this.messagingService.responder(msg._origen, msg.phone, aviso);
+      }
+      return { ok: true, modo: MODE, usuario_no_encontrado: true, mensaje: aviso };
+    }
+
     // 2) Resolver texto (transcribir si es audio).
     let texto = msg.text || '';
     if (msg.type === 'audio') {
@@ -811,6 +824,16 @@ export class BotController {
         );
       }
       return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
+    }
+
+    // Saludo o charla sin datos: se contesta y no se registra nada.
+    if (parsed.accion === 'saludo') {
+      const respuesta =
+        '👋 ¡Hola! Contame qué querés registrar. Por ejemplo: "nació ternero RP 500 macho" o "le di ivermectina al 500".';
+      if (esLive) {
+        await this.messagingService.responder(msg._origen, msg.phone, respuesta);
+      }
+      return { ok: true, modo: MODE, saludo: true, mensaje: respuesta };
     }
 
     // SHADOW: hasta acá. No escribe DB ni responde (evita duplicar con n8n).

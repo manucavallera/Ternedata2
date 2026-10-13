@@ -18,7 +18,17 @@ const ACCIONES_VALIDAS = [
   'desasignar_rodeo', 'consultar_del', 'consultar_salud',
   'eliminar_ternero', 'eliminar_madre', 'eliminar_evento',
   'eliminar_tratamiento', 'eliminar_diarrea', 'eliminar_litros',
+  'saludo',
 ];
+
+// Saludos sueltos ("hola", "buenas tardes", "gracias"): se contestan sin gastar una llamada a Claude.
+const SALUDO_RE =
+  /^(hola+|buen(o|a|os|as)?( d[ií]as?| tardes| noches)?|hey|ey|que tal|qu[eé] tal|como (andas|estas|est[aá]s|va)|c[oó]mo (and[aá]s|est[aá]s|va)|gracias|muchas gracias|chau|adi[oó]s)( (como (andas|estas|est[aá]s|va)|c[oó]mo (and[aá]s|est[aá]s|va)|que tal|qu[eé] tal|todo bien))?[\s!.,?¡¿]*$/i;
+
+export function esSaludo(texto: string): boolean {
+  const limpio = (texto || '').trim();
+  return limpio.length > 0 && limpio.length <= 40 && SALUDO_RE.test(limpio);
+}
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
@@ -74,6 +84,7 @@ export class ClaudeService {
       'crear_tratamiento CUANDO le di aplique inyecte puse medicamento antibiotico antiparasitario suero vitamina desparasitante ivermectina oxitetraciclina enrofloxacina penicilina hierro: {"accion":"crear_tratamiento","nombre":"","descripcion":"","tipo_enfermedad":"General","turno":"manana","fecha_tratamiento":"YYYY-MM-DD","id_ternero":0}\n' +
       'crear_diarrea CUANDO diarrea cagadera deposiciones liquidas deshidratado flojo suelto debil: {"accion":"crear_diarrea","id_ternero":0,"severidad":"Leve","fecha_diarrea_ternero":"YYYY-MM-DD","observaciones":""}\n' +
       'registrar_litros CUANDO litros vendidos litros de leche vendi X litros lts vendidos leche vendida terneros X litros (leche para terneros): {"accion":"registrar_litros","litros_vendido":0,"litros_terneros":0,"cantidad_vacas":0,"fecha":"YYYY-MM-DD","observaciones":""}. litros_terneros = litros que toman los terneros (NO cantidad de terneros). cantidad_vacas solo si dicen cuántas vacas se ordeñaron, sino 0. Ej: "litros vendidos 2141, terneros 80" → {"accion":"registrar_litros","litros_vendido":2141,"litros_terneros":80,"cantidad_vacas":0}\n' +
+      'saludo CUANDO el mensaje es solo un saludo, un agradecimiento o charla sin datos para registrar (hola buenas gracias como andas): {"accion":"saludo"}\n' +
       'consultar_resumen CUANDO resumen cuantos tengo que se registro que hubo dame un resumen cuantos terneros: {"accion":"consultar_resumen","periodo":"hoy" o "semana" o "mes"}\n' +
       'asignar_rodeo CUANDO asignar a rodeo poner en rodeo agregar al grupo metelo en: {"accion":"asignar_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo"}\n' +
       'mover_rodeo CUANDO mover a rodeo cambiar de rodeo pasar al grupo pasarlo a otro: {"accion":"mover_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo destino"}\n' +
@@ -201,6 +212,10 @@ export class ClaudeService {
     const textoNorm = (texto || '').toLowerCase().trim().replace(/[\s_-]+/g, '_');
     if (textoNorm === 'cambiar_establecimiento' || textoNorm === 'cambiar_campo') {
       return { _esLote: false, phone, accion: 'cambiar_establecimiento' };
+    }
+
+    if (esSaludo(texto)) {
+      return { _esLote: false, phone, accion: 'saludo' };
     }
 
     const respuestaClaude = await this.llamarClaude(texto);
