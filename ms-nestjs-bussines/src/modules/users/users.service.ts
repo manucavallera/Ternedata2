@@ -279,21 +279,24 @@ export class UsersService {
       select: ['id', 'id_establecimiento'],
     });
     if (!target) return; // findOne lanzará 404 más adelante
-    if (!target.id_establecimiento) return;
+
+    // Sin establecimiento principal se mira su pertenencia a equipos; si no tiene
+    // ninguno, no es de nadie y solo lo opera un super_admin.
+    const targetEstIds = target.id_establecimiento
+      ? [target.id_establecimiento]
+      : await this.getEstablecimientos(targetUserId);
 
     const adminEstIds = [
       adminUser?.id_establecimiento,
       ...(adminUser?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
     ].filter(Boolean);
 
-    if (adminEstIds.includes(target.id_establecimiento)) return;
+    if (targetEstIds.some((id) => adminEstIds.includes(id))) return;
 
     // Fallback a DB: cubre establecimientos creados/asignados después de
     // emitido el JWT (array de arriba viene congelado del token de login).
-    const enDb = await this.userEstRepo.findOne({
-      where: { userId: adminUser?.userId, establecimientoId: target.id_establecimiento },
-    });
-    if (!enDb) {
+    const enDb = targetEstIds.length ? await this.getEstablecimientos(adminUser?.userId) : [];
+    if (!targetEstIds.some((id) => enDb.includes(id))) {
       throw new ForbiddenException('No tenés permisos para operar sobre este usuario');
     }
   }

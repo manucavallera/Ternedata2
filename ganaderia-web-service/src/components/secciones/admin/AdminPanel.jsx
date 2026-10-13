@@ -615,6 +615,22 @@ const AdminPanel = () => {
 
   // En AdminPanel.jsx
 
+  const renovarSesion = async () => {
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/auth/refresh`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        dispatch(setAuthPayload(data.token));
+      }
+    } catch (error) {
+      console.error("No se pudo renovar la sesión:", error);
+    }
+  };
+
   const guardarEstablecimiento = async (e) => {
     e.preventDefault();
 
@@ -650,19 +666,7 @@ const AdminPanel = () => {
           }
 
           // El acceso al establecimiento nuevo viaja en el token: renovarlo para usarlo sin volver a loguearse
-          try {
-            const { data } = await axios.post(
-              `${API_URL}/auth/refresh`,
-              {},
-              { headers: { Authorization: `Bearer ${getToken()}` } },
-            );
-            if (data?.token) {
-              localStorage.setItem("token", data.token);
-              dispatch(setAuthPayload(data.token));
-            }
-          } catch (error) {
-            console.error("No se pudo renovar la sesión:", error);
-          }
+          await renovarSesion();
         }
 
         showAlert("Establecimiento creado y asignado correctamente", "success");
@@ -713,9 +717,10 @@ const AdminPanel = () => {
 
   // ✅ NUEVA FUNCIÓN: Eliminar permanentemente de la BD
   const eliminarEstablecimientoPermanente = async (id, nombre) => {
-    // Verificar si tiene usuarios asignados
+    // Verificar si tiene otros usuarios asignados. Quien elimina no cuenta: el backend
+    // lo pasa a otro de sus establecimientos al borrar.
     const usuariosAsignados = users.filter(
-      (u) => u.id_establecimiento === id,
+      (u) => u.id_establecimiento === id && u.id !== userPayload?.id,
     ).length;
 
     if (usuariosAsignados > 0) {
@@ -742,6 +747,19 @@ const AdminPanel = () => {
       if (response?.status === 200) {
         showAlert("✅ Establecimiento eliminado permanentemente", "success");
         cargarEstablecimientos();
+        // Si era mi establecimiento principal, el backend me pasó a otro: traer token y perfil nuevos
+        await renovarSesion();
+        try {
+          const { data: perfil } = await axios.get(
+            `${API_URL}/users/profile/me`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          );
+          dispatch(setUserData(perfil));
+          dispatch(setEstablecimientoActual(perfil.id_establecimiento || null));
+        } catch (error) {
+          console.error("No se pudo recargar el perfil:", error);
+        }
+        cargarUsuarios();
       } else {
         showAlert("❌ Error al eliminar establecimiento", "error");
       }

@@ -65,25 +65,23 @@ test.describe('Panel de administración', () => {
     });
 
     await test.step('eliminar', async () => {
-      // Comportamiento actual: quien crea el establecimiento queda asignado a él y la app no deja eliminarlo.
+      // Quien lo creó queda asignado a él, pero eso no bloquea el borrado.
+      const baja = esperarEscritura(page, '/establecimientos/');
       await tarjeta(nombre).getByRole('button', { name: 'Eliminar' }).click();
-      await expect(page.getByText(/No se puede eliminar/)).toBeVisible();
+      expect((await baja).status()).toBeLessThan(300);
+      await expect(page.getByRole('heading', { name: nombre })).toHaveCount(0);
     });
 
-    await test.step('limpieza por API', async () => {
+    await test.step('volver al establecimiento original', async () => {
+      // Al borrar, el backend deja como principal el primero de los que quedan, que puede no ser el original.
       const sesion = await page.evaluate(() => ({
         token: localStorage.getItem('token'), usuario: JSON.parse(localStorage.getItem('userSelected')).id,
       }));
-      const headers = { Authorization: `Bearer ${sesion.token}` };
       const reasignado = await page.request.post(`${process.env.SECURITY_URL}/users/assign-establishment`, {
-        headers, data: { userId: sesion.usuario, establecimientoId: Number(original) },
+        headers: { Authorization: `Bearer ${sesion.token}` },
+        data: { userId: sesion.usuario, establecimientoId: Number(original) },
       });
       expect(reasignado.status()).toBeLessThan(300);
-      const creado = await tarjeta(nombre).innerText();
-      const lista = await (await page.request.get(`${process.env.BUSSINES_URL}/establecimientos`, { headers })).json();
-      const id = lista.find((e) => e.nombre === nombre).id_establecimiento;
-      const baja = await page.request.delete(`${process.env.BUSSINES_URL}/establecimientos/${id}`, { headers });
-      expect([200, 204], `baja de ${creado.slice(0, 30)}`).toContain(baja.status());
     });
   });
 
