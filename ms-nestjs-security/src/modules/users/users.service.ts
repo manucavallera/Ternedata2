@@ -181,7 +181,7 @@ export class UsersService {
   // 👇 MODIFICADO: Estadísticas
   async getStats(currentUser: any) {
     let whereClause: any = {};
-    let esSuperAdmin = currentUser.rol === UserRole.SUPER_ADMIN;
+    const esSuperAdmin = currentUser.rol === UserRole.SUPER_ADMIN;
 
     if (!esSuperAdmin) {
       if (currentUser.rol === 'admin') {
