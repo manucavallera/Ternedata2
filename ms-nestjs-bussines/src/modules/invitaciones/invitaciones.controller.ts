@@ -21,6 +21,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entity/users.entity';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
+import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
 
 @ApiTags('Invitaciones')
 @Controller('invitaciones')
@@ -31,6 +32,7 @@ export class InvitacionesController {
     private readonly invitacionesService: InvitacionesService,
     @InjectRepository(UserEstablecimientoEntity)
     private readonly userEstablecimientoRepository: Repository<UserEstablecimientoEntity>,
+    private readonly rolEstablecimiento: RolEstablecimientoService,
   ) {}
 
   private async verificarPertenencia(req: any, id: number): Promise<void> {
@@ -59,6 +61,7 @@ export class InvitacionesController {
     @Req() req: any,
   ) {
     await this.verificarPertenencia(req, id);
+    await this.rolEstablecimiento.exigirAdminDe(req.user, id);
     return await this.invitacionesService.generarLink(id, body.rol, body.email);
   }
 
@@ -85,6 +88,7 @@ export class InvitacionesController {
     @Req() req: any,
   ) {
     await this.verificarPertenencia(req, id);
+    await this.rolEstablecimiento.exigirAdminDe(req.user, id);
     return await this.invitacionesService.getPendientes(id);
   }
 
@@ -92,14 +96,6 @@ export class InvitacionesController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Revocar (eliminar) una invitación pendiente' })
   async revocar(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    const userEstabs = (req.user?.userEstablecimientos || []).map(
-      (ue: any) => ue.establecimientoId,
-    );
-    return await this.invitacionesService.revocar(
-      id,
-      req.user?.userId,
-      req.user?.id_establecimiento,
-      userEstabs,
-    );
+    return await this.invitacionesService.revocar(id, req.user);
   }
 }

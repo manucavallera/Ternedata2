@@ -417,14 +417,31 @@ export class UsersService {
     });
   }
 
-  // Establecimientos sobre los que actúa un usuario: sus equipos y su principal.
+  // Establecimientos a los que pertenece un usuario: sus equipos y su principal.
   private async establecimientosDe(actor: any): Promise<number[]> {
     const propios = await this.getEstablecimientos(actor?.userId);
     return actor?.id_establecimiento ? [...propios, actor.id_establecimiento] : propios;
   }
 
-  // Un admin solo administra usuarios de sus establecimientos y nunca a un super_admin.
-  // La pertenencia se lee de la base: el token puede estar desactualizado.
+  // Un campo lo administra su dueño. El rol global 'admin' lo recibe cualquiera que
+  // se registra: solo alcanza si no entró a ese campo por invitación (no tiene
+  // membresía) o si el campo es viejo y no tiene dueño registrado.
+  private async administra(actor: any, idEstablecimiento: number): Promise<boolean> {
+    const fila = await this.userEstablecimientoRepository.findOne({
+      where: { userId: actor?.userId, establecimientoId: idEstablecimiento },
+    });
+    if (!fila && actor?.id_establecimiento !== idEstablecimiento) return false;
+    if (fila?.rol === 'dueno') return true;
+    if (actor?.rol !== UserRole.ADMIN) return false;
+    if (!['veterinario', 'operario'].includes(fila?.rol)) return true;
+    const dueno = await this.userEstablecimientoRepository.findOne({
+      where: { establecimientoId: idEstablecimiento, rol: 'dueno' },
+    });
+    return !dueno;
+  }
+
+  // Un admin solo administra usuarios de los establecimientos que administra y nunca
+  // a un super_admin. La pertenencia se lee de la base: el token puede estar desactualizado.
   async verificarAlcance(actor: any, targetUserId: number): Promise<void> {
     if (actor?.rol === UserRole.SUPER_ADMIN || actor?.userId === targetUserId) return;
     const target = await this.usersRepository.findOne({
@@ -432,22 +449,41 @@ export class UsersService {
       select: ['id', 'rol', 'id_establecimiento'],
     });
     if (!target) return; // findOne lanzará 404 más adelante
+    const denegado = new HttpException('No tenés permisos para operar sobre este usuario', HttpStatus.FORBIDDEN);
+    if (target.rol === UserRole.SUPER_ADMIN) throw denegado;
     const delTarget = target.id_establecimiento
       ? [target.id_establecimiento]
       : await this.getEstablecimientos(targetUserId);
-    const delActor = await this.establecimientosDe(actor);
-    if (target.rol === UserRole.SUPER_ADMIN || !delTarget.some((id) => delActor.includes(id))) {
-      throw new HttpException('No tenés permisos para operar sobre este usuario', HttpStatus.FORBIDDEN);
+    for (const id of delTarget) {
+      if (await this.administra(actor, id)) return;
+    }
+    throw denegado;
+  }
+
+  // Sumar a alguien a un establecimiento exige administrarlo.
+  async verificarEstablecimientos(actor: any, ids: number[]): Promise<void> {
+    if (actor?.rol === UserRole.SUPER_ADMIN) return;
+    for (const id of ids) {
+      if (!(await this.administra(actor, Number(id)))) {
+        throw new HttpException('No tenés permisos sobre ese establecimiento', HttpStatus.FORBIDDEN);
+      }
     }
   }
 
-  // Nadie se asigna, ni le asigna a otro, un establecimiento que no es suyo.
-  async verificarEstablecimientos(actor: any, ids: number[]): Promise<void> {
+  // Cada uno elige como principal cualquier establecimiento al que ya pertenece.
+  async verificarPertenencia(actor: any, idEstablecimiento: number): Promise<void> {
     if (actor?.rol === UserRole.SUPER_ADMIN) return;
-    const delActor = await this.establecimientosDe(actor);
-    if (ids.some((id) => !delActor.includes(Number(id)))) {
+    if (!(await this.establecimientosDe(actor)).includes(Number(idEstablecimiento))) {
       throw new HttpException('No tenés permisos sobre ese establecimiento', HttpStatus.FORBIDDEN);
     }
+  }
+
+  // La membresía que crea el panel toma el rol global del usuario; sin esto quedaba
+  // el valor por defecto de la columna ('operario') también para los administradores.
+  private async rolDeMembresia(userId: number): Promise<string> {
+    const user = await this.usersRepository.findOne({ where: { id: userId }, select: ['id', 'rol'] });
+    if (user?.rol === UserRole.ADMIN || user?.rol === UserRole.SUPER_ADMIN) return 'dueno';
+    return user?.rol === UserRole.VETERINARIO ? 'veterinario' : 'operario';
   }
 
   async assignEstablecimiento(userId: number, establecimientoId: number) {
@@ -460,6 +496,7 @@ export class UsersService {
     const newRelation = this.userEstablecimientoRepository.create({
       userId,
       establecimientoId,
+      rol: await this.rolDeMembresia(userId),
     });
 
     return await this.userEstablecimientoRepository.save(newRelation);
@@ -470,13 +507,19 @@ export class UsersService {
     return asignaciones.map((a) => a.establecimientoId);
   }
 
+  // Deja al usuario en los establecimientos pedidos sin tocar el rol de las membresías que ya tenía.
   async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
-    await this.userEstablecimientoRepository.delete({ userId });
-    if (ids.length > 0) {
-      const nuevas = ids.map((establecimientoId) =>
-        this.userEstablecimientoRepository.create({ userId, establecimientoId }),
+    const actuales = await this.userEstablecimientoRepository.find({ where: { userId } });
+    const sobran = actuales.filter((a) => !ids.includes(a.establecimientoId));
+    if (sobran.length > 0) await this.userEstablecimientoRepository.remove(sobran);
+    const faltan = ids.filter((id) => !actuales.some((a) => a.establecimientoId === id));
+    if (faltan.length > 0) {
+      const rol = await this.rolDeMembresia(userId);
+      await this.userEstablecimientoRepository.save(
+        faltan.map((establecimientoId) =>
+          this.userEstablecimientoRepository.create({ userId, establecimientoId, rol }),
+        ),
       );
-      await this.userEstablecimientoRepository.save(nuevas);
     }
   }
 }
