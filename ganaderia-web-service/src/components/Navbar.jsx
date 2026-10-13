@@ -7,6 +7,7 @@ import logAuthMethod from "@/utils/logAuth";
 import { useRouter, usePathname } from "next/navigation";
 import sessionLogOutMethod from "@/utils/sessionLogOut";
 import verifySession from "@/utils/verifySession";
+import sessionSuccessMethod from "@/utils/sessionSuccess";
 import { setSeccionStatus, setVistaApp } from "@/store/seccion";
 import Image from "next/image";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
@@ -49,6 +50,13 @@ function Navbar() {
     sessionLogOutMethod(dispatch);
     logAuthMethod(dispatch, router);
   };
+
+  // El navbar vive en el layout: restaura la sesión guardada al cargar cualquier ruta directo.
+  useEffect(() => {
+    if (localStorage.getItem("token") && localStorage.getItem("userSelected")) {
+      sessionSuccessMethod(dispatch);
+    }
+  }, [dispatch]);
 
   useEffect(() => {
     const response = verifySession(authPayload, status);
@@ -269,7 +277,7 @@ function Navbar() {
                 </li>
               )}
 
-              {userPayload?.rol === "admin" && (
+              {["admin", "super_admin"].includes(userPayload?.rol) && (
                 <li>
                   <Link
                     href='/panel-admin'
@@ -317,7 +325,7 @@ function Navbar() {
                       </svg>
                       Mi Perfil
                     </Link>
-                    {userPayload?.rol === "admin" && (
+                    {["admin", "super_admin"].includes(userPayload?.rol) && (
                       <Link
                         href='/panel-admin'
                         onClick={() => setIsProfileOpen(false)}
@@ -488,7 +496,7 @@ function Navbar() {
               </div>
             )}
 
-            {userPayload?.rol === "admin" && (
+            {["admin", "super_admin"].includes(userPayload?.rol) && (
               <Link
                 href='/panel-admin'
                 onClick={() => setIsMobileMenuOpen(false)}

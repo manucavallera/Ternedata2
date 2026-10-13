@@ -1,1 +1,5 @@
 node_modules/
+.session-cache.json
+e2e/.auth/
+test-results/
+playwright-report/

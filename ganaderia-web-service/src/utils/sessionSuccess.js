@@ -17,10 +17,6 @@ const sessionSuccessMethod = (dispatch) => {
   const userSelectedRaw = localStorage.getItem("userSelected");
   const userSelected = userSelectedRaw ? JSON.parse(userSelectedRaw) : null;
 
-  console.log("🔐 Token:", tokenString);
-  console.log("👤 userSelected RAW:", userSelectedRaw);
-  console.log("👤 userSelected PARSED:", userSelected);
-
   dispatch(setAuthPayload(tokenString));
   dispatch(setStatus("authenticated"));
   dispatch(setStatusSessionUser(true));

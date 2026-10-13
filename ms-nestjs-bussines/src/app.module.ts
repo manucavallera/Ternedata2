@@ -23,6 +23,11 @@ import { LitrosModule } from './modules/litros/litros.module';
 import { DietasModule } from './modules/dietas/dietas.module';
 import { HistorialModule } from './modules/historial/historial.module';
 import { SustitutoModule } from './modules/sustituto/sustituto.module';
+import { CatalogoForrajeriaModule } from './modules/forrajeria/catalogo/catalogo.module';
+import { InventarioForrajeriaModule } from './modules/forrajeria/inventario/inventario.module';
+import { ContactosForrajeriaModule } from './modules/forrajeria/contactos/contactos.module';
+import { CuentasForrajeriaModule } from './modules/forrajeria/cuentas/cuentas.module';
+import { VentasForrajeriaModule } from './modules/forrajeria/ventas/ventas.module';
 
 // 👇 1. AGREGAR ESTA IMPORTACIÓN
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -34,7 +39,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       isGlobal: true,
       load: [configuration],
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -85,6 +90,11 @@ import { MailerModule } from '@nestjs-modules/mailer';
     DietasModule,
     HistorialModule,
     SustitutoModule,
+    CatalogoForrajeriaModule,
+    InventarioForrajeriaModule,
+    ContactosForrajeriaModule,
+    CuentasForrajeriaModule,
+    VentasForrajeriaModule,
   ],
   controllers: [AppController],
   providers: [

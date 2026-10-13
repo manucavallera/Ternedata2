@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, MaxLength, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MaxLength,
+  IsNotEmpty,
+  IsEnum,
+} from 'class-validator';
+import { OrganizacionTipo } from '../organizacion-tipo.enum';
 
 export class CreateEstablecimientoDto {
   @ApiProperty({
@@ -50,6 +57,16 @@ export class CreateEstablecimientoDto {
   @IsString()
   @IsOptional()
   estado?: string;
+
+  @ApiProperty({
+    description: 'Tipo de organización',
+    enum: OrganizacionTipo,
+    default: OrganizacionTipo.GANADERIA,
+    required: false,
+  })
+  @IsEnum(OrganizacionTipo)
+  @IsOptional()
+  tipo_organizacion?: OrganizacionTipo;
 }
 
 export class UpdateEstablecimientoDto {
@@ -94,4 +111,9 @@ export class UpdateEstablecimientoDto {
   })
   @IsOptional()
   configuracion?: any;
+
+  @ApiProperty({ description: 'Tipo de organización', enum: OrganizacionTipo, required: false })
+  @IsEnum(OrganizacionTipo)
+  @IsOptional()
+  tipo_organizacion?: OrganizacionTipo;
 }

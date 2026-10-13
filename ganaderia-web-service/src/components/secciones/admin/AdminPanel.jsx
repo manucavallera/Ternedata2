@@ -9,7 +9,12 @@ import { useSelector } from "react-redux";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { TeamManager } from "@/components/TeamManager"; // 👈 1. AGREGAR ESTO
-import { setUserData, setEstablecimientoActual } from "@/store/auth/authSlice";
+import {
+  setAuthPayload,
+  setUserData,
+  setEstablecimientoActual,
+} from "@/store/auth/authSlice";
+import { useSuperAdminUsers } from "@/hooks/useSuperAdminUsers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -45,6 +50,7 @@ const AdminPanel = () => {
     actualizarEstablecimientoHook,
     eliminarEstablecimientoHook,
     toggleEstadoEstablecimientoHook,
+    toggleEstadoUsuarioHook,
     obtenerResumenSaludHook, // ⬅️ AGREGAR ESTO
   } = useBussinesMicroservicio();
 
@@ -55,6 +61,11 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(false);
   const [usuarioSeguro, setUsuarioSeguro] = useState(null);
   const [verificando, setVerificando] = useState(true);
+  const [globalUsers, setGlobalUsers] = useState([]);
+  const [globalRoleFilter, setGlobalRoleFilter] = useState("todos");
+  const [globalStatusFilter, setGlobalStatusFilter] = useState("todos");
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const { listGlobalUsers, changeUserRole, toggleUserStatus } = useSuperAdminUsers();
 
   // Estados para modal de usuarios
   const [showModalUsuario, setShowModalUsuario] = useState(false);
@@ -322,6 +333,34 @@ const AdminPanel = () => {
     }
   };
 
+  const cargarUsuariosGlobales = async () => {
+    setGlobalLoading(true);
+    const response = await listGlobalUsers();
+    if (response.status === 200) setGlobalUsers(response.data || []);
+    else if (response.status) showAlert(response.data?.message || "No se pudo cargar el panel global", "error");
+    setGlobalLoading(false);
+  };
+
+  const cambiarRolGlobal = async (user) => {
+    const rol = window.prompt("Nuevo rol (admin, veterinario, operario, super_admin):", user.rol);
+    if (!rol || rol === user.rol) return;
+    if (!window.confirm(`¿Cambiar el rol de ${user.email} a ${rol}?`)) return;
+    const response = await changeUserRole(user.id, rol);
+    if (response.status >= 200 && response.status < 300) {
+      showAlert("Rol actualizado correctamente", "success");
+      cargarUsuariosGlobales();
+    } else showAlert(response.data?.message || "No se pudo cambiar el rol", "error");
+  };
+
+  const cambiarEstadoGlobal = async (user) => {
+    if (!window.confirm(`¿${user.estado === "activo" ? "Desactivar" : "Activar"} a ${user.email}?`)) return;
+    const response = await toggleUserStatus(user.id);
+    if (response.status >= 200 && response.status < 300) {
+      showAlert("Estado actualizado correctamente", "success");
+      cargarUsuariosGlobales();
+    } else showAlert(response.data?.message || "No se pudo cambiar el estado", "error");
+  };
+
   const cargarEstadisticas = async () => {
     try {
       const response = await axios.get(`${API_URL}/users/stats`, {
@@ -462,13 +501,20 @@ const AdminPanel = () => {
 
   const toggleEstadoUsuario = async (id) => {
     try {
-      await axios.put(
-        `${API_URL}/users/${id}/toggle-status`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        },
-      );
+      // Security reserva este endpoint a super_admin; el admin usa el de Business,
+      // que valida que el usuario pertenezca a uno de sus establecimientos.
+      if (usuarioSeguro?.rol === "super_admin") {
+        await axios.put(
+          `${API_URL}/users/${id}/toggle-status`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          },
+        );
+      } else {
+        const response = await toggleEstadoUsuarioHook(id);
+        if (response?.status !== 200) throw new Error(`toggle-status ${response}`);
+      }
       showAlert("Estado actualizado correctamente", "success");
       cargarUsuarios();
       cargarEstadisticas();
@@ -569,6 +615,22 @@ const AdminPanel = () => {
 
   // En AdminPanel.jsx
 
+  const renovarSesion = async () => {
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/auth/refresh`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        dispatch(setAuthPayload(data.token));
+      }
+    } catch (error) {
+      console.error("No se pudo renovar la sesión:", error);
+    }
+  };
+
   const guardarEstablecimiento = async (e) => {
     e.preventDefault();
 
@@ -602,6 +664,9 @@ const AdminPanel = () => {
             );
             console.log("✅ Auto-asignación de dueño completada");
           }
+
+          // El acceso al establecimiento nuevo viaja en el token: renovarlo para usarlo sin volver a loguearse
+          await renovarSesion();
         }
 
         showAlert("Establecimiento creado y asignado correctamente", "success");
@@ -652,9 +717,10 @@ const AdminPanel = () => {
 
   // ✅ NUEVA FUNCIÓN: Eliminar permanentemente de la BD
   const eliminarEstablecimientoPermanente = async (id, nombre) => {
-    // Verificar si tiene usuarios asignados
+    // Verificar si tiene otros usuarios asignados. Quien elimina no cuenta: el backend
+    // lo pasa a otro de sus establecimientos al borrar.
     const usuariosAsignados = users.filter(
-      (u) => u.id_establecimiento === id,
+      (u) => u.id_establecimiento === id && u.id !== userPayload?.id,
     ).length;
 
     if (usuariosAsignados > 0) {
@@ -681,6 +747,19 @@ const AdminPanel = () => {
       if (response?.status === 200) {
         showAlert("✅ Establecimiento eliminado permanentemente", "success");
         cargarEstablecimientos();
+        // Si era mi establecimiento principal, el backend me pasó a otro: traer token y perfil nuevos
+        await renovarSesion();
+        try {
+          const { data: perfil } = await axios.get(
+            `${API_URL}/users/profile/me`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          );
+          dispatch(setUserData(perfil));
+          dispatch(setEstablecimientoActual(perfil.id_establecimiento || null));
+        } catch (error) {
+          console.error("No se pudo recargar el perfil:", error);
+        }
+        cargarUsuarios();
       } else {
         showAlert("❌ Error al eliminar establecimiento", "error");
       }
@@ -704,6 +783,10 @@ const AdminPanel = () => {
 
     cargarTodo();
   }, []);
+
+  useEffect(() => {
+    if (usuarioSeguro?.rol === "super_admin") cargarUsuariosGlobales();
+  }, [usuarioSeguro?.rol]);
 
   // ⬅️ NUEVO: Cargar datos comparativos cuando cambien los establecimientos
   useEffect(() => {
@@ -929,6 +1012,17 @@ const AdminPanel = () => {
           Gestiona usuarios, establecimientos y configuración del sistema
         </p>
       </div>
+      {/* Avisos de resultado (éxito o error) de las acciones del panel */}
+      {alert.show && (
+        <div
+          role='status'
+          className={`fixed top-20 right-4 z-50 max-w-sm rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-lg ${
+            alert.type === "error" ? "bg-red-600" : "bg-green-600"
+          }`}
+        >
+          {alert.message}
+        </div>
+      )}
       {/* Estadísticas Globales */}
       {stats && (
         <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-8'>
@@ -1002,6 +1096,14 @@ const AdminPanel = () => {
           >
             👥 <span className='hidden sm:inline'>Gestión de </span>Usuarios
           </button>
+          {usuarioSeguro?.rol === "super_admin" && (
+            <button
+              onClick={() => setActiveTab("global")}
+              className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${activeTab === "global" ? "border-b-2 border-red-500 text-red-600" : "text-gray-600 hover:text-red-600"}`}
+            >
+              🌐 Usuarios globales
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("establecimientos")}
             className={`px-3 sm:px-6 py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
@@ -1049,6 +1151,29 @@ const AdminPanel = () => {
           )}
         </div>
       </div>
+      {activeTab === "global" && usuarioSeguro?.rol === "super_admin" && (
+        <div className='bg-white rounded-lg shadow-md p-6'>
+          <div className='flex flex-wrap justify-between gap-3 items-center mb-6'>
+            <h2 className='text-2xl font-bold text-gray-800'>Usuarios globales</h2>
+            <div className='flex gap-2'>
+              <select value={globalRoleFilter} onChange={(e) => setGlobalRoleFilter(e.target.value)} className='border rounded px-2 py-1 text-sm'>
+                <option value='todos'>Todos los roles</option><option value='admin'>Admin</option><option value='veterinario'>Veterinario</option><option value='operario'>Operario</option><option value='super_admin'>Super admin</option>
+              </select>
+              <select value={globalStatusFilter} onChange={(e) => setGlobalStatusFilter(e.target.value)} className='border rounded px-2 py-1 text-sm'>
+                <option value='todos'>Todos los estados</option><option value='activo'>Activo</option><option value='inactivo'>Inactivo</option>
+              </select>
+              <button onClick={cargarUsuariosGlobales} className='bg-gray-100 rounded px-3 py-1 text-sm'>Actualizar</button>
+            </div>
+          </div>
+          {globalLoading ? <p className='py-8 text-center text-gray-500'>Cargando usuarios globales...</p> : (
+            <div className='overflow-x-auto'><table className='w-full'><thead className='bg-gray-50'><tr><th className='p-3 text-left'>Usuario</th><th className='p-3 text-left'>Rol</th><th className='p-3 text-left'>Estado</th><th className='p-3 text-left'>Establecimientos</th><th className='p-3 text-right'>Acciones</th></tr></thead><tbody className='divide-y'>
+              {globalUsers.filter((user) => (globalRoleFilter === "todos" || user.rol === globalRoleFilter) && (globalStatusFilter === "todos" || user.estado === globalStatusFilter)).map((user) => (
+                <tr key={user.id}><td className='p-3'><div className='font-medium'>{user.name}</div><div className='text-sm text-gray-500'>{user.email}</div></td><td className='p-3 capitalize'>{user.rol}</td><td className='p-3 capitalize'>{user.estado}</td><td className='p-3'>{(user.establecimientosAsignados || []).map((est) => est.nombre || `#${est.id}`).join(", ") || user.establecimiento || "—"}</td><td className='p-3 text-right'><button onClick={() => cambiarRolGlobal(user)} className='text-blue-600 mr-3 text-sm'>Cambiar rol</button><button onClick={() => cambiarEstadoGlobal(user)} className='text-red-600 text-sm'>{user.estado === "activo" ? "Desactivar" : "Activar"}</button></td></tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
       {/* TAB: USUARIOS */}
       {activeTab === "usuarios" && (
         <div className='bg-white rounded-lg shadow-md p-6'>

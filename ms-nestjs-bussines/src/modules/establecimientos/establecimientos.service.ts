@@ -15,6 +15,7 @@ import {
 import { UsersService } from '../users/users.service';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { RolEstablecimiento } from '../invitaciones/roles.enum';
+import { OrganizacionTipo } from './organizacion-tipo.enum';
 
 @Injectable()
 export class EstablecimientosService {
@@ -34,8 +35,13 @@ export class EstablecimientosService {
     userId: number,
   ): Promise<Establecimiento> {
     try {
+      const dto = {
+        ...createDto,
+        tipo_organizacion:
+          createDto.tipo_organizacion ?? OrganizacionTipo.GANADERIA,
+      };
       const nuevoEstablecimiento =
-        this.establecimientoRepository.create(createDto);
+        this.establecimientoRepository.create(dto);
       const guardado =
         await this.establecimientoRepository.save(nuevoEstablecimiento);
 
@@ -158,8 +164,32 @@ export class EstablecimientosService {
     // Limpiar relaciones de equipo antes de borrar: la FK de user_establecimientos
     // no tiene ON DELETE CASCADE, así que un remove directo lanzaba 500 (siempre
     // existe al menos la relación del creador). Las invitaciones sí cascadean.
-    await this.userEstablecimientoRepository.delete({ establecimientoId: id });
-    await this.establecimientoRepository.remove(establecimiento);
+    // Todo en una transacción: si el borrado falla (quedan rodeos, productos, etc.)
+    // las relaciones de equipo no se pierden y nadie queda sin acceso al establecimiento.
+    try {
+      await this.establecimientoRepository.manager.transaction(async (manager) => {
+        await manager.delete(UserEstablecimientoEntity, { establecimientoId: id });
+        // Quien lo tenía como establecimiento principal pasa a otro de los suyos (o queda
+        // sin principal): users.id_establecimiento no tiene FK y quedaba apuntando al borrado.
+        await manager.query(
+          `UPDATE users u SET id_establecimiento = (
+             SELECT ue."establecimientoId" FROM user_establecimientos ue
+             WHERE ue."userId" = u.id ORDER BY ue.id LIMIT 1
+           ) WHERE u.id_establecimiento = $1`,
+          [id],
+        );
+        await manager.remove(establecimiento);
+      });
+    } catch (error) {
+      // 23503 = violación de clave foránea en Postgres
+      if (error?.code === '23503' || error?.driverError?.code === '23503') {
+        throw new HttpException(
+          'No se puede eliminar: el establecimiento todavía tiene datos cargados (rodeos, animales o productos)',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw error;
+    }
   }
 
   // Chequea pertenencia contra la DB (no contra el JWT, que queda congelado en

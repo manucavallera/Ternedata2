@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import businessApi from "@/api/bussines-api";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
@@ -68,7 +69,7 @@ const ListadoTratamiento = () => {
       );
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {
@@ -173,7 +174,7 @@ const ListadoTratamiento = () => {
       console.log("📤 Actualizando tratamiento:", tratamientoActualizado);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "PATCH",
           headers: {

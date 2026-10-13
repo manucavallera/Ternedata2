@@ -72,6 +72,12 @@ export class UsersController {
     @Body('rol') rol: UserRole,
     @Request() req,
   ) {
+    if (!Object.values(UserRole).includes(rol)) {
+      throw new HttpException('Rol inválido', HttpStatus.BAD_REQUEST);
+    }
+    if (rol === UserRole.SUPER_ADMIN && req.user.rol !== UserRole.SUPER_ADMIN) {
+      throw new HttpException('Solo un super_admin puede asignar ese rol', HttpStatus.FORBIDDEN);
+    }
     await this.usersService.verificarPertenenciaAdmin(req.user, id);
     return await this.usersService.changeRole(id, rol);
   }

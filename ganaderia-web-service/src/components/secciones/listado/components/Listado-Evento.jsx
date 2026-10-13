@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import businessApi from "@/api/bussines-api";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
@@ -92,7 +93,7 @@ const ListadoEvento = () => {
       console.log("🗑️ Eliminando evento:", modalEliminar.evento.id_evento);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

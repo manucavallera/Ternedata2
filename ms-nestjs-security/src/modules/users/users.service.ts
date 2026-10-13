@@ -290,6 +290,11 @@ export class UsersService {
       }
     }
 
+    // Vacío se guarda como null, igual que en el alta: el teléfono es único y dos vacíos chocan
+    if (updateUserDto.telefono !== undefined) {
+      updateUserDto.telefono = updateUserDto.telefono?.trim() || null;
+    }
+
     if (updateUserDto.telefono && updateUserDto.telefono !== user.telefono) {
       const existingPhone = await this.usersRepository.findOne({
         where: { telefono: updateUserDto.telefono },
@@ -322,9 +327,21 @@ export class UsersService {
       throw new ConflictException('El email ya está registrado');
     }
 
+    // El teléfono es único: vacío se guarda como null para no chocar entre usuarios sin teléfono
+    const telefono = createUserDto.telefono?.trim() || null;
+    if (telefono) {
+      const existingPhone = await this.usersRepository.findOne({
+        where: { telefono },
+      });
+      if (existingPhone) {
+        throw new ConflictException('El teléfono ya está registrado por otro usuario');
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const newUser = this.usersRepository.create({
       ...createUserDto,
+      telefono,
       password: hashedPassword,
     });
     return await this.usersRepository.save(newUser);
@@ -398,6 +415,39 @@ export class UsersService {
       ],
       order: { fecha_creacion: 'DESC' },
     });
+  }
+
+  // Establecimientos sobre los que actúa un usuario: sus equipos y su principal.
+  private async establecimientosDe(actor: any): Promise<number[]> {
+    const propios = await this.getEstablecimientos(actor?.userId);
+    return actor?.id_establecimiento ? [...propios, actor.id_establecimiento] : propios;
+  }
+
+  // Un admin solo administra usuarios de sus establecimientos y nunca a un super_admin.
+  // La pertenencia se lee de la base: el token puede estar desactualizado.
+  async verificarAlcance(actor: any, targetUserId: number): Promise<void> {
+    if (actor?.rol === UserRole.SUPER_ADMIN || actor?.userId === targetUserId) return;
+    const target = await this.usersRepository.findOne({
+      where: { id: targetUserId },
+      select: ['id', 'rol', 'id_establecimiento'],
+    });
+    if (!target) return; // findOne lanzará 404 más adelante
+    const delTarget = target.id_establecimiento
+      ? [target.id_establecimiento]
+      : await this.getEstablecimientos(targetUserId);
+    const delActor = await this.establecimientosDe(actor);
+    if (target.rol === UserRole.SUPER_ADMIN || !delTarget.some((id) => delActor.includes(id))) {
+      throw new HttpException('No tenés permisos para operar sobre este usuario', HttpStatus.FORBIDDEN);
+    }
+  }
+
+  // Nadie se asigna, ni le asigna a otro, un establecimiento que no es suyo.
+  async verificarEstablecimientos(actor: any, ids: number[]): Promise<void> {
+    if (actor?.rol === UserRole.SUPER_ADMIN) return;
+    const delActor = await this.establecimientosDe(actor);
+    if (ids.some((id) => !delActor.includes(Number(id)))) {
+      throw new HttpException('No tenés permisos sobre ese establecimiento', HttpStatus.FORBIDDEN);
+    }
   }
 
   async assignEstablecimiento(userId: number, establecimientoId: number) {

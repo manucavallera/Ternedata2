@@ -22,7 +22,7 @@ export default function PanelAdminPage() {
     return null;
   }
 
-  if (userPayload && userPayload.rol !== "admin") {
+  if (userPayload && !["admin", "super_admin"].includes(userPayload.rol)) {
     redirect("/admin/dashboard");
     return null;
   }
