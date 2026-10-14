@@ -1,4 +1,4 @@
-name: CI — Build & Lint
+name: CI — Build, Lint & Tests
 
 on:
   push:
@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      - run: npm test -- --ci
 
   build-backend-security:
     name: Build ms-nestjs-security
@@ -40,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      - run: npm test -- --ci
 
   build-frontend:
     name: Build ganaderia-web-service
