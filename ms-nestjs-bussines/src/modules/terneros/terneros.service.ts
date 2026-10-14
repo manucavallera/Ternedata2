@@ -694,6 +694,25 @@ export class TernerosService {
         delete updateTerneroDto['id_establecimiento'];
       }
 
+      // La base no tiene índice único de RP por campo: se valida acá
+      if (
+        updateTerneroDto.rp_ternero &&
+        updateTerneroDto.rp_ternero !== ternero.rp_ternero
+      ) {
+        const otro = await this.terneroRepository.findOne({
+          where: {
+            rp_ternero: updateTerneroDto.rp_ternero,
+            id_establecimiento: ternero.id_establecimiento,
+          },
+        });
+        if (otro && otro.id_ternero !== ternero.id_ternero) {
+          throw new HttpException(
+            `Ya existe un ternero con RP ${updateTerneroDto.rp_ternero} en este establecimiento`,
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
+
       // Manejar conversión de fechas
       if (updateTerneroDto.fecha_nacimiento) {
         ternero.fecha_nacimiento = new Date(updateTerneroDto.fecha_nacimiento);
