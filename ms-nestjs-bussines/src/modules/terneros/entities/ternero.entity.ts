@@ -146,9 +146,10 @@ export class TerneroEntity {
   peso_esperado_30d?: number;
   peso_esperado_45d?: number;
   peso_esperado_60d?: number;
-  rendimiento_15d?: string;
-  rendimiento_30d?: string;
-  rendimiento_45d?: string;
+  // null mientras el hito no se pesó
+  rendimiento_15d?: string | null;
+  rendimiento_30d?: string | null;
+  rendimiento_45d?: string | null;
   porcentaje_crecimiento_15d?: number;
   porcentaje_crecimiento_30d?: number;
   porcentaje_crecimiento_45d?: number;
@@ -243,12 +244,51 @@ export class TerneroEntity {
     }
   }
 
+  // `estimativo` guarda la fecha como "dd/mm", sin año. El pesaje no puede ser
+  // futuro, así que su año es el actual, o el anterior si ese día todavía no llegó.
+  fechaDePesaje(ddmm: string): Date | null {
+    const partes = /^(\d{1,2})\/(\d{1,2})$/.exec(ddmm?.trim() ?? '');
+    if (!partes) return null;
+    const dia = Number(partes[1]);
+    const mes = Number(partes[2]) - 1;
+    const hoy = new Date();
+    let fecha = new Date(Date.UTC(hoy.getUTCFullYear(), mes, dia));
+    if (fecha.getUTCMonth() !== mes) return null; // 31/02 y similares
+    if (fecha.getTime() > hoy.getTime()) {
+      fecha = new Date(Date.UTC(hoy.getUTCFullYear() - 1, mes, dia));
+    }
+    return fecha;
+  }
+
+  // Días entre el nacimiento y el último pesaje. Si la fecha del pesaje no se
+  // puede interpretar, se usan los días de vida como antes.
+  private calcularDiasHastaPesaje(fechaPesaje: string): number {
+    const pesaje = this.fechaDePesaje(fechaPesaje);
+    const nacimiento = this.fecha_nacimiento
+      ? new Date(this.fecha_nacimiento)
+      : null;
+    if (
+      !pesaje ||
+      !nacimiento ||
+      isNaN(nacimiento.getTime()) ||
+      pesaje < nacimiento
+    ) {
+      return this.calcularDiasDesdeNacimiento();
+    }
+    return Math.floor(
+      (pesaje.getTime() - nacimiento.getTime()) / (1000 * 60 * 60 * 24),
+    );
+  }
+
   calcularAumentoDiarioPromedio(): number {
     try {
       const historial = this.obtenerHistorialPesajes();
       if (historial.length === 0) return 0;
-      const ultimoPeso = historial[historial.length - 1].peso;
-      const dias = this.calcularDiasDesdeNacimiento();
+      const ultimo = historial[historial.length - 1];
+      const ultimoPeso = ultimo.peso;
+      // Lo ganado se reparte en los días hasta ese pesaje, no hasta hoy:
+      // un ternero pesado hace tiempo no debe verse con crecimiento bajo.
+      const dias = this.calcularDiasHastaPesaje(ultimo.fecha);
       if (dias <= 0) return 0;
       const aumentoTotal = ultimoPeso - this.peso_nacer;
       return parseFloat((aumentoTotal / dias).toFixed(3));
@@ -280,6 +320,11 @@ export class TerneroEntity {
       console.error('Error calculando porcentaje de rendimiento:', error);
       return 0;
     }
+  }
+
+  // Un hito con peso 0 o vacío todavía no se pesó: no tiene rendimiento.
+  private evaluarHito(peso: number, porcentaje: number): string | null {
+    return Number(peso) > 0 ? this.evaluarRendimiento(porcentaje) : null;
   }
 
   evaluarRendimiento(porcentaje: number): string {
@@ -317,13 +362,16 @@ export class TerneroEntity {
         this.peso_45d,
         this.peso_esperado_45d,
       );
-      this.rendimiento_15d = this.evaluarRendimiento(
+      this.rendimiento_15d = this.evaluarHito(
+        this.peso_15d,
         this.porcentaje_crecimiento_15d,
       );
-      this.rendimiento_30d = this.evaluarRendimiento(
+      this.rendimiento_30d = this.evaluarHito(
+        this.peso_30d,
         this.porcentaje_crecimiento_30d,
       );
-      this.rendimiento_45d = this.evaluarRendimiento(
+      this.rendimiento_45d = this.evaluarHito(
+        this.peso_45d,
         this.porcentaje_crecimiento_45d,
       );
     } catch (error) {

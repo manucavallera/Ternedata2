@@ -88,10 +88,8 @@ describe('TerneroEntity - indicadores de crecimiento', () => {
       expect(recienNacido.calcularAumentoDiarioPromedio()).toBe(0);
     });
 
-    // BUG: divide por los días hasta HOY y no hasta la fecha del último pesaje.
-    // Un ternero pesado hace 70 días aparece con crecimiento bajísimo aunque haya crecido bien.
-    // `estimativo` guarda "dd/mm" sin año, por eso el cálculo no puede usar la fecha del pesaje.
-    it.failing('usa la fecha del último pesaje, no la de hoy', () => {
+    // Antes dividía hasta HOY: un ternero pesado hace 70 días aparecía con crecimiento bajísimo.
+    it('usa la fecha del último pesaje, no la de hoy', () => {
       const ternero = crearTernero({
         peso_nacer: 40,
         fecha_nacimiento: new Date(haceDias(100, HOY)),
@@ -99,6 +97,35 @@ describe('TerneroEntity - indicadores de crecimiento', () => {
         estimativo: pesajeEstimativo(new Date(haceDias(70, HOY)), 60),
       });
       expect(ternero.calcularAumentoDiarioPromedio()).toBeCloseTo(0.667, 2);
+    });
+
+    it('si la fecha del pesaje no se entiende, usa los días de vida', () => {
+      const ternero = crearTernero({
+        peso_nacer: 40,
+        fecha_nacimiento: new Date(haceDias(20, HOY)),
+        estimativo: 'ayer:52',
+      });
+      expect(ternero.calcularAumentoDiarioPromedio()).toBe(0.6);
+    });
+  });
+
+  describe('fecha de un pesaje "dd/mm"', () => {
+    it('es de este año si ese día ya pasó', () => {
+      expect(crearTernero().fechaDePesaje('01/10')).toEqual(
+        new Date('2026-10-01T00:00:00Z'),
+      );
+    });
+
+    it('es del año anterior si ese día todavía no llegó', () => {
+      expect(crearTernero().fechaDePesaje('28/12')).toEqual(
+        new Date('2025-12-28T00:00:00Z'),
+      );
+    });
+
+    it('rechaza formatos y días inválidos', () => {
+      const ternero = crearTernero();
+      expect(ternero.fechaDePesaje('Nacimiento')).toBeNull();
+      expect(ternero.fechaDePesaje('31/02')).toBeNull();
     });
   });
 
@@ -138,16 +165,18 @@ describe('TerneroEntity - indicadores de crecimiento', () => {
       expect(ternero.rendimiento_15d).toBe('Bueno');
     });
 
-    // BUG: un hito que todavía no se pesó (peso 0) se evalúa como "Bajo".
-    // Se ve en el listado: un ternero de 2 días aparece con "15d: Bajo".
-    it.failing('un hito sin pesar no se marca como "Bajo"', () => {
+    // Antes un hito con peso 0 salía "Bajo": un ternero de 2 días mostraba "15d: Bajo".
+    // null hace que la web muestre "N/A" y el móvil oculte el chip.
+    it('un hito sin pesar no tiene rendimiento', () => {
       const ternero = crearTernero({
         peso_nacer: 40,
         peso_15d: 0,
         fecha_nacimiento: new Date(haceDias(2, HOY)),
       });
       ternero.calcularIndicadoresCrecimiento();
-      expect(ternero.rendimiento_15d).not.toBe('Bajo');
+      expect(ternero.rendimiento_15d).toBeNull();
+      expect(ternero.rendimiento_30d).toBeNull();
+      expect(ternero.rendimiento_45d).toBeNull();
     });
   });
 
