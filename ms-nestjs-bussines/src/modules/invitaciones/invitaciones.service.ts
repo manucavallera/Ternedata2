@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { InvitacionEntity } from './invitacion.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
@@ -31,8 +31,10 @@ export class InvitacionesService {
   async generarLink(
     establecimientoId: number,
     rol: RolEstablecimiento,
-    email?: string,
+    emailIngresado?: string,
   ) {
+    // Normalizado: la aceptación automática compara contra el email de la cuenta
+    const email = emailIngresado?.trim().toLowerCase() || undefined;
     // Un link sin email lo puede usar cualquiera que lo tenga: nunca para hacer dueño
     if (rol === RolEstablecimiento.DUENO && !email) {
       throw new HttpException('Para invitar a un dueño indicá su email', HttpStatus.BAD_REQUEST);
@@ -115,8 +117,14 @@ export class InvitacionesService {
     const user = await this.usersService.findOne(userId);
     if (!user?.email) return { aceptadas: 0 };
 
+    // Sin distinguir mayúsculas: hay invitaciones viejas guardadas tal como se tipearon
     const invitaciones = await this.invitacionRepo.find({
-      where: { email: user.email, usado: false },
+      where: {
+        email: Raw((columna) => `LOWER(${columna}) = :email`, {
+          email: user.email.trim().toLowerCase(),
+        }),
+        usado: false,
+      },
     });
 
     let aceptadas = 0;
