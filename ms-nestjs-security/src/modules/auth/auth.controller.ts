@@ -1,11 +1,9 @@
-import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterAuthDto } from './dto/register.dto';
 import { LoginAuthDto } from './dto/login.dto';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { RolesGuard } from './roles.guard';
-import { Roles, UserRole } from './roles.decorator';
 import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
@@ -24,22 +22,6 @@ export class AuthController {
   @Post('/login')
   async login(@Body() loginAuthDto: LoginAuthDto) {
     return this.AuthService.login(loginAuthDto);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get('generar-token')
-  @ApiOperation({ summary: 'Generar token de invitación (solo admin)' })
-  dameToken(
-    @Query('email') email: string,
-    @Query('rol') rol: string,
-    @Query('idEstablecimiento') idEstablecimiento: string,
-  ) {
-    const emailFinal = email || 'veterinario_test@gmail.com';
-    const rolFinal = rol || 'operario';
-    const idFinal = idEstablecimiento ? parseInt(idEstablecimiento) : null;
-
-    return this.AuthService.crearTokenMagico(emailFinal, rolFinal, idFinal);
   }
 
   @UseGuards(JwtAuthGuard)

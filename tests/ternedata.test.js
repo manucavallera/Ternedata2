@@ -532,21 +532,22 @@ describe('📧 FORGOT/RESET PASSWORD', () => {
 // ============================================================
 describe('🎟️ INVITACIONES', () => {
 
-  let invitacionToken = null;
+  // Las invitaciones se generan en business (/invitaciones/crear). El registro solo
+  // mira si viene un invitationToken para dar rol operario en vez de admin.
+  const invitacionToken = 'invitacion-de-prueba';
 
-  test('Generar token de invitación como admin', async () => {
+  // /auth/generar-token firmaba un JWT con el rol que pidiera cualquier admin
+  // (incluso super_admin): se eliminó.
+  test('/auth/generar-token ya no existe', async () => {
     const res = await secApi.get('/auth/generar-token', {
-      params: { email: 'invitado_test@ternedata.com', rol: 'operario', idEstablecimiento: state.establecimientoId || 1 },
+      params: { rol: 'super_admin', idEstablecimiento: 1 },
       headers: authHeader(),
+      validateStatus: () => true,
     });
-    expect([200, 201]).toContain(res.status);
-    expect(res.data).toHaveProperty('token_para_copiar');
-    invitacionToken = res.data.token_para_copiar;
-    console.log('  🎟️ Token generado:', invitacionToken?.substring(0, 20) + '...');
+    expect(res.status).toBe(404);
   });
 
   test('Registrar usuario con token de invitación → rol operario o ya existe', async () => {
-    expect(invitacionToken).toBeTruthy();
     const res = await secApi.post('/auth/register', {
       name: 'Operario Test',
       email: 'invitado_test@ternedata.com',

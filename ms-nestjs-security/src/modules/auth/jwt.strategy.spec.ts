@@ -1,0 +1,50 @@
+import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtStrategy } from './jwt.strategy';
+
+// Business y security comparten JWT_SECRET, y con ese secreto también se firman los
+// tokens de verificación de email y de reset de contraseña. La estrategia solo debe
+// aceptar tokens de sesión: con id de usuario y sin "type".
+describe('JwtStrategy', () => {
+  const strategy = new JwtStrategy({
+    get: () => 'secreto-de-test',
+  } as unknown as ConfigService);
+
+  const sesion = {
+    id: 7,
+    name: 'Ana',
+    rol: 'admin',
+    id_establecimiento: 10,
+    userEstablecimientos: [{ establecimientoId: 20, rol: 'operario' }],
+  };
+
+  it('acepta un token de sesión y arma request.user', async () => {
+    await expect(strategy.validate(sesion)).resolves.toMatchObject({
+      userId: 7,
+      rol: 'admin',
+      id_establecimiento: 10,
+      userEstablecimientos: [{ establecimientoId: 20, rol: 'operario' }],
+    });
+  });
+
+  // El token de /auth/generar-token no tenía id: con rol super_admin pasaba todos
+  // los guards y veía los datos de cualquier campo.
+  it('rechaza un token sin id de usuario', async () => {
+    await expect(
+      strategy.validate({
+        email: 'x@x.com',
+        rol: 'super_admin',
+        id_establecimiento: 64,
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it.each(['verify', 'reset'])(
+    'rechaza un token de tipo "%s"',
+    async (type) => {
+      await expect(
+        strategy.validate({ id: 7, email: 'ana@campo.com', type }),
+      ).rejects.toThrow(UnauthorizedException);
+    },
+  );
+});
