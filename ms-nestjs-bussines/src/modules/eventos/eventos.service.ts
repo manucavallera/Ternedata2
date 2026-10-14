@@ -28,6 +28,21 @@ export class EventosService {
     private readonly madreRepository: Repository<MadreEntity>,
   ) {}
 
+  // findBy con In() descarta en silencio los ids que no existen: sin esto el evento
+  // quedaba con menos animales de los pedidos y la respuesta era igual 201.
+  private exigirTodos(
+    pedidos: number[] | undefined,
+    encontrados: { [clave: string]: any }[],
+    clave: 'id_ternero' | 'id_madre',
+    etiqueta: string,
+  ) {
+    const existentes = new Set(encontrados.map((e) => e[clave]));
+    const faltan = (pedidos || []).filter((id) => !existentes.has(id));
+    if (faltan.length > 0) {
+      throw new NotFoundException(`No existen ${etiqueta}: ${faltan.join(', ')}`);
+    }
+  }
+
   // ✅ CREATE con multi-tenancy
   async create(
     createEventoDto: CreateEventoDto & { id_establecimiento: number },
@@ -46,6 +61,8 @@ export class EventosService {
             id_ternero: In(createEventoDto.id_ternero),
           })
         : [];
+
+      this.exigirTodos(createEventoDto.id_ternero, terneros, 'id_ternero', 'terneros');
 
       // Validar que todos los terneros pertenezcan al mismo establecimiento
       if (terneros.length > 0) {
@@ -67,6 +84,8 @@ export class EventosService {
             id_madre: In(createEventoDto.id_madre),
           })
         : [];
+
+      this.exigirTodos(createEventoDto.id_madre, madres, 'id_madre', 'madres');
 
       // Validar que todas las madres pertenezcan al mismo establecimiento
       if (madres.length > 0) {
@@ -123,6 +142,8 @@ export class EventosService {
               })
             : [];
 
+        this.exigirTodos(eventoDto.id_ternero, terneros, 'id_ternero', 'terneros');
+
         if (terneros.length > 0) {
           const ternerosDeOtroEstablecimiento = terneros.filter(
             (ternero) =>
@@ -143,6 +164,8 @@ export class EventosService {
                 id_madre: In(eventoDto.id_madre),
               })
             : [];
+
+        this.exigirTodos(eventoDto.id_madre, madres, 'id_madre', 'madres');
 
         if (madres.length > 0) {
           const madresDeOtroEstablecimiento = madres.filter(
@@ -207,6 +230,7 @@ export class EventosService {
 
       return await queryBuilder.getMany();
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       this.logger.error('Error en findAll eventos', error);
       throw new HttpException(
         `Error al obtener los eventos: ${error.message}`,
@@ -273,6 +297,8 @@ export class EventosService {
           })
         : [];
 
+      this.exigirTodos(updateEventoDto.id_ternero, ternerosArray, 'id_ternero', 'terneros');
+
       if (ternerosArray.length > 0 && !esAdmin) {
         const ternerosDeOtroEstablecimiento = ternerosArray.filter(
           (ternero) => ternero.id_establecimiento !== evento.id_establecimiento,
@@ -291,6 +317,8 @@ export class EventosService {
           })
         : [];
 
+      this.exigirTodos(updateEventoDto.id_madre, madresArray, 'id_madre', 'madres');
+
       if (madresArray.length > 0 && !esAdmin) {
         const madresDeOtroEstablecimiento = madresArray.filter(
           (madre) => madre.id_establecimiento !== evento.id_establecimiento,
@@ -303,12 +331,17 @@ export class EventosService {
         }
       }
 
+      // Mediodía, igual que el alta: con medianoche UTC la fecha se corría un día en Argentina
       if (updateEventoDto.fecha_evento)
-        evento.fecha_evento = new Date(updateEventoDto.fecha_evento);
+        evento.fecha_evento = new Date(
+          String(updateEventoDto.fecha_evento).slice(0, 10) + 'T12:00:00',
+        );
       if (updateEventoDto.observacion)
         evento.observacion = updateEventoDto.observacion;
-      evento.terneros = ternerosArray;
-      evento.madres = madresArray;
+      // Solo se reemplazan las listas que vienen: editar la observación no debe
+      // dejar el evento sin animales.
+      if (updateEventoDto.id_ternero) evento.terneros = ternerosArray;
+      if (updateEventoDto.id_madre) evento.madres = madresArray;
 
       return await this.eventoRepository.save(evento);
     } catch (error) {
@@ -330,6 +363,7 @@ export class EventosService {
       await this.eventoRepository.remove(evento);
       return { message: 'El evento fue eliminado con éxito' };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al eliminar el evento con el ID ${id}: ${error.message}`,
         HttpStatus.CONFLICT,
