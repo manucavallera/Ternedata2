@@ -28,17 +28,6 @@ export class DiarreaTernerosService {
     },
   ): Promise<DiarreaTerneroEntity> {
     try {
-      // ✅ AGREGAR ESTOS LOGS AL INICIO:
-      console.log('📦 Service CREATE - DTO completo:', createDiarreaTerneroDto);
-      console.log(
-        '🏢 ID Establecimiento recibido:',
-        createDiarreaTerneroDto.id_establecimiento,
-      );
-      console.log(
-        '🏢 Tipo:',
-        typeof createDiarreaTerneroDto.id_establecimiento,
-      );
-      console.log('🏢 Es falsy?:', !createDiarreaTerneroDto.id_establecimiento);
       // Validar que venga el establecimiento
       if (!createDiarreaTerneroDto.id_establecimiento) {
         throw new ForbiddenException(
