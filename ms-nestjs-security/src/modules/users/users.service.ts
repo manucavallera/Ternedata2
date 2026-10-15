@@ -383,9 +383,23 @@ export class UsersService {
     return await this.findOne(id);
   }
 
-  async findByRole(role: UserRole): Promise<UserEntity[]> {
+  // campos null = sin filtro (super_admin); si no, solo usuarios de esos campos
+  async findByRole(role: UserRole, campos: number[] | null = null): Promise<UserEntity[]> {
+    let where: any = { rol: role, estado: 'activo' };
+    if (campos) {
+      if (campos.length === 0) return [];
+      const miembros = await this.userEstablecimientoRepository.find({
+        where: { establecimientoId: In(campos) },
+        select: ['userId'],
+      });
+      const ids = [...new Set(miembros.map((m) => m.userId))];
+      where = [
+        { ...where, id_establecimiento: In(campos) },
+        ...(ids.length ? [{ ...where, id: In(ids) }] : []),
+      ];
+    }
     return this.usersRepository.find({
-      where: { rol: role, estado: 'activo' },
+      where,
       select: [
         'id',
         'name',
@@ -421,6 +435,19 @@ export class UsersService {
   private async establecimientosDe(actor: any): Promise<number[]> {
     const propios = await this.getEstablecimientos(actor?.userId);
     return actor?.id_establecimiento ? [...propios, actor.id_establecimiento] : propios;
+  }
+
+  async camposDe(actor: any): Promise<number[]> {
+    return [...new Set(await this.establecimientosDe(actor))];
+  }
+
+  // De los campos a los que pertenece el actor, los que administra.
+  async camposAdministrados(actor: any): Promise<number[]> {
+    const campos: number[] = [];
+    for (const id of await this.camposDe(actor)) {
+      if (await this.administra(actor, id)) campos.push(id);
+    }
+    return campos;
   }
 
   // Un campo lo administra su dueño. El rol global 'admin' lo recibe cualquiera que
@@ -508,9 +535,12 @@ export class UsersService {
   }
 
   // Deja al usuario en los establecimientos pedidos sin tocar el rol de las membresías que ya tenía.
-  async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
+  // Con alcance, solo quita membresías de esos campos: las de campos ajenos se conservan.
+  async syncEstablecimientos(userId: number, ids: number[], alcance: number[] | null = null): Promise<void> {
     const actuales = await this.userEstablecimientoRepository.find({ where: { userId } });
-    const sobran = actuales.filter((a) => !ids.includes(a.establecimientoId));
+    const sobran = actuales.filter(
+      (a) => !ids.includes(a.establecimientoId) && (!alcance || alcance.includes(a.establecimientoId)),
+    );
     if (sobran.length > 0) await this.userEstablecimientoRepository.remove(sobran);
     const faltan = ids.filter((id) => !actuales.some((a) => a.establecimientoId === id));
     if (faltan.length > 0) {

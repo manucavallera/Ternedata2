@@ -9,7 +9,13 @@ describe('UsersService global administration', () => {
     update: jest.fn(),
     count: jest.fn(),
   };
-  const assignmentsRepository: any = { find: jest.fn() };
+  const assignmentsRepository: any = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn((x) => x),
+  };
   const establishmentsRepository: any = { findBy: jest.fn() };
   let service: UsersService;
 
@@ -83,5 +89,33 @@ describe('UsersService global administration', () => {
     await expect(service.toggleStatus(1)).rejects.toBeInstanceOf(ConflictException);
     expect(usersRepository.update).not.toHaveBeenCalled();
   });
-});
 
+  it('findByRole only returns users of the given establishments', async () => {
+    assignmentsRepository.find.mockResolvedValue([{ userId: 7 }, { userId: 7 }]);
+    usersRepository.find.mockResolvedValue([]);
+
+    await service.findByRole(UserRole.OPERARIO, [1, 2]);
+
+    const { where } = usersRepository.find.mock.calls[0][0];
+    expect(where).toHaveLength(2);
+    expect(where[0].id_establecimiento.value).toEqual([1, 2]);
+    expect(where[1].id.value).toEqual([7]);
+  });
+
+  it('findByRole with no establishments returns nothing', async () => {
+    expect(await service.findByRole(UserRole.OPERARIO, [])).toEqual([]);
+    expect(usersRepository.find).not.toHaveBeenCalled();
+  });
+
+  it('syncEstablecimientos keeps memberships outside the actor scope', async () => {
+    assignmentsRepository.find.mockResolvedValue([
+      { establecimientoId: 1 },
+      { establecimientoId: 2 },
+      { establecimientoId: 9 },
+    ]);
+
+    await service.syncEstablecimientos(50, [1], [1, 2]);
+
+    expect(assignmentsRepository.remove).toHaveBeenCalledWith([{ establecimientoId: 2 }]);
+  });
+});
