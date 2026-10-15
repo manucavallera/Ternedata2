@@ -6,9 +6,17 @@ import { JwtStrategy } from './jwt.strategy';
 // tokens de verificación de email y de reset de contraseña. La estrategia solo debe
 // aceptar tokens de sesión: con id de usuario y sin "type".
 describe('JwtStrategy', () => {
-  const strategy = new JwtStrategy({
-    get: () => 'secreto-de-test',
-  } as unknown as ConfigService);
+  const findOne = jest.fn();
+  const dataSource: any = { getRepository: () => ({ findOne }) };
+  const strategy = new JwtStrategy(
+    { get: () => 'secreto-de-test' } as unknown as ConfigService,
+    dataSource,
+  );
+
+  beforeEach(() => {
+    findOne.mockReset();
+    findOne.mockResolvedValue({ id: 7, rol: 'admin', estado: 'activo' });
+  });
 
   const sesion = {
     id: 7,
@@ -47,4 +55,25 @@ describe('JwtStrategy', () => {
       ).rejects.toThrow(UnauthorizedException);
     },
   );
+
+  it('rechaza el token de un usuario desactivado', async () => {
+    findOne.mockResolvedValue({ id: 7, rol: 'admin', estado: 'inactivo' });
+    await expect(strategy.validate(sesion)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('rechaza el token de un usuario que ya no existe', async () => {
+    findOne.mockResolvedValue(null);
+    await expect(strategy.validate(sesion)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('toma el rol de la base y no el del token', async () => {
+    findOne.mockResolvedValue({ id: 7, rol: 'operario', estado: 'activo' });
+    await expect(strategy.validate(sesion)).resolves.toMatchObject({
+      rol: 'operario',
+    });
+  });
 });
