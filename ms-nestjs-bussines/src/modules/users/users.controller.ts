@@ -30,22 +30,33 @@ export class UsersController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Crear nuevo usuario (solo admin)' })
-  async create(@Body() createUserDto: CreateUserDto) {
+  async create(@Body() createUserDto: CreateUserDto, @Request() req) {
+    const esSuperAdmin = req.user.rol === UserRole.SUPER_ADMIN;
+    if (createUserDto.rol === UserRole.SUPER_ADMIN && !esSuperAdmin) {
+      throw new HttpException('Solo un super_admin puede asignar ese rol', HttpStatus.FORBIDDEN);
+    }
+    // Un usuario sin campo no lo podría administrar nadie más que un super_admin
+    if (!esSuperAdmin && !createUserDto.id_establecimiento) {
+      throw new HttpException('Indicá el establecimiento del usuario', HttpStatus.BAD_REQUEST);
+    }
+    if (createUserDto.id_establecimiento) {
+      await this.usersService.exigirAdminDeCampo(req.user, createUserDto.id_establecimiento);
+    }
     return await this.usersService.create(createUserDto);
   }
 
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener todos los usuarios (solo admin)' })
-  async findAll() {
-    return await this.usersService.findAll();
+  async findAll(@Request() req) {
+    return await this.usersService.findAllEn(await this.usersService.camposAdministrados(req.user));
   }
 
   @Get('stats')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener estadísticas de usuarios (solo admin)' })
-  async getStats() {
-    return await this.usersService.getStats();
+  async getStats(@Request() req) {
+    return await this.usersService.getStatsEn(await this.usersService.camposAdministrados(req.user));
   }
 
   @Delete(':id')
@@ -97,19 +108,17 @@ export class UsersController {
   @Get('by-role/:role')
   @Roles(UserRole.ADMIN, UserRole.VETERINARIO)
   @ApiOperation({ summary: 'Obtener usuarios por rol' })
-  async findByRole(@Param('role') role: UserRole) {
-    return await this.usersService.findByRole(role);
+  async findByRole(@Param('role') role: UserRole, @Request() req) {
+    const campos = req.user.rol === UserRole.SUPER_ADMIN ? null : await this.usersService.camposDe(req.user);
+    return await this.usersService.findByRoleEn(role, campos);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     // ⬅️ ParseIntPipe
-    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && req.user.userId !== id) {
-      throw new HttpException(
-        'No tienes permisos para ver este usuario',
-        HttpStatus.FORBIDDEN,
-      );
+    if (req.user.userId !== id) {
+      await this.usersService.verificarPertenenciaAdmin(req.user, id);
     }
     return await this.usersService.findOne(id);
   }
@@ -117,8 +126,14 @@ export class UsersController {
   @Get(':id/establecimientos')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Obtener establecimientos asignados al usuario' })
-  async getEstablecimientos(@Param('id', ParseIntPipe) id: number) {
-    return await this.usersService.getEstablecimientos(id);
+  async getEstablecimientos(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    if (req.user.userId !== id) {
+      await this.usersService.verificarPertenenciaAdmin(req.user, id);
+    }
+    const asignados = await this.usersService.getEstablecimientos(id);
+    const campos = await this.usersService.camposAdministrados(req.user);
+    // Solo los campos que el actor administra: los demás no son asunto suyo
+    return campos === null ? asignados : asignados.filter((e) => campos.includes(e));
   }
 
   @Put(':id/establecimientos')
@@ -129,24 +144,17 @@ export class UsersController {
     @Body('ids') ids: number[],
     @Request() req,
   ) {
-    const adminEstIds = [
-      req.user?.id_establecimiento,
-      ...(req.user?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
-    ].filter(Boolean);
-    let idsInvalidos = (ids || []).filter((estId) => !adminEstIds.includes(estId));
-    if (idsInvalidos.length > 0) {
-      // Fallback a DB: cubre establecimientos creados/asignados después de
-      // emitido el JWT (adminEstIds arriba viene congelado del login).
-      const enDb = await this.usersService.getEstablecimientos(req.user?.userId);
-      idsInvalidos = idsInvalidos.filter((estId) => !enDb.includes(estId));
-    }
+    await this.usersService.verificarPertenenciaAdmin(req.user, id);
+    const campos = await this.usersService.camposAdministrados(req.user);
+    const idsInvalidos = campos === null ? [] : (ids || []).filter((estId) => !campos.includes(estId));
     if (idsInvalidos.length > 0) {
       throw new HttpException(
         `No tenés acceso a los establecimientos: ${idsInvalidos.join(', ')}`,
         HttpStatus.FORBIDDEN,
       );
     }
-    await this.usersService.syncEstablecimientos(id, ids);
+    // Solo se reemplazan las membresías en campos que el actor administra
+    await this.usersService.syncEstablecimientos(id, ids || [], campos);
     return { ok: true };
   }
 
@@ -157,23 +165,30 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Request() req,
   ) {
-    if (req.user.rol !== UserRole.ADMIN && req.user.userId !== id) {
-      throw new HttpException(
-        'No tienes permisos para actualizar este usuario',
-        HttpStatus.FORBIDDEN,
-      );
+    const esSuperAdmin = req.user.rol === UserRole.SUPER_ADMIN;
+    const propio = req.user.userId === id;
+
+    // Editar a otro usuario exige administrar su campo
+    if (!propio) {
+      await this.usersService.verificarPertenenciaAdmin(req.user, id);
     }
 
-    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && updateUserDto.rol) {
-      throw new HttpException(
-        'No tienes permisos para cambiar tu rol',
-        HttpStatus.FORBIDDEN,
-      );
+    if (updateUserDto.rol !== undefined && !esSuperAdmin) {
+      if (propio) {
+        throw new HttpException('No podés cambiar tu propio rol', HttpStatus.FORBIDDEN);
+      }
+      if (updateUserDto.rol === UserRole.SUPER_ADMIN) {
+        throw new HttpException('Solo un super_admin puede asignar ese rol', HttpStatus.FORBIDDEN);
+      }
     }
 
-    // Solo admins pueden cambiar el establecimiento asignado
-    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && updateUserDto['id_establecimiento'] !== undefined) {
-      delete updateUserDto['id_establecimiento'];
+    // El campo principal solo puede pasar a uno que el actor administre
+    if (updateUserDto['id_establecimiento'] !== undefined && !esSuperAdmin) {
+      if (propio && req.user.rol !== UserRole.ADMIN) {
+        delete updateUserDto['id_establecimiento'];
+      } else if (updateUserDto['id_establecimiento'] !== null) {
+        await this.usersService.exigirAdminDeCampo(req.user, updateUserDto['id_establecimiento']);
+      }
     }
 
     return await this.usersService.update(id, updateUserDto);

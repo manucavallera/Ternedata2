@@ -8,6 +8,7 @@ import {
   IsEnum,
   IsOptional,
   MinLength,
+  IsInt,
 } from 'class-validator';
 import { UserRole, UserStatus } from '../entity/users.entity';
 
@@ -86,6 +87,13 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   permisos_especiales?: string;
+
+  // Sin declararlo, la ValidationPipe (whitelist) lo descartaba y el usuario quedaba sin campo.
+  // El controller exige que quien lo asigna administre ese establecimiento.
+  @ApiProperty({ description: 'Establecimiento principal', example: 10, required: false })
+  @IsInt()
+  @IsOptional()
+  id_establecimiento?: number;
 }
 
 export class UpdateUserDto {
@@ -166,4 +174,11 @@ export class UpdateUserDto {
   @IsString()
   @IsOptional()
   permisos_especiales?: string;
+
+  // Sin declararlo, la ValidationPipe (whitelist) lo descartaba y el usuario quedaba sin campo.
+  // El controller exige que quien lo asigna administre ese establecimiento.
+  @ApiProperty({ description: 'Establecimiento principal', example: 10, required: false })
+  @IsInt()
+  @IsOptional()
+  id_establecimiento?: number;
 }

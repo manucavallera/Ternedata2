@@ -9,7 +9,7 @@ import { CreateUserDto } from './dto/user.dto';
 import { UserEntity, UserRole, UserStatus } from './entity/users.entity';
 import { UserEstablecimientoEntity } from './entity/user-establecimiento.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
 
@@ -309,8 +309,80 @@ export class UsersService {
   }
 
   // Sincronizar establecimientos de un usuario (reemplaza todos)
-  async syncEstablecimientos(userId: number, ids: number[]): Promise<void> {
-    await this.userEstRepo.delete({ userId });
+  // ===== ALCANCE POR CAMPO =====
+  // El rol global 'admin' lo tiene cualquiera que se registra: los permisos sobre
+  // otros usuarios salen de los campos que el actor administra.
+
+  // Campos donde el actor es miembro (cualquier rol).
+  async camposDe(actor: any): Promise<number[]> {
+    const ids = [
+      actor?.id_establecimiento,
+      ...(actor?.userEstablecimientos || []).map((ue: any) => ue.establecimientoId),
+      ...(actor?.userId ? await this.getEstablecimientos(actor.userId) : []),
+    ];
+    return [...new Set(ids.filter((v) => v !== null && v !== undefined).map(Number))];
+  }
+
+  // Campos que el actor administra. null = todos (super_admin).
+  async camposAdministrados(actor: any): Promise<number[] | null> {
+    if (actor?.rol === UserRole.SUPER_ADMIN) return null;
+    const propios: number[] = [];
+    for (const id of await this.camposDe(actor)) {
+      if ((await this.rolEstablecimiento.rolEn(actor, id)) === 'admin') propios.push(id);
+    }
+    return propios;
+  }
+
+  async exigirAdminDeCampo(actor: any, idEstablecimiento: number): Promise<void> {
+    const campos = await this.camposAdministrados(actor);
+    if (campos !== null && !campos.includes(Number(idEstablecimiento))) {
+      throw new ForbiddenException('No administrás ese establecimiento');
+    }
+  }
+
+  // Usuarios con campo principal o membresía en alguno de esos campos. null = todos.
+  async findAllEn(campos: number[] | null): Promise<UserEntity[]> {
+    if (campos === null) return this.findAll();
+    if (campos.length === 0) return [];
+    const miembros = await this.userEstRepo.find({ where: { establecimientoId: In(campos) } });
+    const ids = [...new Set(miembros.map((m) => m.userId))];
+    return this.usersRepository.find({
+      where: [{ id_establecimiento: In(campos) }, ...(ids.length ? [{ id: In(ids) }] : [])],
+      relations: ['establecimientosAsignados'],
+      select: ['id', 'name', 'email', 'rol', 'estado', 'telefono', 'id_establecimiento', 'fecha_creacion', 'ultimo_acceso'],
+      order: { fecha_creacion: 'DESC' },
+    });
+  }
+
+  async getStatsEn(campos: number[] | null) {
+    if (campos === null) return this.getStats();
+    const lista = await this.findAllEn(campos);
+    const activos = lista.filter((u) => u.estado === UserStatus.ACTIVO);
+    const porRol: Record<string, number> = {};
+    for (const u of activos) porRol[u.rol] = (porRol[u.rol] || 0) + 1;
+    return {
+      total: lista.length,
+      activos: activos.length,
+      inactivos: lista.length - activos.length,
+      por_rol: Object.entries(porRol).map(([rol, cantidad]) => ({ rol, cantidad })),
+    };
+  }
+
+  async findByRoleEn(role: UserRole, campos: number[] | null) {
+    if (campos === null) return this.findByRole(role);
+    return (await this.findAllEn(campos))
+      .filter((u) => u.rol === role && u.estado === UserStatus.ACTIVO)
+      .map(({ id, name, email, rol, telefono, fecha_creacion }) => ({ id, name, email, rol, telefono, fecha_creacion }));
+  }
+
+  // alcance: campos que se pueden tocar (los que administra el actor). Las membresías
+  // del usuario en otros campos se conservan. null = reemplaza todas (super_admin).
+  async syncEstablecimientos(userId: number, ids: number[], alcance: number[] | null = null): Promise<void> {
+    if (alcance === null) {
+      await this.userEstRepo.delete({ userId });
+    } else if (alcance.length > 0) {
+      await this.userEstRepo.delete({ userId, establecimientoId: In(alcance) });
+    }
     if (ids.length > 0) {
       const nuevas = ids.map((establecimientoId) =>
         this.userEstRepo.create({ userId, establecimientoId, rol: 'admin' }),
