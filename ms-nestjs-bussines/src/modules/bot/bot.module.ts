@@ -7,6 +7,8 @@ import { ClaudeService } from './webhook/claude.service';
 import { AudioService } from './webhook/audio.service';
 import { MessagingService } from './webhook/messaging.service';
 import { DedupeService } from './webhook/dedupe.service';
+import { LimitePorTelefono } from './webhook/limite-telefono';
+import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
 
 // TypeORM
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -62,6 +64,8 @@ import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero
     AudioService,
     MessagingService,
     DedupeService,
+    LimitePorTelefono,
+    RolEstablecimientoService,
     TernerosService,
     MadresService,
     EventosService,

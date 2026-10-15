@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { fetchConTimeout } from './http';
 
 // ─────────────────────────────────────────────
 // Descarga de audio (Telegram / WhatsApp-Evolution) + transcripción
@@ -30,7 +31,7 @@ export class AudioService {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN no configurada');
 
-    const infoRes = await fetch(
+    const infoRes = await fetchConTimeout(
       `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`,
     );
     const info: any = await infoRes.json();
@@ -38,7 +39,7 @@ export class AudioService {
       throw new Error('Telegram getFile falló: ' + JSON.stringify(info).substring(0, 200));
     }
 
-    const fileRes = await fetch(
+    const fileRes = await fetchConTimeout(
       `https://api.telegram.org/file/bot${token}/${info.result.file_path}`,
     );
     if (!fileRes.ok) throw new Error(`Descarga audio TG ${fileRes.status}`);
@@ -52,7 +53,7 @@ export class AudioService {
     const apikey = process.env.EVOLUTION_API_KEY;
     if (!apikey) throw new Error('EVOLUTION_API_KEY no configurada');
 
-    const res = await fetch(
+    const res = await fetchConTimeout(
       `${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE}`,
       {
         method: 'POST',
@@ -86,11 +87,11 @@ export class AudioService {
     form.append('response_format', 'json');
     form.append('prompt', GROQ_PROMPT);
 
-    const res = await fetch(GROQ_URL, {
+    const res = await fetchConTimeout(GROQ_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
       body: form,
-    });
+    }, 40000);
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Groq Whisper ${res.status}: ${err.substring(0, 200)}`);

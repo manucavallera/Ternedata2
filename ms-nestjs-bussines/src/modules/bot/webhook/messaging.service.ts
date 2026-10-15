@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { fetchConTimeout } from './http';
 
 // ─────────────────────────────────────────────
 // Envío de respuestas al usuario (Telegram / WhatsApp-Evolution).
@@ -18,7 +19,7 @@ export class MessagingService {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN no configurada');
 
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetchConTimeout(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: mensaje }),
@@ -33,7 +34,7 @@ export class MessagingService {
     const apikey = process.env.EVOLUTION_API_KEY;
     if (!apikey) throw new Error('EVOLUTION_API_KEY no configurada');
 
-    const res = await fetch(
+    const res = await fetchConTimeout(
       `${EVOLUTION_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
       {
         method: 'POST',
