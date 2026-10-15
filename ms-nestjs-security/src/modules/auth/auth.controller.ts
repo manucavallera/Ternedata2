@@ -17,7 +17,8 @@ export class AuthController {
     return this.AuthService.register(body);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  // THROTTLE_LIMIT solo existe en el CI de tests: en producción no se define
+  @Throttle({ default: { limit: Number(process.env.THROTTLE_LIMIT) || 5, ttl: 60000 } })
   @ApiBody({ type: LoginAuthDto })
   @Post('/login')
   async login(@Body() loginAuthDto: LoginAuthDto) {
@@ -37,7 +38,7 @@ export class AuthController {
     return this.AuthService.verifyEmail(body.token);
   }
 
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({ default: { limit: Number(process.env.THROTTLE_LIMIT) || 3, ttl: 60000 } })
   @Post('/resend-verification')
   @ApiOperation({ summary: 'Reenviar email de verificación' })
   async resendVerification(
