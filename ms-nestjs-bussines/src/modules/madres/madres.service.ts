@@ -181,6 +181,7 @@ export class MadresService {
         totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       this.logger.error('Error en findAll madres', error);
       throw new HttpException(
         `Error al obtener las madres: ${error.message}`,
@@ -245,6 +246,22 @@ export class MadresService {
       // No permitir cambiar el establecimiento
       if (updateMadreDto['id_establecimiento']) {
         delete updateMadreDto['id_establecimiento'];
+      }
+
+      // La base no tiene índice único de RP por campo: se valida acá
+      if (updateMadreDto.rp_madre && updateMadreDto.rp_madre !== madre.rp_madre) {
+        const otra = await this.madreRepository.findOne({
+          where: {
+            rp_madre: updateMadreDto.rp_madre,
+            id_establecimiento: madre.id_establecimiento,
+          },
+        });
+        if (otra && otra.id_madre !== madre.id_madre) {
+          throw new HttpException(
+            `Ya existe una madre con RP ${updateMadreDto.rp_madre} en este establecimiento`,
+            HttpStatus.CONFLICT,
+          );
+        }
       }
 
       // Actualizar
