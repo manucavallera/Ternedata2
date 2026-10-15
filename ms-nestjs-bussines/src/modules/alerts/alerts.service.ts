@@ -32,7 +32,13 @@ export class AlertsService {
   }
 
   // 2. Guardar o Actualizar configuración
-  async saveConfig(userId: number, data: Partial<AlertsConfigEntity>) {
+  async saveConfig(userId: number, body: Partial<AlertsConfigEntity>) {
+    // Solo los campos que el usuario configura: userId, id y lastAlertSent no se tocan desde afuera
+    const data: Partial<AlertsConfigEntity> = {};
+    for (const campo of ['umbralMortalidad', 'umbralMorbilidad', 'whatsappEnabled', 'emailEnabled'] as const) {
+      if (body?.[campo] !== undefined) (data as any)[campo] = body[campo];
+    }
+
     let config = await this.alertsRepo.findOne({ where: { userId } });
 
     if (!config) {
