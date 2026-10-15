@@ -16,6 +16,11 @@ import { ClaudeService } from './webhook/claude.service';
 import { AudioService } from './webhook/audio.service';
 import { MessagingService } from './webhook/messaging.service';
 import { DedupeService } from './webhook/dedupe.service';
+import { LimitePorTelefono } from './webhook/limite-telefono';
+import { sanearParaLog } from './webhook/sanear-log';
+import { esTimeout } from './webhook/http';
+import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
+import { SkipThrottle } from '@nestjs/throttler';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
 import { EventosService } from '../eventos/eventos.service';
@@ -100,6 +105,8 @@ export class BotController {
     private readonly audioService: AudioService,
     private readonly messagingService: MessagingService,
     private readonly dedupeService: DedupeService,
+    private readonly limitePorTelefono: LimitePorTelefono,
+    private readonly rolEstablecimiento: RolEstablecimientoService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -391,7 +398,8 @@ export class BotController {
     pendiente: any,
   ): Promise<string> {
     const { recurso, id, idEstablecimiento } = pendiente;
-    const esAdmin = user.rol === 'admin';
+    // Solo el super_admin salta el alcance por campo (igual que la API desde #3).
+    const esAdmin = user.rol === 'super_admin';
     try {
       switch (recurso) {
         case 'ternero':
@@ -705,6 +713,9 @@ export class BotController {
   // poder inspeccionar el resultado en la respuesta HTTP).
   // ════════════════════════════════════════════
   @Post('webhook')
+  // Todos los mensajes llegan desde la IP de Evolution: el throttler por IP los contaría juntos.
+  // El límite que corresponde es por teléfono (LimitePorTelefono).
+  @SkipThrottle()
   @ApiOperation({
     summary: 'Webhook unificado del bot (Telegram / WhatsApp)',
     description:
@@ -748,6 +759,17 @@ export class BotController {
     console.log(
       `📥 [webhook:${MODE}] ${msg._origen} | ${msg.phone} | ${msg.type} | "${msg.text ?? ''}"`,
     );
+
+    // Ráfaga desde un mismo teléfono: se corta antes de gastar audio o Claude.
+    if (!this.limitePorTelefono.permitir(msg.phone)) {
+      console.warn('🚦 [webhook] límite por teléfono superado:', msg.phone);
+      if (esLive) {
+        await this.messagingService
+          .responder(msg._origen, msg.phone, '🐢 Vas muy rápido. Esperá un minuto y seguí.')
+          .catch(() => undefined);
+      }
+      return { ok: true, modo: MODE, limitado: true };
+    }
 
     // 1) Verificar estado (selección de establecimiento / vinculación TG).
     //    Mismo orden que n8n: corre con el texto actual (null en audio).
@@ -813,14 +835,16 @@ export class BotController {
     let parsed: any;
     try {
       parsed = await this.claudeService.parsearMensaje(texto, msg.phone);
-      console.log('🧠 [webhook] Claude parseó:', JSON.stringify(parsed, null, 2));
+      console.log('🧠 [webhook] Claude parseó:', JSON.stringify(sanearParaLog(parsed), null, 2));
     } catch (err: any) {
       console.error('❌ [webhook] error parseando:', err.message);
       if (esLive) {
         await this.messagingService.responder(
           msg._origen,
           msg.phone,
-          '🤔 No te entendí bien. Probá de nuevo, más simple. Por ejemplo: "nació ternero RP 500 macho".',
+          esTimeout(err)
+            ? '⏳ Tardé demasiado en entenderte. Probá de nuevo en un rato.'
+            : '🤔 No te entendí bien. Probá de nuevo, más simple. Por ejemplo: "nació ternero RP 500 macho".',
         );
       }
       return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
@@ -842,13 +866,22 @@ export class BotController {
     }
 
     // 4) LIVE: ejecutar la(s) acción(es) in-process.
-    const resultado: any = parsed._esLote
-      ? await this.registrarLote({ acciones: parsed.acciones, phone: msg.phone })
-      : await this.registrar(parsed as BotRequestBody);
+    // Un error acá (base caída, timeout) antes dejaba al productor sin respuesta, y como el
+    // mensaje ya figura como visto, reenviarlo tampoco lo reprocesaba.
+    let mensaje: string;
+    try {
+      const resultado: any = parsed._esLote
+        ? await this.registrarLote({ acciones: parsed.acciones, phone: msg.phone })
+        : await this.registrar(parsed as BotRequestBody);
+      mensaje = resultado?.mensaje || 'Algo salió mal. Probá de nuevo.';
+    } catch (err: any) {
+      console.error('❌ [webhook] error ejecutando la acción:', err?.message || err);
+      mensaje = esTimeout(err)
+        ? '⏳ Tardé demasiado en responder. Probá de nuevo en un rato.'
+        : '😕 Uf, algo salió mal. Probá de nuevo y si sigue pasando avisale al encargado.';
+    }
 
     // 5) Responder al usuario.
-    const mensaje =
-      resultado?.mensaje || 'Algo salió mal. Probá de nuevo.';
     await this.messagingService.responder(msg._origen, msg.phone, mensaje);
     return { ok: true, modo: 'live', mensaje };
   }
@@ -863,7 +896,7 @@ export class BotController {
       'Recibe el JSON parseado por la IA y ejecuta la acción correspondiente. Autentica al usuario por teléfono.',
   })
   async registrar(@Body() body: BotRequestBody) {
-    console.log('🤖 Bot Request recibido:', JSON.stringify(body, null, 2));
+    console.log('🤖 Bot Request recibido:', JSON.stringify(sanearParaLog(body), null, 2));
 
     const NORMALIZAR_ACCION: Record<string, string> = {
       crearrodeo: 'crear_rodeo', crearternero: 'crear_ternero', crearmadre: 'crear_madre',
@@ -871,7 +904,7 @@ export class BotController {
       asignarrodeo: 'asignar_rodeo', moverrodeo: 'mover_rodeo', cambiarestablecimiento: 'cambiar_establecimiento',
       consultarresumen: 'consultar_resumen', registrarpeso: 'registrar_peso',
       consultarternero: 'consultar_ternero', actualizarestadoternero: 'actualizar_estado_ternero',
-      consultarrodeo: 'consultar_rodeo', cambiarperfil: 'cambiar_perfil',
+      consultarrodeo: 'consultar_rodeo',
       registrarcalostrado: 'registrar_calostrado',
       consultarmadre: 'consultar_madre', actualizarestadomadre: 'actualizar_estado_madre',
       editardiarrea: 'editar_diarrea', editartratamiento: 'editar_tratamiento', editarevento: 'editar_evento',
@@ -968,68 +1001,12 @@ export class BotController {
       };
     }
 
-    // ── Cambio de perfil (login por email+password → reasigna teléfono) ──
-    // Se maneja ANTES de resolver el establecimiento, porque el campo del
-    // usuario nuevo no tiene nada que ver con el del usuario anterior.
+    // Cambiar de cuenta pedía email y contraseña por el chat: quedaban en el historial de WhatsApp,
+    // en los logs y viajaban a Anthropic. El teléfono se vincula desde Perfil, en la app.
     if (accion === 'cambiar_perfil') {
-      const email = String(body.email || '').trim().toLowerCase();
-      const password = String(body.password || body.contrasena || '').trim();
-
-      if (!email || !password) {
-        return { success: false, mensaje: '🔑 Para entrar con otra cuenta necesito tu email y contraseña. Ejemplo: "cambiar perfil juan@mail.com miclave"' };
-      }
-
-      const nuevoUser = await this.userRepo.findOne({ where: { email } });
-      if (!nuevoUser) return { success: false, mensaje: '🤔 No encontré ninguna cuenta con ese email. Fijate que esté bien escrito.' };
-
-      const { compare } = await import('bcrypt');
-      const valida = await compare(password, nuevoUser.password);
-      if (!valida) return { success: false, mensaje: '🔒 La contraseña no coincide. Probá de nuevo.' };
-
-      // Liberar teléfono del usuario anterior y asignarlo al nuevo
-      if (phone) {
-        const telefonoNorm = phone.replace(/[\s\-\+]/g, '');
-        await this.userRepo
-          .createQueryBuilder()
-          .update()
-          .set({ telefono: null })
-          .where('telefono IN (:...variantes)', {
-            variantes: [telefonoNorm, telefonoNorm.replace(/^54/, ''), `54${telefonoNorm}`],
-          })
-          .andWhere('id != :id', { id: nuevoUser.id })
-          .execute();
-
-        await this.userRepo.update(nuevoUser.id, { telefono: telefonoNorm } as any);
-      }
-
-      const encabezado = `✅ ¡Listo! Entraste como *${nuevoUser.name}*.`;
-
-      // Resolver el establecimiento del NUEVO usuario (auto-switch de campo)
-      const auth = await this.autenticarPorTelefono(phone);
-      if (!auth) {
-        return { success: true, accion: 'cambiar_perfil', mensaje: `${encabezado}\n🏠 Todavía no tenés un establecimiento asignado. Pedile al encargado que te asigne uno.` };
-      }
-      if (auth.requiere_seleccion) {
-        const lista = this.formatearListaEstablecimientos(auth.establecimientos);
-        return {
-          success: true,
-          accion: 'cambiar_perfil',
-          requiere_seleccion: true,
-          establecimientos: auth.establecimientos,
-          mensaje: `${encabezado}\n🏠 ¿En qué establecimiento querés registrar?\n${lista}\n\nRespondé con el número (1, 2...) o el nombre.`,
-        };
-      }
-
-      let nombreNuevoEst = auth.establecimientos.find(e => e.id === auth.establecimientoId)?.nombre;
-      if (!nombreNuevoEst && auth.establecimientoId) {
-        const est = await this.establecimientoRepo.findOne({ where: { id_establecimiento: auth.establecimientoId } });
-        if (est) nombreNuevoEst = est.nombre;
-      }
-
       return {
-        success: true,
-        accion: 'cambiar_perfil',
-        mensaje: `${encabezado}${nombreNuevoEst ? '\n🏠 Campo: ' + nombreNuevoEst : ''}`,
+        success: false,
+        mensaje: '🔒 Por seguridad no cambio de cuenta desde el chat. Entrá a la app, en tu Perfil cargá este teléfono y listo.',
       };
     }
 
@@ -1497,7 +1474,7 @@ export class BotController {
         // ──────────────────────────────────────
         case 'consultar_del': {
           const rpMadre = parseInt(body.rp_madre) || 0;
-          const esAdmin = userEntity?.rol === 'admin';
+          const esAdmin = userEntity?.rol === 'super_admin';
 
           if (rpMadre > 0) {
             const m = await this.madreRepo.findOne({
@@ -1567,7 +1544,7 @@ export class BotController {
 
         // ──────────────────────────────────────
         case 'consultar_salud': {
-          const esAdmin = userEntity?.rol === 'admin';
+          const esAdmin = userEntity?.rol === 'super_admin';
           const r = await this.resumenSaludService.obtenerResumenSalud(
             idEstablecimiento,
             esAdmin,
@@ -2146,7 +2123,19 @@ export class BotController {
 
         // ──────────────────────────────────────
         case 'crear_rodeo': {
-          if (userEntity?.rol !== 'admin') {
+          // El rol vale dentro de cada campo: ser admin en otro establecimiento no alcanza.
+          const rolEnCampo = userEntity
+            ? await this.rolEstablecimiento.rolEn(
+                {
+                  rol: userEntity.rol,
+                  userId: userEntity.id,
+                  id_establecimiento: userEntity.id_establecimiento,
+                  userEstablecimientos: [],
+                },
+                idEstablecimiento,
+              )
+            : null;
+          if (rolEnCampo !== 'admin') {
             return { success: false, mensaje: '⛔ Esto lo hace solo el encargado (crear rodeos).' };
           }
 
@@ -2778,7 +2767,7 @@ export class BotController {
   async registrarLote(
     @Body() body: { acciones: BotRequestBody[]; phone?: string },
   ) {
-    console.log('🤖 Bot LOTE recibido:', JSON.stringify(body, null, 2));
+    console.log('🤖 Bot LOTE recibido:', JSON.stringify(sanearParaLog(body), null, 2));
 
     const acciones = body.acciones || body;
     const phone = body.phone;
