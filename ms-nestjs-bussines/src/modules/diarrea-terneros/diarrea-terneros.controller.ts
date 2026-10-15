@@ -69,7 +69,6 @@ export class DiarreaTernerosController {
       createDiarreaTerneroDto.id_establecimiento,
     );
     console.log('🏢 ID Establecimiento del request:', req.id_establecimiento);
-    console.log('👤 Usuario:', req.user);
 
     // ✅ CORRECCIÓN: Usar el id_establecimiento del body si existe (admin lo envió)
     // Si no, usar el del request (usuarios normales)

@@ -78,9 +78,6 @@ export class UsersController {
   @Get('profile/me')
   @ApiOperation({ summary: 'Obtener perfil del usuario actual' })
   async getProfile(@Request() req) {
-    // 👇 DEBUG: Ver qué llega realmente (míralo en la consola negra del backend)
-    console.log('👤 Profile Request User:', req.user);
-
     // 🛡️ CORRECCIÓN: Buscamos 'id', 'userId' o 'sub' para ir a lo seguro
     const idUsuario = req.user.id || req.user.userId || req.user.sub;
 
