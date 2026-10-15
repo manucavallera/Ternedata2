@@ -36,10 +36,6 @@ export class RolesGuard implements CanActivate {
     // Super admin is a platform role and bypasses establishment-level roles.
     if (user.rol === UserRole.SUPER_ADMIN) return true;
 
-    console.log('👮‍♂️ RolesGuard revisando a:', user.username);
-    console.log('📋 Roles requeridos:', requiredRoles);
-    console.log('👤 Rol Global:', user.rol);
-
     // 1. CHEQUEO GLOBAL (¿Es Admin del sistema o su rol base coincide?)
     const hasGlobalRole = requiredRoles.some((role) => user.rol === role);
     if (hasGlobalRole) return true;
@@ -54,12 +50,10 @@ export class RolesGuard implements CanActivate {
       );
 
       if (hasSpecificRole) {
-        console.log('✅ Acceso concedido por Rol Específico de Granja');
         return true;
       }
     }
 
-    console.log('⛔ Acceso denegado en RolesGuard');
     throw new ForbiddenException(
       `Acceso denegado. Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
     );
