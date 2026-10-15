@@ -19,6 +19,7 @@ const con = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
 // El mail de verificación lleva un JWT firmado por security: se arma igual para no depender de la casilla.
 const leerSecreto = () => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET; // CI: no hay .env
   try {
     return dotenv.parse(fs.readFileSync(__dirname + '/../ms-nestjs-security/.env')).JWT_SECRET;
   } catch {
@@ -96,7 +97,15 @@ const emails = {
       ids[clave] = res.data.id;
     };
     await crearUsuario('ajeno', tokens.adminB, est.b);
-    await crearUsuario('suelto', tokens.admin, null);
+    // Un usuario sin establecimiento no se puede crear por POST /users (exige un campo
+    // del actor): se registra solo y queda como operario sin campo.
+    const suelto = await securityApi.post('/auth/register', {
+      name: 'TEST suelto', email: emails.suelto, password: 'ClaveUsuario123',
+    });
+    expect([200, 201]).toContain(suelto.status);
+    ids.suelto = (await db.query(
+      "UPDATE users SET rol = 'operario' WHERE email = $1 RETURNING id", [emails.suelto],
+    )).rows[0].id;
   }, 400000);
 
   afterAll(async () => {

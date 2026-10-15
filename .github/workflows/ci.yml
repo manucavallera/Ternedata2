@@ -61,3 +61,78 @@ jobs:
           cache-dependency-path: ganaderia-web-service/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  api-tests:
+    name: Tests de API (business + security + Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ganaderia_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # Valores solo para CI: la base es efímera y el mail no sale
+      ENTORNO_ENV: produccion
+      DB_HOST_PRODUCCION: localhost
+      DB_PORT_PRODUCCION: 5432
+      DB_USERNAME_PRODUCCION: postgres
+      DB_PASSWORD_PRODUCCION: postgres
+      DB_NAME_PRODUCCION: ganaderia_test
+      JWT_SECRET: secreto-solo-para-ci
+      BOT_API_KEY: bot-key-solo-para-ci
+      MAIL_USER: noenviar@invalid.local
+      MAIL_PASS: x
+      FRONTEND_URL: http://localhost:3002
+      THROTTLE_LIMIT: 10000
+      DB_URL: postgres://postgres:postgres@localhost:5432/ganaderia_test
+      TEST_DB_URL: postgres://postgres:postgres@localhost:5432/ganaderia_test
+      SECURITY_URL: http://localhost:3001
+      BUSSINES_URL: http://localhost:3000
+      TEST_NAME: Usuario CI
+      TEST_EMAIL: ci_automatico@ternedata.test
+      TEST_PASSWORD: ClaveCi12345
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            ms-nestjs-bussines/package-lock.json
+            ms-nestjs-security/package-lock.json
+            tests/package-lock.json
+      - name: Esquema de la base y migraciones
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -qf tests/db/schema.sql
+          cd ms-nestjs-bussines && npm ci && npm run typeorm:run-migrations
+      - name: Compilar security
+        working-directory: ms-nestjs-security
+        run: npm ci && npm run build
+      - name: Compilar business
+        working-directory: ms-nestjs-bussines
+        run: npm run build
+      - name: Levantar los backends
+        run: |
+          (cd ms-nestjs-security && PORT_PRODUCCION=3001 nohup node dist/main > ../security.log 2>&1 &)
+          (cd ms-nestjs-bussines && PORT_PRODUCCION=3000 nohup node dist/main > ../business.log 2>&1 &)
+          for i in $(seq 60); do
+            curl -s -o /dev/null localhost:3001 && curl -s -o /dev/null localhost:3000 && exit 0
+            sleep 2
+          done
+          echo "Los backends no arrancaron"; exit 1
+      - name: Cuenta de prueba verificada
+        run: |
+          curl -sf -X POST localhost:3001/auth/register -H 'Content-Type: application/json' \
+            -d "{\"name\":\"$TEST_NAME\",\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" > /dev/null
+          psql "$DB_URL" -qc "UPDATE users SET email_verificado = true WHERE email = '$TEST_EMAIL'"
+      - name: Tests de API
+        working-directory: tests
+        run: npm ci && npm run test:local
+      - name: Logs de los backends
+        if: failure()
+        run: tail -n 200 security.log business.log

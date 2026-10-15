@@ -40,7 +40,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
       isGlobal: true,
       load: [configuration],
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    // THROTTLE_LIMIT solo para los tests de CI, que hacen cientos de pedidos por minuto
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: Number(process.env.THROTTLE_LIMIT) || 120 }]),
     RolEstablecimientoModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
