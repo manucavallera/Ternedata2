@@ -33,6 +33,11 @@ export class InvitacionesService {
     rol: RolEstablecimiento,
     email?: string,
   ) {
+    // Un link sin email lo puede usar cualquiera que lo tenga: nunca para hacer dueño
+    if (rol === RolEstablecimiento.DUENO && !email) {
+      throw new HttpException('Para invitar a un dueño indicá su email', HttpStatus.BAD_REQUEST);
+    }
+
     if (email) {
       const pendiente = await this.invitacionRepo.findOne({
         where: { email, establecimientoId, usado: false },
