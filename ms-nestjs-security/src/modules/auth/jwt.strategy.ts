@@ -1,6 +1,6 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -14,6 +14,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Solo tokens de sesión: con id de usuario y sin "type". Con el mismo secreto se
+    // firman los de verificación de email y reset de contraseña, y antes también los
+    // de /auth/generar-token (sin id y con el rol que pidiera quien lo generaba).
+    if ((!payload?.id && !payload?.sub) || payload?.type) {
+      throw new UnauthorizedException('Token inválido');
+    }
     // 👇 AQUÍ ESTÁ LA MAGIA: Pasamos la lista de granjas al usuario request
     return {
       userId: payload.sub || payload.id,

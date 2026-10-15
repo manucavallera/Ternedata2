@@ -239,63 +239,6 @@ export class AuthService {
   }
 
   // =================================================================
-  // GENERADOR DE TOKEN + ENVÍO DE EMAIL 📧
-  // =================================================================
-  async crearTokenMagico(
-    emailRecibido: string,
-    rolRecibido: string,
-    idEstablecimiento: number,
-  ) {
-    const payload = {
-      email: emailRecibido,
-      id_establecimiento: idEstablecimiento || null,
-      rol: rolRecibido,
-    };
-    const token = this.jwtService.sign(payload);
-
-    const linkDeRegistro = `${process.env.FRONTEND_URL}/auth/register?token=${token}`;
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS?.replace(/\s/g, ''),
-      },
-      tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
-    });
-
-    const mailOptions = {
-      from: `"Ternedata App 🐮" <${process.env.MAIL_USER}>`,
-      to: emailRecibido,
-      subject: '🎟️ Invitación a Ternedata',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-          <h2 style="color: #4F46E5;">¡Has sido invitado a Ternedata!</h2>
-          <p>Hola,</p>
-          <p>Te han invitado a unirte al equipo como <strong>${rolRecibido.toUpperCase()}</strong>.</p>
-          <p>Haz clic en el botón de abajo para registrarte y activar tu cuenta:</p>
-          <a href="${linkDeRegistro}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
-            Aceptar Invitación
-          </a>
-          <p style="margin-top: 20px; font-size: 12px; color: #888;">Si el botón no funciona, copia este link: <br> ${linkDeRegistro}</p>
-        </div>
-      `,
-    };
-
-    try {
-      await transporter.sendMail(mailOptions);
-      this.logger.log(`Email enviado a ${emailRecibido}`);
-    } catch (error) {
-      this.logger.error('Error enviando email', error);
-    }
-
-    return {
-      instruccion: `Email enviado a ${emailRecibido}`,
-      token_para_copiar: token,
-    };
-  }
-
-  // =================================================================
   // FORGOT PASSWORD - Enviar email de recuperación
   // =================================================================
   async forgotPassword(email: string): Promise<{ message: string }> {
