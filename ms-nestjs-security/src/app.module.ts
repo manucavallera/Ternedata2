@@ -22,7 +22,8 @@ import { Establecimiento } from './modules/users/entity/establecimiento.entity';
       isGlobal: true,
       load: [configuration],
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
+    // THROTTLE_LIMIT solo para los tests de CI, que hacen cientos de pedidos por minuto
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: Number(process.env.THROTTLE_LIMIT) || 20 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
