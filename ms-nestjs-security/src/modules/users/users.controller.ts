@@ -31,9 +31,16 @@ export class UsersController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Crear nuevo usuario (solo admin)' })
-  async create(@Body() createUserDto: CreateUserDto) {
+  async create(@Body() createUserDto: CreateUserDto, @Request() req) {
     if (createUserDto.rol === UserRole.SUPER_ADMIN) {
       throw new HttpException('El rol super_admin no se puede asignar desde este endpoint', HttpStatus.FORBIDDEN);
+    }
+    // Un usuario sin campo no lo podría administrar nadie más que un super_admin
+    if (req.user.rol !== UserRole.SUPER_ADMIN && !createUserDto.id_establecimiento) {
+      throw new HttpException('Indicá el establecimiento del usuario', HttpStatus.BAD_REQUEST);
+    }
+    if (createUserDto.id_establecimiento) {
+      await this.usersService.verificarEstablecimientos(req.user, [createUserDto.id_establecimiento]);
     }
     return await this.usersService.create(createUserDto);
   }
@@ -90,8 +97,9 @@ export class UsersController {
   @Get('by-role/:role')
   @Roles(UserRole.ADMIN, UserRole.VETERINARIO)
   @ApiOperation({ summary: 'Obtener usuarios por rol' })
-  async findByRole(@Param('role') role: UserRole) {
-    return await this.usersService.findByRole(role);
+  async findByRole(@Param('role') role: UserRole, @Request() req) {
+    const campos = req.user.rol === UserRole.SUPER_ADMIN ? null : await this.usersService.camposDe(req.user);
+    return await this.usersService.findByRole(role, campos);
   }
 
   @Get('by-establecimiento/:id')
@@ -99,20 +107,26 @@ export class UsersController {
   @ApiOperation({
     summary: 'Obtener usuarios de un establecimiento (solo admin)',
   })
-  async findByEstablecimiento(@Param('id', ParseIntPipe) id: number) {
+  async findByEstablecimiento(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    await this.usersService.verificarEstablecimientos(req.user, [id]);
     return await this.usersService.findByEstablecimiento(id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    if (req.user.rol !== UserRole.ADMIN && req.user.rol !== UserRole.SUPER_ADMIN && req.user.userId !== id) {
-      throw new HttpException(
-        'No tienes permisos para ver este usuario',
-        HttpStatus.FORBIDDEN,
-      );
+    if (req.user.rol === UserRole.SUPER_ADMIN || req.user.userId === id) {
+      return await this.usersService.findOne(id);
     }
-    return await this.usersService.findOne(id);
+    // Ver a otro usuario exige administrar su campo
+    await this.usersService.verificarAlcance(req.user, id);
+    const user = await this.usersService.findOne(id);
+    // Las membresías en campos ajenos no son asunto del actor
+    const campos = await this.usersService.camposAdministrados(req.user);
+    user.userEstablecimientos = (user.userEstablecimientos || []).filter((ue) =>
+      campos.includes(ue.establecimientoId),
+    );
+    return user;
   }
 
   @Put(':id')
@@ -209,7 +223,9 @@ export class UsersController {
   ) {
     await this.usersService.verificarAlcance(req.user, id);
     await this.usersService.verificarEstablecimientos(req.user, ids || []);
-    await this.usersService.syncEstablecimientos(id, ids);
+    // Solo se reemplazan las membresías en campos que el actor administra
+    const campos = req.user.rol === UserRole.SUPER_ADMIN ? null : await this.usersService.camposAdministrados(req.user);
+    await this.usersService.syncEstablecimientos(id, ids || [], campos);
     return { ok: true };
   }
 }
