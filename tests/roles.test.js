@@ -19,6 +19,7 @@ const con = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
 // El mail de verificación lleva un JWT firmado por security: se arma igual para no depender de la casilla.
 const leerSecreto = () => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET; // CI: no hay .env
   try {
     return dotenv.parse(fs.readFileSync(__dirname + '/../ms-nestjs-security/.env')).JWT_SECRET;
   } catch {
