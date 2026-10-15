@@ -155,6 +155,19 @@ export class RodeosService {
       );
     }
 
+    // La FK madres.id_rodeo no tiene ON DELETE: sin este chequeo el borrado daba 500
+    const countMadres = await this.rodeosRepository.query(
+      `SELECT COUNT(*) as count FROM madres WHERE id_rodeo = $1`,
+      [id],
+    );
+    const cantidadMadres = parseInt(countMadres[0]?.count || '0', 10);
+
+    if (cantidadMadres > 0) {
+      throw new BadRequestException(
+        `No se puede eliminar el rodeo porque tiene ${cantidadMadres} madre(s) asignada(s)`,
+      );
+    }
+
     await this.rodeosRepository.delete({ id_rodeo: id });
   }
 
@@ -252,7 +265,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_terneros: number[],
     idEstablecimiento: number | null,
-    _esAdmin: boolean,
+    esAdmin: boolean,
   ) {
     if (!ids_terneros?.length) {
       throw new BadRequestException('No se enviaron terneros para asignar');
@@ -262,6 +275,9 @@ export class RodeosService {
     if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
+
+    // El rodeo también tiene que ser de este campo, no solo los animales
+    await this.findOne(id_rodeo, idEstablecimiento, esAdmin);
 
     const placeholders = ids_terneros.map((_, i) => `$${i + 2}`).join(',');
     const params = [id_rodeo, ...ids_terneros, idEstablecimiento];
@@ -284,7 +300,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_terneros: number[],
     idEstablecimiento: number | null,
-    _esAdmin: boolean,
+    esAdmin: boolean,
   ) {
     if (!ids_terneros?.length) {
       throw new BadRequestException('No se enviaron terneros para desasignar');
@@ -293,6 +309,9 @@ export class RodeosService {
     if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
+
+    // El rodeo también tiene que ser de este campo, no solo los animales
+    await this.findOne(id_rodeo, idEstablecimiento, esAdmin);
 
     const placeholders = ids_terneros.map((_, i) => `$${i + 2}`).join(',');
     const params = [id_rodeo, ...ids_terneros, idEstablecimiento];
@@ -316,7 +335,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_madres: number[],
     idEstablecimiento: number | null,
-    _esAdmin: boolean,
+    esAdmin: boolean,
   ) {
     if (!ids_madres?.length) {
       throw new BadRequestException('No se enviaron madres para asignar');
@@ -325,6 +344,9 @@ export class RodeosService {
     if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
+
+    // El rodeo también tiene que ser de este campo, no solo los animales
+    await this.findOne(id_rodeo, idEstablecimiento, esAdmin);
 
     const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
     const params = [id_rodeo, ...ids_madres, idEstablecimiento];
@@ -347,7 +369,7 @@ export class RodeosService {
     id_rodeo: number,
     ids_madres: number[],
     idEstablecimiento: number | null,
-    _esAdmin: boolean,
+    esAdmin: boolean,
   ) {
     if (!ids_madres?.length) {
       throw new BadRequestException('No se enviaron madres para desasignar');
@@ -356,6 +378,9 @@ export class RodeosService {
     if (!idEstablecimiento) {
       throw new ForbiddenException('Usuario sin establecimiento asignado');
     }
+
+    // El rodeo también tiene que ser de este campo, no solo los animales
+    await this.findOne(id_rodeo, idEstablecimiento, esAdmin);
 
     const placeholders = ids_madres.map((_, i) => `$${i + 2}`).join(',');
     const params = [id_rodeo, ...ids_madres, idEstablecimiento];
