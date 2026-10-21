@@ -5,6 +5,8 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OrganizacionTipoGuard } from '../../auth/organizacion-tipo.guard';
 import { OrganizacionTipoRequerido } from '../../auth/organizacion-tipo.decorator';
 import { OrganizacionTipo } from '../../establecimientos/organizacion-tipo.enum';
+import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
 import { CreateContactoForrajeriaDto } from './dto/create-contacto.dto';
 import { UpdateContactoForrajeriaDto } from './dto/update-contacto.dto';
 import { ContactosService } from './contactos.service';
@@ -13,8 +15,9 @@ import { TipoContacto } from './entities/contacto.entity';
 @ApiTags('Forrajería - Contactos')
 @ApiBearerAuth()
 @Controller('forrajeria/contactos')
-@UseGuards(JwtAuthGuard, EstablecimientoGuard, OrganizacionTipoGuard)
+@UseGuards(JwtAuthGuard, EstablecimientoGuard, OrganizacionTipoGuard, RolesGuard)
 @OrganizacionTipoRequerido(OrganizacionTipo.FORRAJERIA)
+@Roles('admin', 'veterinario', 'operario')
 export class ContactosController {
   constructor(private readonly contactosService: ContactosService) {}
 
@@ -28,7 +31,9 @@ export class ContactosController {
     return this.contactosService.findContactos(req.id_establecimiento, tipo);
   }
 
+  // Editar (límite de crédito, baja) solo el dueño. Dar de alta un cliente lo puede hacer cualquiera.
   @Patch(':id')
+  @Roles('admin')
   update(
     @Req() req: any,
     @Param('id', ParseIntPipe) idContacto: number,
