@@ -315,5 +315,43 @@ const emails = {
       expect(filas.rows).toEqual([{ est: est.b, rol: 'veterinario' }]);
       expect((await businessApi.delete(`/establecimientos/${est.b}/equipo/${ids.invitado}`, con(tokens.admin))).status).toBe(403);
     });
+
+    const cambiarRolEnCampo = (token, idEstablecimiento, id, rol) =>
+      businessApi.patch(`/establecimientos/${idEstablecimiento}/equipo/${id}/rol`, { rol }, con(token));
+    const rolEnCampo = async (id, idEstablecimiento) => (await db.query(
+      'SELECT rol FROM user_establecimientos WHERE "userId" = $1 AND "establecimientoId" = $2', [id, idEstablecimiento],
+    )).rows[0]?.rol;
+    const madresDe = (token, idEstablecimiento) =>
+      businessApi.get(`/madres/obtener-listado-madres?id_establecimiento=${idEstablecimiento}`, con(token));
+
+    // El token del invitado se emitió antes de unirse a B: el acceso sale de la base, no del token.
+    test('entra al campo al que se unió sin renovar el token', async () => {
+      expect((await madresDe(tokens.invitado, est.b)).status).toBe(200);
+    });
+
+    test('el dueño cambia el rol de un miembro y el equipo lo muestra', async () => {
+      expect((await cambiarRolEnCampo(tokens.adminB, est.b, ids.invitado, 'operario')).status).toBe(200);
+      expect(await rolEnCampo(ids.invitado, est.b)).toBe('operario');
+      const miembro = (await equipo(tokens.adminB, est.b)).find((m) => m.userId === ids.invitado);
+      expect(miembro.rol).toBe('operario');
+      // El dueño aparece como dueño, no con el rol global.
+      expect((await equipo(tokens.adminB, est.b)).find((m) => m.userId === ids.adminB).rol).toBe('dueno');
+    });
+
+    test('nadie cambia roles en un campo ajeno ni el suyo propio', async () => {
+      expect((await cambiarRolEnCampo(tokens.admin, est.b, ids.invitado, 'veterinario')).status).toBe(403);
+      expect((await cambiarRolEnCampo(tokens.invitado, est.b, ids.invitado, 'veterinario')).status).toBe(403);
+      expect((await cambiarRolEnCampo(tokens.adminB, est.b, ids.adminB, 'operario')).status).toBe(400);
+      expect((await cambiarRolEnCampo(tokens.adminB, est.b, ids.invitado, 'admin')).status).toBe(400);
+      expect((await cambiarRolEnCampo(tokens.adminB, est.b, ids.ajeno, 'veterinario')).status).toBe(200);
+      expect((await cambiarRolEnCampo(tokens.adminB, est.b, ids.suelto, 'veterinario')).status).toBe(404);
+      expect(await rolEnCampo(ids.invitado, est.b)).toBe('operario');
+    });
+
+    test('al sacarlo del equipo pierde el acceso aunque su token siga vigente', async () => {
+      const baja = await businessApi.delete(`/establecimientos/${est.b}/equipo/${ids.invitado}`, con(tokens.adminB));
+      expect([200, 204]).toContain(baja.status);
+      expect((await madresDe(tokens.invitado, est.b)).status).toBe(403);
+    });
   });
 });

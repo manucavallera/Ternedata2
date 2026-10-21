@@ -567,13 +567,15 @@ describe('🎟️ INVITACIONES', () => {
     expect(res.data.message).toMatch(/verific/i);
   });
 
-  test('Listar invitaciones pendientes del establecimiento', async () => {
+  // El establecimiento se eliminó más arriba. Antes el token seguía listándolo y esto
+  // daba 200; ahora las membresías salen de la base y ya no hay acceso.
+  test('Invitaciones de un establecimiento eliminado → 403', async () => {
     if (!state.establecimientoId) return;
     const res = await busApi.get(`/invitaciones/pendientes/${state.establecimientoId}`, {
       headers: authHeader(),
+      validateStatus: () => true,
     });
-    expect([200, 201]).toContain(res.status);
-    expect(Array.isArray(res.data)).toBe(true);
+    expect(res.status).toBe(403);
   });
 
 });
