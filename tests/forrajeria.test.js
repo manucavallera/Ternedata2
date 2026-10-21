@@ -58,6 +58,24 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     expect(res.status).toBe(401);
   });
 
+  test('una forrajería nueva arranca con el catálogo base, sin avisos de stock', async () => {
+    const productos = await businessApi.get('/forrajeria/productos', en(state.forrajeriaB));
+    expect(productos.status).toBe(200);
+    const nombres = productos.data.map((p) => p.nombre);
+    expect(nombres).toEqual(expect.arrayContaining(['Fardo de alfalfa', 'Maíz partido', 'Balanceado ternero (iniciador)']));
+    expect(productos.data.every((p) => Number(p.precio) === 0 && Number(p.stock_actual) === 0)).toBe(true);
+    const categorias = await businessApi.get('/forrajeria/categorias', en(state.forrajeriaB));
+    expect(categorias.data.map((c) => c.nombre)).toContain('Fardos y rollos');
+    // Stock 0 con mínimo 0 no es "bajo stock".
+    expect((await businessApi.get('/forrajeria/inventario/bajo-stock', en(state.forrajeriaB))).data).toEqual([]);
+
+    // Volver a pedirlo no duplica nada.
+    const otraVez = await businessApi.post('/forrajeria/catalogo-base', {}, en(state.forrajeriaB));
+    expect([200, 201]).toContain(otraVez.status);
+    expect(otraVez.data).toEqual({ categorias: 0, productos: 0 });
+    expect((await businessApi.get('/forrajeria/productos', en(state.forrajeriaB))).data).toHaveLength(productos.data.length);
+  });
+
   test('crear categoría y producto y listarlos', async () => {
     const categoria = await businessApi.post('/forrajeria/categorias', { nombre: `TEST Balanceados ${sufijo}` }, en(state.forrajeriaA));
     expect([200, 201]).toContain(categoria.status);
