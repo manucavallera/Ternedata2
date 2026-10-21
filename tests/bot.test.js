@@ -49,6 +49,23 @@ describe('🤖 BOT — registrar por teléfono', () => {
     expect([401, 403]).toContain((await bot({ accion: 'consultar_resumen' }, 'clave-incorrecta')).status);
   });
 
+  // Solo se puede inspeccionar el resultado con WEBHOOK_MODE=shadow (el modo live responde 200 y procesa aparte).
+  const webhook = (remoteJid, texto) => businessApi.post('/bot/webhook', {
+    data: {
+      key: { remoteJid: `${remoteJid}@s.whatsapp.net`, fromMe: false, id: `T${Date.now()}${Math.random()}` },
+      pushName: 'Prueba', messageType: 'conversation', message: { conversation: texto },
+    },
+  }, { headers: { 'x-api-key': leerClaveBot() } });
+
+  test('el webhook avisa a un número sin cuenta y no llama a Claude', async () => {
+    const res = await webhook('5491100000002', 'nació ternero RP 1 macho');
+    expect([200, 201]).toContain(res.status);
+    if (res.data.modo !== 'shadow') return;
+    expect(res.data.usuario_no_encontrado).toBe(true);
+    expect(res.data.mensaje).toMatch(/vinculad/i);
+    expect(res.data.error).toBeUndefined();
+  });
+
   test('un teléfono desconocido no puede registrar', async () => {
     const res = await businessApi.post('/bot/registrar', { phone: '5491100000001', accion: 'crear_madre', rp_madre: 1 }, {
       headers: { 'x-api-key': leerClaveBot() },
