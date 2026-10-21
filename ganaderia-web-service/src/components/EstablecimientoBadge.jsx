@@ -1,23 +1,16 @@
 "use client";
 import { useSelector } from "react-redux";
+import { useRolEnCampo } from "@/hooks/useRolEnCampo";
 
 export default function EstablecimientoBadge() {
   const { userPayload } = useSelector((state) => state.auth);
+  const rolCampo = useRolEnCampo();
 
   if (!userPayload) return null;
 
-  // Si es admin global, siempre mostrar admin (no pisar con roles de invitación)
-  const resolverRolReal = () => {
-    if (userPayload.rol === 'super_admin') return 'super_admin';
-    if (userPayload.rol === 'admin') return 'admin';
-    const currentFarmId = userPayload.id_establecimiento;
-    const roleInFarm = userPayload.userEstablecimientos?.find(
-      (ue) => ue.establecimientoId === currentFarmId,
-    )?.rol;
-    return roleInFarm || userPayload.rol || "usuario";
-  };
-
-  const rolReal = resolverRolReal();
+  // El rol que vale es el del campo que está mirando: un admin global puede ser operario en un campo ajeno.
+  const rolReal =
+    userPayload.rol === "super_admin" ? "super_admin" : rolCampo || userPayload.rol || "usuario";
 
   // Función para obtener colores e iconos según el rol
   const getRolInfo = (rol) => {

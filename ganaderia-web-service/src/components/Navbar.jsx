@@ -12,12 +12,13 @@ import { setSeccionStatus, setVistaApp } from "@/store/seccion";
 import Image from "next/image";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
+import { esAdminDelCampo } from "@/utils/roles";
 import { equipoService } from "@/api/equipoRepo";
 import businessApi from "@/api/bussines-api";
 
 function Navbar() {
   const dispatch = useDispatch();
-  const { authPayload, status, userPayload } = useSelector(
+  const { authPayload, status, userPayload, misEstablecimientos } = useSelector(
     (state) => state.auth
   );
   const router = useRouter();
@@ -30,9 +31,8 @@ function Navbar() {
   const [nombreEstablecimiento, setNombreEstablecimiento] = useState(null);
 
   const cargarInvitacionesPendientes = useCallback(async () => {
-    if (userPayload?.rol !== "admin") return;
     const estId = userPayload?.id_establecimiento;
-    if (!estId) return;
+    if (!estId || !esAdminDelCampo(userPayload, estId, misEstablecimientos)) return;
 
     try {
       const pendientes = await equipoService.getPendientes(estId);
@@ -44,7 +44,7 @@ function Navbar() {
     } catch {
       setUsuariosPendientes(0);
     }
-  }, [userPayload?.rol, userPayload?.id_establecimiento]);
+  }, [userPayload?.rol, userPayload?.id_establecimiento, misEstablecimientos]);
 
   const onClickLogOut = () => {
     sessionLogOutMethod(dispatch);
@@ -64,12 +64,12 @@ function Navbar() {
   }, [authPayload, status, userPayload]);
 
   useEffect(() => {
-    if (userPayload?.rol === "admin" && userPayload?.id_establecimiento) {
+    if (esAdminDelCampo(userPayload, userPayload?.id_establecimiento, misEstablecimientos) && userPayload?.id_establecimiento) {
       cargarInvitacionesPendientes();
       const interval = setInterval(cargarInvitacionesPendientes, 30000);
       return () => clearInterval(interval);
     }
-  }, [userPayload?.rol, userPayload?.id_establecimiento]);
+  }, [cargarInvitacionesPendientes]);
 
   useEffect(() => {
     if (userPayload?.rol === "operario" && userPayload?.id_establecimiento) {

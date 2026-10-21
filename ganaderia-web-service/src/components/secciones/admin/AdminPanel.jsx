@@ -72,6 +72,9 @@ const AdminPanel = () => {
   const [modalModeUsuario, setModalModeUsuario] = useState("crear");
   const [selectedUser, setSelectedUser] = useState(null);
   const [establecimientosAsignados, setEstablecimientosAsignados] = useState([]);
+  // Si no se pudieron leer los establecimientos del usuario, no se pisan al guardar
+  // (antes se mandaba la lista vacía y se le sacaban todos).
+  const [establecimientosCargados, setEstablecimientosCargados] = useState(true);
 
   // Estados para modal de establecimientos
   const [showModalEstablecimiento, setShowModalEstablecimiento] =
@@ -341,8 +344,7 @@ const AdminPanel = () => {
     setGlobalLoading(false);
   };
 
-  const cambiarRolGlobal = async (user) => {
-    const rol = window.prompt("Nuevo rol (admin, veterinario, operario, super_admin):", user.rol);
+  const cambiarRolGlobal = async (user, rol) => {
     if (!rol || rol === user.rol) return;
     if (!window.confirm(`¿Cambiar el rol de ${user.email} a ${rol}?`)) return;
     const response = await changeUserRole(user.id, rol);
@@ -391,6 +393,7 @@ const AdminPanel = () => {
       id_establecimiento: idPredefinido,
     });
     setEstablecimientosAsignados([]);
+    setEstablecimientosCargados(true);
     setShowModalUsuario(true);
   };
 
@@ -413,11 +416,14 @@ const AdminPanel = () => {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         setEstablecimientosAsignados(res.data || []);
+        setEstablecimientosCargados(true);
       } catch {
         setEstablecimientosAsignados([]);
+        setEstablecimientosCargados(false);
       }
     } else {
       setEstablecimientosAsignados([]);
+      setEstablecimientosCargados(true);
     }
     setShowModalUsuario(true);
   };
@@ -462,8 +468,8 @@ const AdminPanel = () => {
         await axios.put(`${API_URL}/users/${selectedUser.id}`, dataToSend, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
-        // Sincronizar establecimientos si es admin
-        if (dataToSend.rol === "admin") {
+        // Sincronizar establecimientos si es admin y se pudieron leer los actuales
+        if (dataToSend.rol === "admin" && establecimientosCargados) {
           await axios.put(`${API_URL}/users/${selectedUser.id}/establecimientos`, { ids: establecimientosAsignados }, {
             headers: { Authorization: `Bearer ${getToken()}` },
           });
@@ -1168,7 +1174,7 @@ const AdminPanel = () => {
           {globalLoading ? <p className='py-8 text-center text-gray-500'>Cargando usuarios globales...</p> : (
             <div className='overflow-x-auto'><table className='w-full'><thead className='bg-gray-50'><tr><th className='p-3 text-left'>Usuario</th><th className='p-3 text-left'>Rol</th><th className='p-3 text-left'>Estado</th><th className='p-3 text-left'>Establecimientos</th><th className='p-3 text-right'>Acciones</th></tr></thead><tbody className='divide-y'>
               {globalUsers.filter((user) => (globalRoleFilter === "todos" || user.rol === globalRoleFilter) && (globalStatusFilter === "todos" || user.estado === globalStatusFilter)).map((user) => (
-                <tr key={user.id}><td className='p-3'><div className='font-medium'>{user.name}</div><div className='text-sm text-gray-500'>{user.email}</div></td><td className='p-3 capitalize'>{user.rol}</td><td className='p-3 capitalize'>{user.estado}</td><td className='p-3'>{(user.establecimientosAsignados || []).map((est) => est.nombre || `#${est.id}`).join(", ") || user.establecimiento || "—"}</td><td className='p-3 text-right'><button onClick={() => cambiarRolGlobal(user)} className='text-blue-600 mr-3 text-sm'>Cambiar rol</button><button onClick={() => cambiarEstadoGlobal(user)} className='text-red-600 text-sm'>{user.estado === "activo" ? "Desactivar" : "Activar"}</button></td></tr>
+                <tr key={user.id}><td className='p-3'><div className='font-medium'>{user.name}</div><div className='text-sm text-gray-500'>{user.email}</div></td><td className='p-3'><select value={user.rol} onChange={(e) => cambiarRolGlobal(user, e.target.value)} aria-label={`Rol de ${user.email}`} className='border rounded px-2 py-1 text-sm'><option value='admin'>Admin</option><option value='veterinario'>Veterinario</option><option value='operario'>Operario</option><option value='super_admin'>Super admin</option></select></td><td className='p-3 capitalize'>{user.estado}</td><td className='p-3'>{(user.establecimientosAsignados || []).map((est) => est.nombre || `#${est.id}`).join(", ") || user.establecimiento || "—"}</td><td className='p-3 text-right'><button onClick={() => cambiarEstadoGlobal(user)} className='text-red-600 text-sm'>{user.estado === "activo" ? "Desactivar" : "Activar"}</button></td></tr>
               ))}
             </tbody></table></div>
           )}
@@ -2129,7 +2135,12 @@ const AdminPanel = () => {
                 </div>
 
                 {/* Establecimientos extra para admins (bot WhatsApp) */}
-                {formDataUsuario.rol === "admin" && (
+                {formDataUsuario.rol === "admin" && !establecimientosCargados && (
+                  <p className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2'>
+                    No se pudieron leer los establecimientos del bot de este usuario: se dejan como están.
+                  </p>
+                )}
+                {formDataUsuario.rol === "admin" && establecimientosCargados && (
                   <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                       Establecimientos del bot (WhatsApp)

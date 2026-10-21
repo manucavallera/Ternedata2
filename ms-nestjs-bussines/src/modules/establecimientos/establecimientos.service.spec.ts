@@ -14,9 +14,12 @@ describe('EstablecimientosService', () => {
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
+    findOne: jest.fn(),
+    count: jest.fn(),
   };
   const usersService = {
     assignEstablecimiento: jest.fn(),
+    findOneRaw: jest.fn(),
   };
 
   let service: EstablecimientosService;
@@ -74,5 +77,55 @@ describe('EstablecimientosService', () => {
     const errores = await validate(dto);
 
     expect(errores.map((error) => error.property)).toContain('tipo_organizacion');
+  });
+
+  describe('cambiarRolMiembro', () => {
+    it('cambia el rol de un miembro en ese campo', async () => {
+      const fila = { establecimientoId: 10, userId: 5, rol: 'operario' };
+      userEstablecimientoRepository.findOne.mockResolvedValue(fila);
+      userEstablecimientoRepository.save.mockResolvedValue(fila);
+
+      await expect(service.cambiarRolMiembro(10, 5, 'veterinario' as any, 4)).resolves.toEqual({ userId: 5, rol: 'veterinario' });
+      expect(userEstablecimientoRepository.save).toHaveBeenCalledWith(expect.objectContaining({ rol: 'veterinario' }));
+    });
+
+    it('no deja cambiarse el rol a uno mismo', async () => {
+      await expect(service.cambiarRolMiembro(10, 4, 'operario' as any, 4)).rejects.toThrow('propio rol');
+      expect(userEstablecimientoRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('no deja el campo sin dueño', async () => {
+      userEstablecimientoRepository.findOne.mockResolvedValue({ establecimientoId: 10, userId: 5, rol: 'dueno' });
+      userEstablecimientoRepository.count.mockResolvedValue(1);
+
+      await expect(service.cambiarRolMiembro(10, 5, 'operario' as any, 4)).rejects.toThrow('sin dueño');
+      expect(userEstablecimientoRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('crea la membresía si estaba asignado solo como campo principal', async () => {
+      userEstablecimientoRepository.findOne.mockResolvedValue(null);
+      usersService.findOneRaw.mockResolvedValue({ id: 5, id_establecimiento: 10 });
+      userEstablecimientoRepository.create.mockImplementation((d) => d);
+
+      await service.cambiarRolMiembro(10, 5, 'veterinario' as any, 4);
+      expect(userEstablecimientoRepository.save).toHaveBeenCalledWith({ establecimientoId: 10, userId: 5, rol: 'veterinario' });
+    });
+
+    it('404 si no es miembro', async () => {
+      userEstablecimientoRepository.findOne.mockResolvedValue(null);
+      usersService.findOneRaw.mockResolvedValue({ id: 5, id_establecimiento: 99 });
+
+      await expect(service.cambiarRolMiembro(10, 5, 'operario' as any, 4)).rejects.toThrow('no es miembro');
+    });
+  });
+
+  it('el equipo muestra el rol del campo y no el global', async () => {
+    userEstablecimientoRepository.find.mockResolvedValue([
+      { userId: 4, rol: 'dueno', user: { name: 'Ana', email: 'a@x.com', rol: 'admin' } },
+    ]);
+    (usersService as any).findByEstablecimiento = jest.fn().mockResolvedValue([]);
+
+    const equipo = await service.getEquipo(10);
+    expect(equipo[0].rol).toBe('dueno');
   });
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import businessApi from "@/api/bussines-api";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoDiarreaTernero = () => {
@@ -32,7 +33,7 @@ const ListadoDiarreaTernero = () => {
       let queryParams = "";
 
       // Si es admin y seleccionó un establecimiento, filtrar por ese
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
 
@@ -95,7 +96,7 @@ const ListadoDiarreaTernero = () => {
       );
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/diarrea-terneros/delete-diarrea-by-id/${modalEliminar.diarrea.id_diarrea_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/diarrea-terneros/delete-diarrea-by-id/${modalEliminar.diarrea.id_diarrea_ternero}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

@@ -12,7 +12,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from "recharts";
+} from "recharts";
+import { esAdminGlobal } from "@/utils/roles";
 
 const ListadoTernero = () => {
   // ✅ USAR HOOKS DISPONIBLES + NUEVOS
@@ -106,7 +107,7 @@ const ListadoTernero = () => {
       const estadoVal = estadoOverride !== undefined ? estadoOverride : filtroEstado;
 
       let queryParams = "";
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
       queryParams += `page=${paginaActual}&limit=500`;
@@ -342,7 +343,7 @@ const ListadoTernero = () => {
       }
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/terneros/patch-ternero-by-id/${modalPesoOficial.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/terneros/patch-ternero-by-id/${modalPesoOficial.ternero.id_ternero}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "PATCH",
           headers: {
@@ -380,7 +381,7 @@ const ListadoTernero = () => {
 
     try {
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/terneros/delete-ternero-by-id/${modalEliminar.ternero.id_ternero}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/terneros/delete-ternero-by-id/${modalEliminar.ternero.id_ternero}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

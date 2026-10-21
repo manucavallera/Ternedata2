@@ -19,6 +19,7 @@ import { EstablecimientosService } from './establecimientos.service';
 import {
   CreateEstablecimientoDto,
   UpdateEstablecimientoDto,
+  CambiarRolMiembroDto,
 } from './dto/establecimiento.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -167,6 +168,24 @@ export class EstablecimientosController {
     await this.verificarAdmin(req, id);
     await this.establecimientosService.eliminarMiembro(id, userId);
     return { message: 'Miembro eliminado correctamente' };
+  }
+
+  @Patch(':id/equipo/:userId/rol')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cambiar el rol de un miembro en este establecimiento' })
+  async cambiarRolMiembro(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: CambiarRolMiembroDto,
+    @Req() req: any,
+  ) {
+    await this.verificarAdmin(req, id);
+    return await this.establecimientosService.cambiarRolMiembro(
+      id,
+      userId,
+      dto.rol,
+      req.user.userId,
+    );
   }
 
   @Delete(':id')

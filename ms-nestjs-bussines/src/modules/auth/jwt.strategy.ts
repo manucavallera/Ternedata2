@@ -33,18 +33,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // que desactivar o cambiar el rol de alguien tenga efecto en el momento.
     const actual = await this.dataSource.getRepository(UserEntity).findOne({
       where: { id: payload.sub || payload.id },
-      select: ['id', 'rol', 'estado'],
+      select: ['id', 'rol', 'estado', 'id_establecimiento'],
     });
     if (!actual || actual.estado === 'inactivo') {
       throw new UnauthorizedException('Usuario inactivo');
     }
+    // Las membresías y el campo principal también salen de la base: sacar a alguien
+    // de un campo o cambiarle el rol ahí tiene que valer sin esperar a que el token venza.
+    const membresias = await this.dataSource.query(
+      'SELECT "establecimientoId", rol FROM user_establecimientos WHERE "userId" = $1',
+      [actual.id],
+    );
     return {
       userId: payload.sub || payload.id, // Aceptamos ambos por compatibilidad
       username: payload.name,
       rol: actual.rol, // Rol Global (ej. Operario)
-      id_establecimiento: payload.id_establecimiento,
-      // 👇 ¡ESTO ES LO QUE FALTABA! Recuperamos la lista del token
-      userEstablecimientos: payload.userEstablecimientos || [],
+      id_establecimiento: actual.id_establecimiento,
+      userEstablecimientos: membresias,
     };
   }
 }

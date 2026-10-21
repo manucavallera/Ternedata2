@@ -3,13 +3,18 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setUserData, setAuthPayload, setStatus } from "@/store/auth"; // ✅ AGREGAR ESTE IMPORT
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
+import { useRolEnCampo } from "@/hooks/useRolEnCampo";
 
 const ListadoRodeo = () => {
   const dispatch = useDispatch(); // ✅ Agregar dispatch
   const { userPayload, establecimientoActual } = useSelector(
     (state) => state.auth
   );
+  // Crear, editar, asignar y activar/desactivar: admin o veterinario del campo (igual que el backend).
+  const rolCampo = useRolEnCampo();
+  const puedeGestionar = ["admin", "veterinario"].includes(rolCampo);
 
   // ✅ AGREGAR: Cargar desde localStorage
   useEffect(() => {
@@ -106,7 +111,7 @@ const ListadoRodeo = () => {
     try {
       let queryParams = "";
 
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
 
@@ -149,7 +154,7 @@ const ListadoRodeo = () => {
       tipo: "cria",
       // ✅ CORRECCIÓN: Usar el establecimiento correcto
       id_establecimiento:
-        userPayload?.rol === "admin"
+        esAdminGlobal(userPayload)
           ? establecimientoActual || ""
           : userPayload?.id_establecimiento || "",
       estado: "activo",
@@ -180,7 +185,7 @@ const ListadoRodeo = () => {
 
     // ✅ CORRECCIÓN: Determinar id_establecimiento
     const idEstablecimiento =
-      userPayload?.rol === "admin"
+      esAdminGlobal(userPayload)
         ? formData.id_establecimiento
         : userPayload?.id_establecimiento;
 
@@ -324,7 +329,7 @@ const ListadoRodeo = () => {
       }
       payload.ingredientes = ingredientes;
     }
-    if (userPayload?.rol === "admin" && establecimientoActual) {
+    if (esAdminGlobal(userPayload) && establecimientoActual) {
       payload.id_establecimiento = establecimientoActual;
     }
     const res = await crearDietaHook(payload);
@@ -378,7 +383,7 @@ const ListadoRodeo = () => {
   // Helpers para construir query según multi-tenancy (admin / no-admin)
   const buildTernerosQuery = (extra = "") => {
     let qp = [];
-    if (userPayload?.rol === "admin" && establecimientoActual) {
+    if (esAdminGlobal(userPayload) && establecimientoActual) {
       qp.push(`id_establecimiento=${establecimientoActual}`);
     }
     // `estado=Vivo` es un ejemplo, podés quitarlo si querés todos
@@ -399,7 +404,7 @@ const ListadoRodeo = () => {
   };
 
   const buildQpBase = () =>
-    userPayload?.rol === "admin" && establecimientoActual
+    esAdminGlobal(userPayload) && establecimientoActual
       ? `id_establecimiento=${establecimientoActual}`
       : `id_establecimiento=${userPayload?.id_establecimiento}`;
 
@@ -602,9 +607,7 @@ const ListadoRodeo = () => {
               Administra los rodeos de tu establecimiento
             </p>
           </div>
-          {(userPayload?.rol === "admin" ||
-            userPayload?.rol === "veterinario" ||
-            userPayload?.rol === "operario") && (
+          {puedeGestionar && (
             <button
               onClick={abrirModalCrear}
               className='w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md text-sm sm:text-base'
@@ -628,9 +631,7 @@ const ListadoRodeo = () => {
           <p className='text-gray-500 text-lg mb-4'>
             No hay rodeos registrados
           </p>
-          {(userPayload?.rol === "admin" ||
-            userPayload?.rol === "veterinario" ||
-            userPayload?.rol === "operario") && (
+          {puedeGestionar && (
             <button
               onClick={abrirModalCrear}
               className='bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2'
@@ -711,9 +712,7 @@ const ListadoRodeo = () => {
                   👁️ Ver rodeo
                 </button>
 
-                {(userPayload?.rol === "admin" ||
-                  userPayload?.rol === "veterinario" ||
-                  userPayload?.rol === "operario") && (
+                {puedeGestionar && (
                   <>
                     <button
                       onClick={() => abrirModalEditar(rodeo)}
@@ -730,7 +729,10 @@ const ListadoRodeo = () => {
                     >
                       🧩 Asignar
                     </button>
+                  </>
+                )}
 
+                {rolCampo && (
                     <button
                       onClick={() => abrirModalDietas(rodeo)}
                       className='flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium'
@@ -738,11 +740,9 @@ const ListadoRodeo = () => {
                     >
                       🍽️ Dieta
                     </button>
-                  </>
                 )}
 
-                {(userPayload?.rol === "admin" ||
-                  userPayload?.rol === "veterinario") && (
+                {puedeGestionar && (
                   <button
                     onClick={() => toggleEstado(rodeo.id_rodeo)}
                     className={`flex-1 ${
@@ -809,7 +809,7 @@ const ListadoRodeo = () => {
                   </select>
                 </div>
 
-                {userPayload?.rol === "admin" && (
+                {esAdminGlobal(userPayload) && (
                   <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                       Establecimiento <span className='text-red-500'>*</span>

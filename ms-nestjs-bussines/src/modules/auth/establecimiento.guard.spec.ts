@@ -95,4 +95,10 @@ describe('EstablecimientoGuard', () => {
     expect(conSkip.canActivate(contextoHttp(request))).toBe(true);
     expect(request.id_establecimiento).toBeUndefined();
   });
+
+  it('el super_admin puede pedir cualquier campo', () => {
+    const superAdmin = usuarioJwt({ rol: 'super_admin', id_establecimiento: 10, userEstablecimientos: [] });
+    const request = pasar({ user: superAdmin, query: { id_establecimiento: '99' } });
+    expect(request.id_establecimiento).toBe(99);
+  });
 });

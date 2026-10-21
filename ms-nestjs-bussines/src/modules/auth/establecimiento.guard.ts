@@ -54,7 +54,12 @@ export class EstablecimientoGuard implements CanActivate {
         ? parseInt(pedido, 10)
         : null;
 
-    if (pedidoId !== null && !permitidos.includes(pedidoId)) {
+    // El super_admin puede entrar a cualquier campo (panel global y selector).
+    if (
+      pedidoId !== null &&
+      user.rol !== 'super_admin' &&
+      !permitidos.includes(pedidoId)
+    ) {
       throw new ForbiddenException('No tenés acceso a ese establecimiento');
     }
 

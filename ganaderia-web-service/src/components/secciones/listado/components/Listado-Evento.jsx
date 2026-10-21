@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import businessApi from "@/api/bussines-api";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoEvento = () => {
@@ -32,7 +33,7 @@ const ListadoEvento = () => {
       let queryParams = "";
 
       // Si es admin y seleccionó un establecimiento, filtrar por ese
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
 
@@ -93,7 +94,7 @@ const ListadoEvento = () => {
       console.log("🗑️ Eliminando evento:", modalEliminar.evento.id_evento);
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/eventos/delete-evento-by-id/${modalEliminar.evento.id_evento}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

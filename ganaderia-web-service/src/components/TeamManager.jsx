@@ -52,6 +52,17 @@ export const TeamManager = ({ establecimientoId }) => {
     }
   };
 
+  const handleCambiarRol = async (miembro, rol) => {
+    if (rol === miembro.rol) return;
+    if (rol === "dueno" && !confirm(`${miembro.nombre} va a poder administrar este campo, invitar y sacar gente. ¿Seguir?`)) return;
+    try {
+      await equipoService.cambiarRol(establecimientoId, miembro.userId, rol);
+      setMiembros((prev) => prev.map((m) => (m.userId === miembro.userId ? { ...m, rol } : m)));
+    } catch (error) {
+      alert(error?.response?.data?.message || "No se pudo cambiar el rol.");
+    }
+  };
+
   const handleRevocar = async (invId) => {
     if (!confirm("¿Revocar esta invitación?")) return;
     try {
@@ -179,9 +190,25 @@ export const TeamManager = ({ establecimientoId }) => {
                     <div className="text-xs text-gray-500">{m.email}</div>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${ROL_COLORS[m.rol] || "bg-gray-100 text-gray-700"}`}>
-                      {m.rol?.toUpperCase()}
-                    </span>
+                    {m.rol === "dueno" ? (
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${ROL_COLORS.dueno}`}>
+                        DUEÑO
+                      </span>
+                    ) : (
+                      <select
+                        value={m.rol}
+                        onChange={(e) => handleCambiarRol(m, e.target.value)}
+                        aria-label={`Rol de ${m.nombre}`}
+                        className={`px-2 py-1 rounded-full text-xs font-bold border-0 cursor-pointer ${ROL_COLORS[m.rol] || "bg-gray-100 text-gray-700"}`}
+                      >
+                        {!["veterinario", "operario"].includes(m.rol) && (
+                          <option value={m.rol}>{m.rol?.toUpperCase()}</option>
+                        )}
+                        <option value="operario">OPERARIO</option>
+                        <option value="veterinario">VETERINARIO</option>
+                        <option value="dueno">DUEÑO</option>
+                      </select>
+                    )}
                   </td>
                   <td className="p-3 text-right">
                     {m.rol !== "dueno" && (
