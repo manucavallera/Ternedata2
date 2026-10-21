@@ -370,7 +370,7 @@ export class BotController {
       }
       if (NO.includes(resp)) {
         await this.limpiarPendiente(user.id);
-        return `👍 Listo, no borré nada. ${pendiente.desc} sigue como estaba.`;
+        return `👍 Listo, no borré nada: ${pendiente.desc} sigue como estaba.`;
       }
       // Contestó otra cosa: se descarta la pregunta y sigue normal.
       await this.limpiarPendiente(user.id);
@@ -850,6 +850,17 @@ export class BotController {
       return { ok: true, modo: MODE, error: 'parseo: ' + err.message };
     }
 
+    // Algo que el bot no registra (lluvia, maquinaria) o que no se entiende: se dice
+    // claro, en vez de contestar con el saludo como si no hubiera escrito nada.
+    if (parsed.accion === 'no_entendido') {
+      const respuesta =
+        '🤔 Eso no lo sé registrar todavía. Puedo anotar nacimientos, madres, pesadas, calostrado, diarreas, tratamientos, eventos, rodeos y litros. Por ejemplo: "el 500 pesó 38 kilos".';
+      if (esLive) {
+        await this.messagingService.responder(msg._origen, msg.phone, respuesta);
+      }
+      return { ok: true, modo: MODE, no_entendido: true, mensaje: respuesta };
+    }
+
     // Saludo o charla sin datos: se contesta y no se registra nada.
     if (parsed.accion === 'saludo') {
       const respuesta =
@@ -1126,7 +1137,9 @@ export class BotController {
           console.log('🐮 Creando ternero:', data);
           const ternero = await this.ternerosService.create(data as any);
 
-          let mensaje = `✅ Ternero anotado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${data.peso_nacer} kg\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
+          const pesoTexto = data.peso_nacer > 0 ? `${data.peso_nacer} kg` : 'sin cargar';
+          let mensaje = `✅ Ternero anotado\n📋 RP: ${data.rp_ternero}\n⚖️ Peso: ${pesoTexto}\n🐄 Sexo: ${data.sexo}\n📅 Nacimiento: ${data.fecha_nacimiento}`;
+          if (idMadre) mensaje += `\n🐮 Madre: RP ${parseInt(body.id_madre)}`;
           if (data.semen && data.semen !== 'Sin datos' && data.semen !== 'N/A') mensaje += `\n🧬 Semen: ${data.semen}`;
           if (rpMadreFaltante && userEntity) {
             await this.guardarPendiente(userEntity.id, {
