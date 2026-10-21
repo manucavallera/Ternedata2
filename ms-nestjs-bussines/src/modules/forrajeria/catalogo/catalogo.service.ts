@@ -5,6 +5,7 @@ import { CreateCategoriaForrajeriaDto } from './dto/create-categoria.dto';
 import { CreateProductoForrajeriaDto } from './dto/create-producto.dto';
 import { CategoriaForrajeria } from './entities/categoria.entity';
 import { ProductoForrajeria } from './entities/producto.entity';
+import { cargarCatalogoBase } from './catalogo-base';
 
 @Injectable()
 export class CatalogoService {
@@ -45,6 +46,12 @@ export class CatalogoService {
       stock_minimo: dto.stock_minimo ?? 0,
     });
     return this.productoRepository.save(producto);
+  }
+
+  cargarCatalogoBase(idEstablecimiento: number) {
+    return this.productoRepository.manager.transaction((manager) =>
+      cargarCatalogoBase(manager, idEstablecimiento),
+    );
   }
 
   findProductos(idEstablecimiento: number): Promise<ProductoForrajeria[]> {

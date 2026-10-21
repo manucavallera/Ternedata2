@@ -73,6 +73,8 @@ export class InventarioService {
     return this.productoRepository
       .createQueryBuilder('producto')
       .where('producto.id_establecimiento = :idEstablecimiento', { idEstablecimiento })
+      // Sin mínimo cargado no hay aviso: si no, todo el catálogo recién cargado (stock 0, mínimo 0) saldría acá.
+      .andWhere('producto.stock_minimo > 0')
       .andWhere('producto.stock_actual <= producto.stock_minimo')
       .orderBy('producto.stock_actual', 'ASC')
       .getMany();

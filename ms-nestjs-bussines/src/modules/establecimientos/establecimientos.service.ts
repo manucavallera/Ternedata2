@@ -16,6 +16,7 @@ import { UsersService } from '../users/users.service';
 import { UserEstablecimientoEntity } from '../users/entity/user-establecimiento.entity';
 import { RolEstablecimiento } from '../invitaciones/roles.enum';
 import { OrganizacionTipo } from './organizacion-tipo.enum';
+import { cargarCatalogoBase } from '../forrajeria/catalogo/catalogo-base';
 
 @Injectable()
 export class EstablecimientosService {
@@ -57,6 +58,18 @@ export class EstablecimientosService {
           userId,
           guardado.id_establecimiento,
         );
+      }
+
+      // Una forrajería arranca con el catálogo típico. Si falla, el campo igual queda creado
+      // y el dueño puede cargarlo después desde Productos.
+      if (guardado.tipo_organizacion === OrganizacionTipo.FORRAJERIA) {
+        try {
+          await this.establecimientoRepository.manager.transaction((manager) =>
+            cargarCatalogoBase(manager, guardado.id_establecimiento),
+          );
+        } catch (error) {
+          console.error('No se pudo cargar el catálogo base:', error?.message);
+        }
       }
 
       return guardado;

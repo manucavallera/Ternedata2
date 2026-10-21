@@ -5,6 +5,8 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OrganizacionTipoGuard } from '../../auth/organizacion-tipo.guard';
 import { OrganizacionTipoRequerido } from '../../auth/organizacion-tipo.decorator';
 import { OrganizacionTipo } from '../../establecimientos/organizacion-tipo.enum';
+import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
 import { CatalogoService } from './catalogo.service';
 import { CreateCategoriaForrajeriaDto } from './dto/create-categoria.dto';
 import { CreateProductoForrajeriaDto } from './dto/create-producto.dto';
@@ -30,6 +32,14 @@ export class CatalogoController {
   @Post('productos')
   createProducto(@Req() req: any, @Body() dto: CreateProductoForrajeriaDto) {
     return this.catalogoService.createProducto(req.id_establecimiento, dto);
+  }
+
+  // Agrega lo que falte del catálogo típico (precio y stock en 0). No duplica.
+  @Post('catalogo-base')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  cargarCatalogoBase(@Req() req: any) {
+    return this.catalogoService.cargarCatalogoBase(req.id_establecimiento);
   }
 
   @Get('productos')

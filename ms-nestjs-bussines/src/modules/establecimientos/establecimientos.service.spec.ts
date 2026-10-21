@@ -9,6 +9,7 @@ describe('EstablecimientosService', () => {
     save: jest.fn(),
     find: jest.fn(),
     findOne: jest.fn(),
+    manager: { transaction: jest.fn() },
   };
   const userEstablecimientoRepository = {
     create: jest.fn(),
@@ -44,6 +45,7 @@ describe('EstablecimientosService', () => {
       tipo_organizacion: OrganizacionTipo.GANADERIA,
     });
     expect(result).toEqual(creado);
+    expect(establecimientoRepository.manager.transaction).not.toHaveBeenCalled();
   });
 
   it('crea una organización de forrajería cuando se solicita explícitamente', async () => {
@@ -63,6 +65,20 @@ describe('EstablecimientosService', () => {
       tipo_organizacion: OrganizacionTipo.FORRAJERIA,
     });
     expect(result.tipo_organizacion).toBe(OrganizacionTipo.FORRAJERIA);
+    // Arranca con el catálogo base.
+    expect(establecimientoRepository.manager.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('si falla el catálogo base, la forrajería igual queda creada', async () => {
+    const creado = { id_establecimiento: 12, tipo_organizacion: OrganizacionTipo.FORRAJERIA };
+    establecimientoRepository.create.mockImplementation((dto) => dto);
+    establecimientoRepository.save.mockResolvedValue(creado);
+    establecimientoRepository.manager.transaction.mockRejectedValue(new Error('sin base'));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(
+      service.create({ nombre: 'F', tipo_organizacion: OrganizacionTipo.FORRAJERIA }, 0),
+    ).resolves.toEqual(creado);
   });
 
   it('valida que el tipo de organización pertenezca al enum público', async () => {
