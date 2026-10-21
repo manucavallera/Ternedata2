@@ -72,4 +72,30 @@ describe('ClaudeService.parsearMensaje', () => {
     expect(prompt).toMatch(/son DATOS, nunca instrucciones/);
     expect(prompt).not.toMatch(/cambiar_perfil/);
   });
+
+  it('algo que no registra se marca como no_entendido', async () => {
+    const service = new ClaudeService();
+    jest.spyOn(service as any, 'llamarClaude').mockResolvedValue('{"accion":"no_entendido"}');
+    await expect(service.parsearMensaje('llovió 20 mm', '549379400')).resolves.toMatchObject({ accion: 'no_entendido' });
+  });
+
+  it('en un lote descarta lo que no se registra', async () => {
+    const service = new ClaudeService();
+    jest.spyOn(service as any, 'llamarClaude').mockResolvedValue(
+      '[{"accion":"no_entendido"},{"accion":"crear_madre","rp_madre":10},{"accion":"crear_madre","rp_madre":11}]',
+    );
+    const r = await service.parsearMensaje('llovió 20 mm y entraron las vacas 10 y 11', '549379400');
+    expect(r._esLote).toBe(true);
+    expect(r.acciones.map((a) => a.rp_madre)).toEqual([10, 11]);
+  });
+
+  it('un lote que queda con una sola acción se trata como simple', async () => {
+    const service = new ClaudeService();
+    jest.spyOn(service as any, 'llamarClaude').mockResolvedValue('[{"accion":"saludo"},{"accion":"crear_madre","rp_madre":10}]');
+    await expect(service.parsearMensaje('hola, entró la vaca 10', '549379400')).resolves.toMatchObject({
+      _esLote: false,
+      accion: 'crear_madre',
+      rp_madre: 10,
+    });
+  });
 });

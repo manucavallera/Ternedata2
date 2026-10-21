@@ -19,7 +19,7 @@ const ACCIONES_VALIDAS = [
   'desasignar_rodeo', 'consultar_del', 'consultar_salud',
   'eliminar_ternero', 'eliminar_madre', 'eliminar_evento',
   'eliminar_tratamiento', 'eliminar_diarrea', 'eliminar_litros',
-  'saludo',
+  'saludo', 'no_entendido',
 ];
 
 // Saludos sueltos ("hola", "buenas tardes", "gracias"): se contestan sin gastar una llamada a Claude.
@@ -87,6 +87,7 @@ export class ClaudeService {
       'crear_diarrea CUANDO diarrea cagadera deposiciones liquidas deshidratado flojo suelto debil: {"accion":"crear_diarrea","id_ternero":0,"severidad":"Leve","fecha_diarrea_ternero":"YYYY-MM-DD","observaciones":""}\n' +
       'registrar_litros CUANDO litros vendidos litros de leche vendi X litros lts vendidos leche vendida terneros X litros (leche para terneros): {"accion":"registrar_litros","litros_vendido":0,"litros_terneros":0,"cantidad_vacas":0,"fecha":"YYYY-MM-DD","observaciones":""}. litros_terneros = litros que toman los terneros (NO cantidad de terneros). cantidad_vacas solo si dicen cuántas vacas se ordeñaron, sino 0. Ej: "litros vendidos 2141, terneros 80" → {"accion":"registrar_litros","litros_vendido":2141,"litros_terneros":80,"cantidad_vacas":0}\n' +
       'saludo CUANDO el mensaje es solo un saludo, un agradecimiento o charla sin datos para registrar (hola buenas gracias como andas): {"accion":"saludo"}\n' +
+      'no_entendido CUANDO trae algo que no es ninguna de estas acciones (lluvia, clima, maquinaria, compras, precios) o no se entiende (letras sueltas, texto sin sentido): {"accion":"no_entendido"}\n' +
       'consultar_resumen CUANDO resumen cuantos tengo que se registro que hubo dame un resumen cuantos terneros: {"accion":"consultar_resumen","periodo":"hoy" o "semana" o "mes"}\n' +
       'asignar_rodeo CUANDO asignar a rodeo poner en rodeo agregar al grupo metelo en: {"accion":"asignar_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo"}\n' +
       'mover_rodeo CUANDO mover a rodeo cambiar de rodeo pasar al grupo pasarlo a otro: {"accion":"mover_rodeo","rp_terneros":[1,2,3],"nombre_rodeo":"nombre del rodeo destino"}\n' +
@@ -227,7 +228,12 @@ export class ClaudeService {
     let parsed = JSON.parse(jsonLimpio);
 
     if (Array.isArray(parsed)) {
-      parsed = parsed.map((a) => this.validarAccion(a));
+      // En un lote, lo que no se registra (saludo, algo que no entendió) se descarta.
+      parsed = parsed
+        .map((a) => this.validarAccion(a))
+        .filter((a) => a.accion !== 'saludo' && a.accion !== 'no_entendido');
+      if (parsed.length === 0) return { _esLote: false, phone, accion: 'no_entendido' };
+      if (parsed.length === 1) return { _esLote: false, phone, ...parsed[0] };
       return { _esLote: true, acciones: parsed, phone };
     }
 
