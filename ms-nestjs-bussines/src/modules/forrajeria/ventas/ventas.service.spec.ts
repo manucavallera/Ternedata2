@@ -60,6 +60,14 @@ describe('VentasService', () => {
     await expect(service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 99, cantidad: 1 }] })).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('no deja pedir un producto dado de baja', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 5, es_productor: true });
+    productoRepository.find.mockResolvedValue([{ id_producto: 2, precio: '1000', nombre: 'Rollo de moha', estado: 'inactivo' }]);
+
+    await expect(service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 2, cantidad: 1 }] })).rejects.toThrow('dado de baja');
+    expect(pedidoRepository.save).not.toHaveBeenCalled();
+  });
+
   it('rechaza confirmar si el stock es insuficiente', async () => {
     pedidoRepository.findOne.mockResolvedValue({ id_pedido: 10, id_establecimiento: 12, estado: PedidoEstado.PENDIENTE });
     itemRepository.find.mockResolvedValue([{ id_producto: 2, cantidad: 5 }]);

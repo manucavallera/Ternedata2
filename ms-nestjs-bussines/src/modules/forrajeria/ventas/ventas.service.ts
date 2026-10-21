@@ -48,6 +48,8 @@ export class VentasService {
       if (productos.length !== new Set(dto.items.map((item) => item.id_producto)).size) {
         throw new NotFoundException('Uno o más productos no pertenecen a la organización activa');
       }
+      const inactivo = productos.find((producto) => producto.estado === 'inactivo');
+      if (inactivo) throw new BadRequestException(`El producto "${inactivo.nombre}" está dado de baja`);
       const porId = new Map(productos.map((producto) => [producto.id_producto, producto]));
       const items = dto.items.map((item) => {
         const producto = porId.get(item.id_producto)!;

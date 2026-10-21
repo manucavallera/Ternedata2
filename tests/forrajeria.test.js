@@ -1,5 +1,6 @@
 require('dotenv').config({ path: __dirname + '/.env.test' });
 const axios = require('axios');
+const { Client } = require('pg');
 const { retryOn429 } = require('./helpers/http');
 
 const securityApi = axios.create({ baseURL: process.env.SECURITY_URL, timeout: 20000 });
@@ -209,5 +210,79 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     expect(await stock()).toBe(5);
     expect((await cambiar('cancelado')).status).toBe(200);
     expect(await stock()).toBe(7);
+  });
+
+  test('el dueño edita precio, categoría y da de baja un producto; el stock no se edita así', async () => {
+    const editado = await businessApi.patch(`/forrajeria/productos/${f.producto}`, { precio: 1200, stock_actual: 999 }, en(state.forrajeriaA));
+    expect(editado.status).toBe(200);
+    expect(Number(editado.data.precio)).toBe(1200);
+    expect(Number(editado.data.stock_actual)).not.toBe(999);
+
+    const categoria = await businessApi.patch(`/forrajeria/categorias/${f.categoria}`, { nombre: `TEST Balanceados editada ${sufijo}` }, en(state.forrajeriaA));
+    expect(categoria.status).toBe(200);
+    expect((await businessApi.patch(`/forrajeria/productos/${f.producto}`, { precio: 1 }, en(state.forrajeriaB))).status).toBe(404);
+
+    const otro = await businessApi.post('/forrajeria/productos', { nombre: `TEST Rollo baja ${sufijo}`, unidad_venta: 'rollo', precio: 10 }, en(state.forrajeriaA));
+    const baja = await businessApi.patch(`/forrajeria/productos/${otro.data.id_producto}`, { estado: 'inactivo' }, en(state.forrajeriaA));
+    expect(baja.data.estado).toBe('inactivo');
+    const pedido = await businessApi.post('/forrajeria/pedidos', { id_cliente: f.cliente, items: [{ id_producto: otro.data.id_producto, cantidad: 1 }] }, en(state.forrajeriaA));
+    expect(pedido.status).toBe(400);
+  });
+
+  // Un operario de la forrajería: carga pedidos, clientes y entradas, pero no toca precios ni plata.
+  (process.env.TEST_DB_URL ? describe : describe.skip)('permisos del operario', () => {
+    const operario = { email: `e2e_operario_forr_${sufijo}@ternedata.test`, password: 'ClaveOperario123' };
+    let db;
+    let tokenOperario;
+    const comoOperario = () => ({ headers: { Authorization: `Bearer ${tokenOperario}` }, params: { id_establecimiento: state.forrajeriaA } });
+
+    beforeAll(async () => {
+      db = new Client({ connectionString: process.env.TEST_DB_URL });
+      await db.connect();
+      const registro = await securityApi.post('/auth/register', { name: 'TEST operario forrajería', ...operario });
+      expect([200, 201]).toContain(registro.status);
+      const { rows } = await db.query(
+        "UPDATE users SET email_verificado = true, rol = 'operario' WHERE email = $1 RETURNING id", [operario.email],
+      );
+      await db.query(
+        'INSERT INTO user_establecimientos ("userId", "establecimientoId", rol) VALUES ($1, $2, $3)',
+        [rows[0].id, state.forrajeriaA, 'operario'],
+      );
+      tokenOperario = (await securityApi.post('/auth/login', operario)).data.token;
+    });
+
+    afterAll(async () => {
+      await db.query('DELETE FROM user_establecimientos WHERE "userId" IN (SELECT id FROM users WHERE email = $1)', [operario.email]);
+      await db.query('DELETE FROM users WHERE email = $1', [operario.email]);
+      await db.end();
+    });
+
+    test('ve el catálogo y registra mercadería que entra', async () => {
+      expect((await businessApi.get('/forrajeria/productos', comoOperario())).status).toBe(200);
+      const entrada = await businessApi.post(`/forrajeria/inventario/productos/${f.producto}/movimientos`, { tipo: 'entrada', cantidad: 1 }, comoOperario());
+      expect([200, 201]).toContain(entrada.status);
+    });
+
+    test('carga un pedido y lo avanza, pero no lo cancela', async () => {
+      const pedido = await businessApi.post('/forrajeria/pedidos', { id_cliente: f.cliente, items: [{ id_producto: f.producto, cantidad: 1 }] }, comoOperario());
+      expect([200, 201]).toContain(pedido.status);
+      const estado = (e) => businessApi.patch(`/forrajeria/pedidos/${pedido.data.id_pedido}/estado`, { estado: e }, comoOperario());
+      expect((await estado('confirmado')).status).toBe(200);
+      expect((await estado('cancelado')).status).toBe(403);
+    });
+
+    test('no cambia precios, no saca stock, no edita clientes ni cobra', async () => {
+      expect((await businessApi.patch(`/forrajeria/productos/${f.producto}`, { precio: 1 }, comoOperario())).status).toBe(403);
+      expect((await businessApi.post('/forrajeria/productos', { nombre: 'x', unidad_venta: 'kg', precio: 1 }, comoOperario())).status).toBe(403);
+      expect((await businessApi.post('/forrajeria/catalogo-base', {}, comoOperario())).status).toBe(403);
+      for (const tipo of ['salida', 'ajuste']) {
+        expect((await businessApi.post(`/forrajeria/inventario/productos/${f.producto}/movimientos`, { tipo, cantidad: 1 }, comoOperario())).status).toBe(403);
+      }
+      expect((await businessApi.patch(`/forrajeria/contactos/${f.cliente}`, { limite_credito: 9999999 }, comoOperario())).status).toBe(403);
+      expect((await businessApi.post(`/forrajeria/cuentas/clientes/${f.cliente}/pagos`, { monto: 1 }, comoOperario())).status).toBe(403);
+      // El precio sigue siendo el que puso el dueño.
+      const productos = (await businessApi.get('/forrajeria/productos', en(state.forrajeriaA))).data;
+      expect(Number(productos.find((p) => p.id_producto === f.producto).precio)).toBe(1200);
+    });
   });
 });
