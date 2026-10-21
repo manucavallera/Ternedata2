@@ -726,7 +726,7 @@ export class BotController {
 
     // Dedupe: mismo update reintentado por Telegram/Evolution → ignorar.
     const clave = this.dedupeService.extraerClave(body);
-    if (this.dedupeService.esDuplicado(clave)) {
+    if (await this.dedupeService.esDuplicado(clave)) {
       console.log('♻️ [webhook] duplicado ignorado:', clave);
       return { ok: true, duplicado: true };
     }
