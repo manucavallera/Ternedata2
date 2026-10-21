@@ -7,6 +7,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { OrganizacionTipo } from '../organizacion-tipo.enum';
+import { RolEstablecimiento } from '../../invitaciones/roles.enum';
 
 export class CreateEstablecimientoDto {
   @ApiProperty({
@@ -116,4 +117,10 @@ export class UpdateEstablecimientoDto {
   @IsEnum(OrganizacionTipo)
   @IsOptional()
   tipo_organizacion?: OrganizacionTipo;
+}
+
+export class CambiarRolMiembroDto {
+  @ApiProperty({ enum: RolEstablecimiento, example: RolEstablecimiento.VETERINARIO })
+  @IsEnum(RolEstablecimiento)
+  rol: RolEstablecimiento;
 }

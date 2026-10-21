@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 
@@ -35,7 +36,7 @@ const ListadoLitros = () => {
   });
 
   const idEstab =
-    userPayload?.rol === "admin" && establecimientoActual
+    esAdminGlobal(userPayload) && establecimientoActual
       ? establecimientoActual
       : null;
 

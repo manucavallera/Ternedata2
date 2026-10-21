@@ -17,6 +17,7 @@ import {
 import FormularioPrincipal from "@/components/secciones/ingreso/Formulario-Principal";
 import Listadoseccion from "@/components/secciones/listado/Listado-seccion";
 import SetupEstablecimiento from "@/components/SetupEstablecimiento";
+import { esAdminGlobal } from "@/utils/roles";
 
 // ─── KPI Card ────────────────────────────────────────────────
 const KPICard = ({ titulo, valor, subtitulo, color, icono, alerta }) => (
@@ -158,7 +159,7 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       let queryParams = "";
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
       const res = await obtenerResumenDashboardHook(queryParams);

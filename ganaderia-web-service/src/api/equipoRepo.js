@@ -51,6 +51,15 @@ export const equipoService = {
     return data;
   },
 
+  // Cambiar el rol de un miembro en este establecimiento
+  cambiarRol: async (establecimientoId, userId, rol) => {
+    const { data } = await businessApi.patch(
+      `/establecimientos/${establecimientoId}/equipo/${userId}/rol`,
+      { rol }
+    );
+    return data;
+  },
+
   // Aceptar invitación (para la pantalla /join)
   unirseAlEquipo: async (token) => {
     const { data } = await businessApi.post(`/invitaciones/aceptar`, { token });

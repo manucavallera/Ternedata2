@@ -7,7 +7,8 @@ import { JwtStrategy } from './jwt.strategy';
 // aceptar tokens de sesión: con id de usuario y sin "type".
 describe('JwtStrategy', () => {
   const findOne = jest.fn();
-  const dataSource: any = { getRepository: () => ({ findOne }) };
+  const query = jest.fn();
+  const dataSource: any = { getRepository: () => ({ findOne }), query };
   const strategy = new JwtStrategy(
     { get: () => 'secreto-de-test' } as unknown as ConfigService,
     dataSource,
@@ -15,7 +16,9 @@ describe('JwtStrategy', () => {
 
   beforeEach(() => {
     findOne.mockReset();
-    findOne.mockResolvedValue({ id: 7, rol: 'admin', estado: 'activo' });
+    findOne.mockResolvedValue({ id: 7, rol: 'admin', estado: 'activo', id_establecimiento: 10 });
+    query.mockReset();
+    query.mockResolvedValue([{ establecimientoId: 20, rol: 'operario' }]);
   });
 
   const sesion = {
@@ -75,5 +78,21 @@ describe('JwtStrategy', () => {
     await expect(strategy.validate(sesion)).resolves.toMatchObject({
       rol: 'operario',
     });
+  });
+
+  // Sacar a alguien de un campo o cambiarle el rol tiene que valer con el token ya emitido.
+  it('toma las membresías y el campo principal de la base y no del token', async () => {
+    findOne.mockResolvedValue({ id: 7, rol: 'admin', estado: 'activo', id_establecimiento: null });
+    query.mockResolvedValue([{ establecimientoId: 20, rol: 'veterinario' }]);
+    await expect(strategy.validate(sesion)).resolves.toMatchObject({
+      id_establecimiento: null,
+      userEstablecimientos: [{ establecimientoId: 20, rol: 'veterinario' }],
+    });
+  });
+
+  it('un usuario sacado de todos sus campos queda sin membresías', async () => {
+    query.mockResolvedValue([]);
+    const user = await strategy.validate(sesion);
+    expect(user.userEstablecimientos).toEqual([]);
   });
 });

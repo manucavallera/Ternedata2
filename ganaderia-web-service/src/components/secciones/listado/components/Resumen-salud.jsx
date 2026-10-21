@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { useSelector } from "react-redux";
 import businessApi from "@/api/bussines-api";
+import { esAdminGlobal } from "@/utils/roles";
 
 // ─── Componente: Gauge Circular SVG animado ───
 const CircularGauge = ({ value, maxValue = 100, color, label, size = 120 }) => {
@@ -171,7 +172,7 @@ const ResumenSalud = () => {
 
       let queryParams = "";
 
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}`;
       }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSelector, useDispatch } from "react-redux";
-import { setEstablecimientoActual } from "@/store/auth";
+import { setEstablecimientoActual, setMisEstablecimientos } from "@/store/auth";
 import { useEffect, useState } from "react";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { usePathname, useRouter } from "next/navigation";
@@ -49,6 +49,7 @@ export default function EstablecimientoSelector() {
           (e) => e.estado === "activo"
         );
         setEstablecimientos(establecimientosActivos);
+        dispatch(setMisEstablecimientos(response.data));
 
         if (!establecimientoActual) {
           // Recordar el último elegido (Redux se pierde al refrescar la página)

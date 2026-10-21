@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import businessApi from "@/api/bussines-api";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoMadre = () => {
@@ -42,7 +43,7 @@ const ListadoMadre = () => {
       const estadoVal = estadoOverride !== undefined ? estadoOverride : filtroEstado;
 
       let queryParams = "";
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams = `id_establecimiento=${establecimientoActual}&`;
       }
       queryParams += `page=${paginaActual}&limit=500`;
@@ -141,7 +142,7 @@ const ListadoMadre = () => {
       console.log("🗑️ Eliminando madre:", modalEliminar.madre.id_madre);
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/madres/delete-madre-by-id/${modalEliminar.madre.id_madre}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/madres/delete-madre-by-id/${modalEliminar.madre.id_madre}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {

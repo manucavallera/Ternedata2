@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 
 const SeleccionarTratamiento = ({ tratamientoSeleccionado }) => {
   const { obtenerTratamientoHook } = useBussinesMicroservicio();
@@ -17,7 +18,7 @@ const SeleccionarTratamiento = ({ tratamientoSeleccionado }) => {
   // 🆕 Función para construir query params según el rol
   const construirQueryParams = () => {
     // Si es admin y tiene un establecimiento seleccionado
-    if (userPayload?.rol === "admin" && establecimientoActual) {
+    if (esAdminGlobal(userPayload) && establecimientoActual) {
       return `id_establecimiento=${establecimientoActual}&limit=500`;
     }
     return "limit=500";
@@ -63,7 +64,7 @@ const SeleccionarTratamiento = ({ tratamientoSeleccionado }) => {
   return (
     <>
       {/* 🆕 Mensaje informativo para admin */}
-      {userPayload?.rol === "admin" && !establecimientoActual && (
+      {esAdminGlobal(userPayload) && !establecimientoActual && (
         <div className='mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800'>
           ⚠️ Selecciona un establecimiento para filtrar los tratamientos
         </div>

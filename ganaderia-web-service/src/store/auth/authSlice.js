@@ -56,6 +56,13 @@ export const authSlice = createSlice({
       };
     },
 
+    setMisEstablecimientos: (state, { payload }) => {
+      return {
+        ...state,
+        misEstablecimientos: payload || [],
+      };
+    },
+
     resetEstablecimientoActual: (state) => {
       return {
         ...state,
@@ -75,4 +82,5 @@ export const {
   resetUserData,
   setEstablecimientoActual, // 🆕 NUEVO
   resetEstablecimientoActual, // 🆕 NUEVO
+  setMisEstablecimientos,
 } = authSlice.actions;

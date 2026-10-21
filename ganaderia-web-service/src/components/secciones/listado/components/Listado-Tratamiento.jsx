@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import businessApi from "@/api/bussines-api";
-import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { useBussinesMicroservicio } from "@/hooks/bussines";
+import { esAdminGlobal } from "@/utils/roles";
 import { useSelector } from "react-redux"; // ⬅️ NUEVO IMPORT
 
 const ListadoTratamiento = () => {
@@ -69,7 +70,7 @@ const ListadoTratamiento = () => {
       );
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/tratamientos/delete-tratamiento-by-id/${modalEliminar.tratamiento.id_tratamiento}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "DELETE",
           headers: {
@@ -174,7 +175,7 @@ const ListadoTratamiento = () => {
       console.log("📤 Actualizando tratamiento:", tratamientoActualizado);
 
       const response = await fetch(
-        `${businessApi.defaults.baseURL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}${userPayload?.rol === "admin" && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
+        `${businessApi.defaults.baseURL}/tratamientos/patch-tratamiento-by-id/${modalEditar.tratamiento.id_tratamiento}${esAdminGlobal(userPayload) && establecimientoActual ? `?id_establecimiento=${establecimientoActual}` : ""}`,
         {
           method: "PATCH",
           headers: {
@@ -354,7 +355,7 @@ const ListadoTratamiento = () => {
       const queryParams = new URLSearchParams();
 
       // ⬅️ NUEVO: Agregar filtro de establecimiento para Admin
-      if (userPayload?.rol === "admin" && establecimientoActual) {
+      if (esAdminGlobal(userPayload) && establecimientoActual) {
         queryParams.append("id_establecimiento", establecimientoActual);
       }
 

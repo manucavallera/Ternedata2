@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -231,11 +232,13 @@ export class EstablecimientosService {
       relations: ['user'],
     });
 
+    // El rol que se muestra es el de ESTE campo: el global es 'admin' para cualquiera
+    // que se registró, así que mostraba "ADMIN" al dueño y le dejaba el botón de eliminar.
     const resultado: any[] = miembros.map((m) => ({
       userId: m.userId,
       nombre: m.user?.name || `Usuario #${m.userId}`,
       email: m.user?.email || null,
-      rol: m.user?.rol || m.rol,
+      rol: m.rol || m.user?.rol,
     }));
 
     // Fuente 2: usuarios con id_establecimiento directo
@@ -279,5 +282,41 @@ export class EstablecimientosService {
     if (!relacion && (!user || user.id_establecimiento !== establecimientoId)) {
       throw new NotFoundException('El usuario no es miembro de este establecimiento');
     }
+  }
+
+  async cambiarRolMiembro(
+    establecimientoId: number,
+    userId: number,
+    rol: RolEstablecimiento,
+    actorId: number,
+  ): Promise<{ userId: number; rol: string }> {
+    if (userId === actorId) {
+      throw new BadRequestException('No podés cambiar tu propio rol');
+    }
+
+    let relacion = await this.userEstablecimientoRepository.findOne({
+      where: { establecimientoId, userId },
+    });
+    if (!relacion) {
+      // Asignado solo como establecimiento principal (desde el panel): se le crea la membresía.
+      const user = await this.usersService.findOneRaw(userId);
+      if (!user || user.id_establecimiento !== establecimientoId) {
+        throw new NotFoundException('El usuario no es miembro de este establecimiento');
+      }
+      relacion = this.userEstablecimientoRepository.create({ establecimientoId, userId });
+    }
+
+    if (relacion.rol === RolEstablecimiento.DUENO && rol !== RolEstablecimiento.DUENO) {
+      const duenos = await this.userEstablecimientoRepository.count({
+        where: { establecimientoId, rol: RolEstablecimiento.DUENO },
+      });
+      if (duenos <= 1) {
+        throw new BadRequestException('El establecimiento no puede quedar sin dueño');
+      }
+    }
+
+    relacion.rol = rol;
+    await this.userEstablecimientoRepository.save(relacion);
+    return { userId, rol };
   }
 }
