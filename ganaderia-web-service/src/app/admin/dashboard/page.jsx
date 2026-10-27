@@ -17,6 +17,7 @@ import {
 import FormularioPrincipal from "@/components/secciones/ingreso/Formulario-Principal";
 import Listadoseccion from "@/components/secciones/listado/Listado-seccion";
 import SetupEstablecimiento from "@/components/SetupEstablecimiento";
+import BotWhatsApp from "@/components/BotWhatsApp";
 import { esAdminGlobal } from "@/utils/roles";
 
 // ─── KPI Card ────────────────────────────────────────────────
@@ -263,6 +264,10 @@ const Dashboard = () => {
             ❌ {error}
           </div>
         )}
+
+        <div className="mb-4 sm:mb-6">
+          <BotWhatsApp variante="oscuro" />
+        </div>
 
         {/* KPI Cards */}
         {loading ? (

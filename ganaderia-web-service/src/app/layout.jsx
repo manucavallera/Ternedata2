@@ -15,9 +15,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// URL pública del sitio, para que la vista previa al compartir (WhatsApp, redes) use links absolutos.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://manu-frontendganaderia.gygo4l.easypanel.host";
+
+const TITULO = "TerneData | Tu guachera ordenada por WhatsApp";
+const DESCRIPCION =
+  "Tu equipo manda un mensaje o un audio y TerneData anota cada ternero: nacimientos, pesadas, diarreas y tratamientos. Probalo gratis.";
+
 export const metadata = {
-  title: "TerneData",
-  description: "Sistema de gestión ganadera para el seguimiento de madres, terneros y tratamientos.",
+  metadataBase: new URL(SITE_URL),
+  title: TITULO,
+  description: DESCRIPCION,
+  openGraph: {
+    title: TITULO,
+    description: DESCRIPCION,
+    url: "/",
+    siteName: "TerneData",
+    locale: "es_AR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITULO,
+    description: DESCRIPCION,
+  },
 };
 
 export default function RootLayout({ children }) {

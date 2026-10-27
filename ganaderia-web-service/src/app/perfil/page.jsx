@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useAuthSession } from "@/hooks/auth";
 import businessApi from "@/api/bussines-api";
+import BotWhatsApp from "@/components/BotWhatsApp";
 
 export default function PerfilPage() {
   const { userPayload } = useSelector((state) => state.auth);
@@ -168,7 +169,7 @@ export default function PerfilPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Teléfono <span className="text-gray-400 font-normal">(opcional)</span>
+                Celular <span className="text-gray-400 font-normal">(el bot de WhatsApp te reconoce por este número)</span>
               </label>
               <input
                 type="tel"
@@ -194,6 +195,8 @@ export default function PerfilPage() {
             </button>
           </form>
         </div>
+
+        {perfil && <BotWhatsApp telefono={perfil.telefono || ""} variante="claro" />}
 
         {/* Vincular Telegram */}
         <div className="bg-white rounded-xl shadow-md p-6">
