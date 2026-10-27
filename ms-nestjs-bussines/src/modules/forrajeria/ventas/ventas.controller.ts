@@ -26,7 +26,11 @@ export class VentasController {
   ) {}
 
   @Post()
-  create(@Req() req: any, @Body() dto: CreatePedidoDto) {
+  async create(@Req() req: any, @Body() dto: CreatePedidoDto) {
+    // Pasar por encima del límite de crédito es decisión del dueño.
+    if (dto.superar_limite) {
+      await this.rolEstablecimiento.exigirAdminDe(req.user, req.id_establecimiento);
+    }
     return this.ventasService.createPedido(req.id_establecimiento, dto);
   }
 
@@ -38,6 +42,11 @@ export class VentasController {
     const id_cliente = idCliente ? Number(idCliente) : undefined;
     if (idCliente && !Number.isInteger(id_cliente)) throw new BadRequestException('id_cliente inválido');
     return this.ventasService.findPedidos(req.id_establecimiento, { estado: estado as PedidoEstado, id_cliente });
+  }
+
+  @Get(':id')
+  findOne(@Req() req: any, @Param('id', ParseIntPipe) idPedido: number) {
+    return this.ventasService.findPedido(req.id_establecimiento, idPedido);
   }
 
   @Patch(':id/estado')

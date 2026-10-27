@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import businessApi from "@/api/bussines-api";
+import { useRolEnCampo } from "@/hooks/useRolEnCampo";
 import { coincideCliente, plata, totalPedido } from "../../ventas";
 
 const lineaVacia = () => ({ clave: Math.random().toString(36).slice(2), id_producto: "", cantidad: "" });
@@ -11,6 +12,7 @@ const lineaVacia = () => ({ clave: Math.random().toString(36).slice(2), id_produ
 function NuevoPedido() {
   const router = useRouter();
   const params = useSearchParams();
+  const esDueno = useRolEnCampo() === "admin";
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [idCliente, setIdCliente] = useState(params.get("cliente") || "");
@@ -69,7 +71,20 @@ function NuevoPedido() {
       router.push("/forrajeria/pedidos");
     } catch (err) {
       const m = err.response?.data?.message;
-      setError(Array.isArray(m) ? m.join(". ") : m || "No se pudo crear el pedido.");
+      const texto = Array.isArray(m) ? m.join(". ") : m || "No se pudo crear el pedido.";
+      // Pasar el límite de crédito: el dueño puede cargarlo igual.
+      if (esDueno && typeof m === "string" && m.startsWith("Supera el límite") && window.confirm(`${m}\n\n¿Cargar el pedido igual?`)) {
+        try {
+          await businessApi.post("/forrajeria/pedidos", { ...cuerpo, superar_limite: true });
+          router.push("/forrajeria/pedidos");
+          return;
+        } catch (err2) {
+          setError(err2.response?.data?.message || "No se pudo crear el pedido.");
+          setEnviando(false);
+          return;
+        }
+      }
+      setError(esDueno || !texto.startsWith("Supera el límite") ? texto : `${texto} Pedile al dueño que lo autorice.`);
       setEnviando(false);
     }
   };
@@ -148,7 +163,12 @@ function NuevoPedido() {
                 <input type="radio" name="pago" checked={formaPago === v} onChange={() => setFormaPago(v)} /> {t}
               </label>
             ))}
-            {formaPago === "credito" && <p className="mt-2 text-xs text-slate-400">Se carga en la cuenta del cliente cuando se entrega.</p>}
+            {formaPago === "credito" && (
+              <p className="mt-2 text-xs text-slate-400">
+                Se carga en la cuenta del cliente cuando se entrega.
+                {Number(cliente?.limite_credito) > 0 && ` Límite de crédito: ${plata(cliente.limite_credito)}.`}
+              </p>
+            )}
           </fieldset>
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
             <span className="font-semibold">Nota</span>

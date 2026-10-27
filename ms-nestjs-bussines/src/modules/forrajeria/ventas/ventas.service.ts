@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import { FormaPago, PedidoEstado, PedidoForrajeria } from './entities/pedido.entity';
@@ -8,6 +8,9 @@ import { ProductoForrajeria } from '../catalogo/entities/producto.entity';
 import { ContactoForrajeria, TipoContacto } from '../contactos/entities/contacto.entity';
 import { MovimientoStock, TipoMovimientoStock } from '../inventario/entities/movimiento-stock.entity';
 import { MovimientoCuentaForrajeria } from '../cuentas/entities/movimiento-cuenta.entity';
+
+const pesos = (valor: number) =>
+  `$${Number(valor).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
 const transiciones: Record<PedidoEstado, PedidoEstado[]> = {
   [PedidoEstado.PENDIENTE]: [PedidoEstado.CONFIRMADO, PedidoEstado.CANCELADO],
@@ -59,6 +62,16 @@ export class VentasService {
         return { ...item, precio_unitario: Number(producto.precio), subtotal };
       });
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+      const formaPago = dto.forma_pago ?? FormaPago.CONTADO;
+      if (formaPago === FormaPago.CREDITO && Number(cliente.limite_credito) > 0 && !dto.superar_limite) {
+        const deuda = await this.deudaComprometida(manager, idEstablecimiento, cliente.id_contacto);
+        if (deuda + total > Number(cliente.limite_credito)) {
+          throw new BadRequestException(
+            `Supera el límite de crédito de ${pesos(cliente.limite_credito)}: ` +
+              `debe o tiene comprometido ${pesos(deuda)} y el pedido es de ${pesos(total)}.`,
+          );
+        }
+      }
       const pedido = await pedidoRepository.save(pedidoRepository.create({
         id_establecimiento: idEstablecimiento,
         id_cliente: dto.id_cliente,
@@ -66,7 +79,7 @@ export class VentasService {
         subtotal: total,
         total,
         forma_entrega: dto.forma_entrega,
-        forma_pago: dto.forma_pago ?? FormaPago.CONTADO,
+        forma_pago: formaPago,
         direccion_entrega: dto.direccion_entrega,
         zona_entrega: dto.zona_entrega,
         observaciones: dto.observaciones,
@@ -76,9 +89,27 @@ export class VentasService {
     });
   }
 
+  // Lo que el cliente ya debe (cuenta corriente) más los pedidos a crédito que todavía no se entregaron.
+  private async deudaComprometida(manager: EntityManager, idEstablecimiento: number, idCliente: number) {
+    const movimientos = await manager.getRepository(MovimientoCuentaForrajeria).find({
+      where: { id_establecimiento: idEstablecimiento, id_contacto: idCliente },
+    });
+    const saldo = movimientos.reduce((s, m) => s + Number(m.debe || 0) - Number(m.haber || 0), 0);
+    const abiertos = await manager.getRepository(PedidoForrajeria).find({
+      where: {
+        id_establecimiento: idEstablecimiento,
+        id_cliente: idCliente,
+        forma_pago: FormaPago.CREDITO,
+        estado: In([PedidoEstado.PENDIENTE, PedidoEstado.CONFIRMADO, PedidoEstado.PREPARANDO, PedidoEstado.LISTO]),
+      },
+    });
+    return saldo + abiertos.reduce((s, p) => s + Number(p.total || 0), 0);
+  }
+
   // Lista de pedidos con el nombre del cliente y los productos de cada uno (para mostrar en pantalla).
-  async findPedidos(idEstablecimiento: number, filtros: { estado?: PedidoEstado; id_cliente?: number } = {}) {
+  async findPedidos(idEstablecimiento: number, filtros: { estado?: PedidoEstado; id_cliente?: number; id_pedido?: number } = {}) {
     const where: Record<string, unknown> = { id_establecimiento: idEstablecimiento };
+    if (filtros.id_pedido) where.id_pedido = filtros.id_pedido;
     if (filtros.estado) where.estado = filtros.estado;
     if (filtros.id_cliente) where.id_cliente = filtros.id_cliente;
     const pedidos = await this.pedidoRepository.find({ where, order: { fecha_creacion: 'DESC' } });
@@ -110,6 +141,28 @@ export class VentasService {
             : null,
         })),
     }));
+  }
+
+  // Un pedido con cliente (datos de contacto completos, para el remito) y productos.
+  async findPedido(idEstablecimiento: number, idPedido: number) {
+    const [pedido] = await this.findPedidos(idEstablecimiento, { id_pedido: idPedido });
+    if (!pedido) throw new NotFoundException('Pedido no encontrado en la organización activa');
+    const cliente = await this.contactoRepository.findOne({
+      where: { id_contacto: pedido.id_cliente, id_establecimiento: idEstablecimiento },
+    });
+    return {
+      ...pedido,
+      cliente: cliente
+        ? {
+            id_contacto: cliente.id_contacto,
+            nombre: cliente.nombre,
+            documento: cliente.documento,
+            telefono: cliente.telefono,
+            whatsapp: cliente.whatsapp,
+            direccion: cliente.direccion,
+          }
+        : null,
+    };
   }
 
   async cambiarEstado(idEstablecimiento: number, idPedido: number, estado: PedidoEstado) {

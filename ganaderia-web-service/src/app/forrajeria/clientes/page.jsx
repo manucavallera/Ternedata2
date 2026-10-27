@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import businessApi from "@/api/bussines-api";
-import { coincideCliente, plata } from "../ventas";
+import { coincideCliente, haceCuanto, ordenarDeudores, plata } from "../ventas";
 
 const vacio = { nombre: "", documento: "", telefono: "", whatsapp: "", direccion: "", zona: "", es_productor: false };
 
@@ -14,6 +14,7 @@ export default function ClientesForrajeria() {
   const [saldos, setSaldos] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [verBajas, setVerBajas] = useState(false);
+  const [soloDeudores, setSoloDeudores] = useState(false);
   const [form, setForm] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [mensaje, setMensaje] = useState(null);
@@ -26,7 +27,7 @@ export default function ClientesForrajeria() {
         businessApi.get("/forrajeria/cuentas/saldos"),
       ]);
       setClientes(c.data || []);
-      setSaldos(Object.fromEntries((s.data || []).map((x) => [x.id_contacto, x.saldo])));
+      setSaldos(Object.fromEntries((s.data || []).map((x) => [x.id_contacto, x])));
     } catch (error) {
       setMensaje({ error: true, texto: error.response?.data?.message || "No se pudieron cargar los clientes." });
     } finally {
@@ -55,12 +56,12 @@ export default function ClientesForrajeria() {
     }
   };
 
-  const visibles = useMemo(
-    () => clientes.filter((c) => (verBajas || c.estado !== "inactivo") && coincideCliente(c, busqueda)),
-    [clientes, verBajas, busqueda]
-  );
+  const visibles = useMemo(() => {
+    const filtrados = clientes.filter((c) => (verBajas || c.estado !== "inactivo") && coincideCliente(c, busqueda));
+    return soloDeudores ? ordenarDeudores(filtrados, saldos) : filtrados;
+  }, [clientes, verBajas, busqueda, soloDeudores, saldos]);
   const bajas = clientes.filter((c) => c.estado === "inactivo").length;
-  const totalDeuda = Object.values(saldos).reduce((s, v) => s + (v > 0 ? v : 0), 0);
+  const totalDeuda = Object.values(saldos).reduce((s, v) => s + (v.saldo > 0 ? v.saldo : 0), 0);
 
   const input = (campo, etiqueta, props = {}) => (
     <label className="flex flex-col gap-1 text-sm">
@@ -121,6 +122,13 @@ export default function ClientesForrajeria() {
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full max-w-sm rounded-lg bg-slate-800 px-3 py-2"
           />
+          <div className="flex rounded-lg bg-slate-800 p-1 text-sm">
+            {[[false, "Todos"], [true, "Deudores"]].map(([valor, texto]) => (
+              <button key={texto} onClick={() => setSoloDeudores(valor)} className={`rounded-md px-3 py-1 ${soloDeudores === valor ? "bg-emerald-600 font-semibold" : "text-slate-300"}`}>
+                {texto}
+              </button>
+            ))}
+          </div>
           {bajas > 0 && (
             <label className="flex items-center gap-2 text-sm text-slate-400">
               <input type="checkbox" checked={verBajas} onChange={(e) => setVerBajas(e.target.checked)} />
@@ -134,12 +142,16 @@ export default function ClientesForrajeria() {
             <p className="p-5 text-slate-400">Cargando...</p>
           ) : visibles.length === 0 ? (
             <p className="p-5 text-slate-400">
-              {clientes.length === 0 ? "Todavía no cargaste clientes. Tocá \"Nuevo cliente\" para empezar." : "Ningún cliente coincide con la búsqueda."}
+              {clientes.length === 0
+                ? "Todavía no cargaste clientes. Tocá \"Nuevo cliente\" para empezar."
+                : soloDeudores
+                  ? "Nadie te debe plata."
+                  : "Ningún cliente coincide con la búsqueda."}
             </p>
           ) : (
             <ul className="divide-y divide-slate-800">
               {visibles.map((c) => {
-                const saldo = saldos[c.id_contacto] || 0;
+                const saldo = saldos[c.id_contacto]?.saldo || 0;
                 return (
                   <li key={c.id_contacto}>
                     <Link href={`/forrajeria/clientes/${c.id_contacto}`} className={`flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-800/60 ${c.estado === "inactivo" ? "opacity-50" : ""}`}>
@@ -153,7 +165,9 @@ export default function ClientesForrajeria() {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className={`font-semibold ${saldo > 0 ? "text-amber-400" : saldo < 0 ? "text-emerald-400" : "text-slate-400"}`}>{plata(Math.abs(saldo))}</p>
-                        <p className="text-xs text-slate-500">{saldo > 0 ? "debe" : saldo < 0 ? "a favor" : "al día"}</p>
+                        <p className="text-xs text-slate-500">
+                          {saldo > 0 ? (soloDeudores ? `último pago: ${haceCuanto(saldos[c.id_contacto]?.ultimo_pago)}` : "debe") : saldo < 0 ? "a favor" : "al día"}
+                        </p>
                       </div>
                     </Link>
                   </li>

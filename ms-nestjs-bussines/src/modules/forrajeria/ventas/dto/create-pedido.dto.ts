@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { FormaEntrega, FormaPago } from '../entities/pedido.entity';
 
 export class CreatePedidoItemDto {
@@ -39,4 +39,9 @@ export class CreatePedidoDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  // Cargar a crédito aunque pase el límite del cliente. Solo el dueño (lo controla el controller).
+  @IsOptional()
+  @IsBoolean()
+  superar_limite?: boolean;
 }

@@ -146,5 +146,24 @@ test.describe('Forrajería desde la UI', () => {
       await expect(page.getByText('$2.000').first()).toBeVisible();
       await foto('ficha-cliente');
     });
+
+    await test.step('remito del pedido', async () => {
+      await page.getByRole('link', { name: 'remito' }).first().click();
+      await expect(page.getByText(/Remito de pedido #\d+/)).toBeVisible();
+      await expect(page.getByText('Total $3.000')).toBeVisible();
+      const whatsapp = page.getByRole('link', { name: 'Enviar por WhatsApp' });
+      await expect(whatsapp).toHaveAttribute('href', /wa\.me\/.*Total/);
+      await foto('remito');
+    });
+
+    await test.step('deudores y barra de forrajería', async () => {
+      await page.goto('/forrajeria/clientes');
+      await page.getByRole('button', { name: 'Deudores' }).click();
+      await expect(page.getByRole('link', { name: new RegExp(cliente) })).toContainText('último pago: hoy');
+      const barra = page.locator('nav').first();
+      await expect(barra.getByRole('button', { name: /Pedidos/ })).toBeVisible();
+      await expect(barra.getByRole('button', { name: /Rodeos/ })).toHaveCount(0);
+      await foto('deudores');
+    });
   });
 });

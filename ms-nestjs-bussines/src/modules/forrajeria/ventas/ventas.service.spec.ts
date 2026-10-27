@@ -2,7 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ContactoForrajeria } from '../contactos/entities/contacto.entity';
 import { ProductoForrajeria } from '../catalogo/entities/producto.entity';
 import { PedidoItemForrajeria } from './entities/pedido-item.entity';
-import { PedidoEstado, PedidoForrajeria } from './entities/pedido.entity';
+import { FormaPago, PedidoEstado, PedidoForrajeria } from './entities/pedido.entity';
 import { MovimientoStock, TipoMovimientoStock } from '../inventario/entities/movimiento-stock.entity';
 import { MovimientoCuentaForrajeria } from '../cuentas/entities/movimiento-cuenta.entity';
 import { VentasService } from './ventas.service';
@@ -16,7 +16,7 @@ describe('VentasService', () => {
   const productoRepository = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
   const contactoRepository = { findOne: jest.fn(), find: jest.fn() };
   const movimientoStockRepository = { create: jest.fn(), save: jest.fn() };
-  const movimientoCuentaRepository = { create: jest.fn(), save: jest.fn() };
+  const movimientoCuentaRepository = { create: jest.fn(), save: jest.fn(), find: jest.fn() };
   let service: VentasService;
 
   beforeEach(() => {
@@ -87,6 +87,46 @@ describe('VentasService', () => {
 
     await expect(service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 2, cantidad: 1 }] })).rejects.toThrow('dado de baja');
     expect(pedidoRepository.save).not.toHaveBeenCalled();
+  });
+
+  describe('límite de crédito', () => {
+    const preparar = (limite: number, movimientos: any[], abiertos: any[]) => {
+      contactoRepository.findOne.mockResolvedValue({ id_contacto: 5, limite_credito: limite, estado: 'activo' });
+      productoRepository.find.mockResolvedValue([{ id_producto: 2, precio: '1000' }]);
+      movimientoCuentaRepository.find.mockResolvedValue(movimientos);
+      pedidoRepository.find.mockResolvedValue(abiertos);
+      pedidoRepository.create.mockImplementation((value) => value);
+      pedidoRepository.save.mockResolvedValue({ id_pedido: 20 });
+      itemRepository.create.mockImplementation((value) => value);
+      itemRepository.save.mockImplementation((value) => value);
+    };
+    const pedido = (extra = {}) => ({ id_cliente: 5, items: [{ id_producto: 2, cantidad: 2 }], forma_pago: FormaPago.CREDITO, ...extra });
+
+    it('frena un pedido a crédito que pasa el límite (deuda + pedidos abiertos)', async () => {
+      preparar(5000, [{ debe: '3000', haber: '1000' }], [{ total: '1500' }]);
+      await expect(service.createPedido(12, pedido())).rejects.toThrow('Supera el límite de crédito');
+      expect(pedidoRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('deja pasar si entra justo en el límite', async () => {
+      preparar(5500, [{ debe: '3000', haber: '1000' }], [{ total: '1500' }]);
+      await service.createPedido(12, pedido());
+      expect(pedidoRepository.save).toHaveBeenCalled();
+    });
+
+    it('con superar_limite se carga igual', async () => {
+      preparar(100, [{ debe: '3000', haber: '0' }], []);
+      await service.createPedido(12, pedido({ superar_limite: true }));
+      expect(pedidoRepository.save).toHaveBeenCalled();
+    });
+
+    it('sin límite (0) o al contado no controla', async () => {
+      preparar(0, [{ debe: '999999', haber: '0' }], []);
+      await service.createPedido(12, pedido());
+      preparar(100, [{ debe: '999999', haber: '0' }], []);
+      await service.createPedido(12, pedido({ forma_pago: FormaPago.CONTADO }));
+      expect(movimientoCuentaRepository.find).not.toHaveBeenCalled();
+    });
   });
 
   it('lista pedidos con nombre del cliente y productos', async () => {

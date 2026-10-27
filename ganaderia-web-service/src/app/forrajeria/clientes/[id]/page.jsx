@@ -232,7 +232,10 @@ export default function FichaCliente() {
               {pedidos.map((p) => (
                 <li key={p.id_pedido} className="flex flex-wrap items-center justify-between gap-2 py-3">
                   <div className="min-w-0">
-                    <p className="font-medium">Pedido #{p.id_pedido} <span className="text-slate-400">· {fecha(p.fecha_creacion)}</span></p>
+                    <p className="font-medium">
+                      Pedido #{p.id_pedido} <span className="text-slate-400">· {fecha(p.fecha_creacion)}</span>
+                      <Link href={`/forrajeria/pedidos/${p.id_pedido}/remito`} className="ml-2 text-xs text-emerald-400 hover:text-emerald-300">remito</Link>
+                    </p>
                     <p className="truncate text-slate-400">{p.items.map((i) => `${Number(i.cantidad)} ${i.producto?.nombre || "producto"}`).join(", ")}</p>
                   </div>
                   <div className="text-right">

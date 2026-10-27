@@ -138,7 +138,7 @@ export default function PedidosForrajeria() {
                   </ul>
                   {p.direccion_entrega && <p className="mt-2 text-sm text-slate-400">Dirección: {p.direccion_entrega}</p>}
                   {p.observaciones && <p className="mt-1 text-sm text-slate-400">Nota: {p.observaciones}</p>}
-                  {(paso || (esDueno && sePuedeCancelar(p.estado))) && (
+                  {(
                     <div className="mt-3 flex flex-wrap gap-2">
                       {paso && (
                         <button disabled={ocupado === p.id_pedido} onClick={() => cambiarEstado(p, paso.estado)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">
@@ -150,6 +150,9 @@ export default function PedidosForrajeria() {
                           Cancelar pedido
                         </button>
                       )}
+                      <Link href={`/forrajeria/pedidos/${p.id_pedido}/remito`} className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
+                        Remito
+                      </Link>
                     </div>
                   )}
                 </article>

@@ -26,18 +26,20 @@ describe('CuentasService', () => {
   });
 
   it('devuelve el saldo de cada contacto de la organización', async () => {
+    const d = (dia: number) => new Date(`2026-10-${String(dia).padStart(2, "0")}T12:00:00Z`);
     movimientoRepository.find.mockResolvedValue([
-      { id_contacto: 3, debe: '1000.10', haber: '0' },
-      { id_contacto: 3, debe: '0', haber: '400' },
-      { id_contacto: 4, debe: '0', haber: '50' },
+      { id_contacto: 3, debe: '1000.10', haber: '0', fecha_creacion: d(10) },
+      { id_contacto: 3, debe: '0', haber: '400', fecha_creacion: d(20) },
+      { id_contacto: 3, debe: '0', haber: '100', fecha_creacion: d(15) },
+      { id_contacto: 4, debe: '0', haber: '50', fecha_creacion: d(5) },
     ]);
 
     const saldos = await service.getSaldos(12);
 
     expect(movimientoRepository.find).toHaveBeenCalledWith({ where: { id_establecimiento: 12 } });
     expect(saldos).toEqual([
-      { id_contacto: 3, saldo: 600.1 },
-      { id_contacto: 4, saldo: -50 },
+      { id_contacto: 3, saldo: 500.1, ultimo_pago: d(20), ultima_compra: d(10) },
+      { id_contacto: 4, saldo: -50, ultimo_pago: d(5), ultima_compra: null },
     ]);
   });
 

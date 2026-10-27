@@ -13,12 +13,13 @@ import Image from "next/image";
 import EstablecimientoBadge from "@/components/EstablecimientoBadge";
 import EstablecimientoSelector from "@/components/EstablecimientoSelector";
 import { esAdminDelCampo } from "@/utils/roles";
+import { esContextoForrajeria } from "@/app/forrajeria/context";
 import { equipoService } from "@/api/equipoRepo";
 import businessApi from "@/api/bussines-api";
 
 function Navbar() {
   const dispatch = useDispatch();
-  const { authPayload, status, userPayload, misEstablecimientos } = useSelector(
+  const { authPayload, status, userPayload, misEstablecimientos, establecimientoActual } = useSelector(
     (state) => state.auth
   );
   const router = useRouter();
@@ -99,11 +100,31 @@ function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
+  // En una forrajería se muestran sus secciones en vez de las de ganadería.
+  // Manda la página que se está viendo; en páginas comunes (perfil, admin) decide el campo elegido.
+  const RUTAS_GANADERIA = ["/admin/dashboard", "/rodeos", "/litros", "/calendario", "/sustituto"];
+  const campoElegido = (misEstablecimientos || []).find(
+    (e) => Number(e.id_establecimiento) === Number(establecimientoActual)
+  );
+  const enForrajeria =
+    pathname?.startsWith("/forrajeria") ||
+    (!RUTAS_GANADERIA.some((r) => pathname?.startsWith(r)) && esContextoForrajeria(campoElegido));
+  const linksForrajeria = [
+    ["/forrajeria", "🏠", "Inicio"],
+    ["/forrajeria/pedidos", "🧾", "Pedidos"],
+    ["/forrajeria/clientes", "👥", "Clientes"],
+    ["/forrajeria/productos", "🌾", "Productos"],
+  ];
+  const irA = (ruta) => {
+    router.push(ruta);
+    setIsMobileMenuOpen(false);
+  };
+
   // Páginas públicas con encabezado propio (landing de venta y privacidad).
   if (pathname === "/" || pathname === "/privacidad") return null;
 
   return (
-    <nav className='bg-green-400 text-white px-3 sm:px-6 md:px-12 lg:px-24 py-3 relative'>
+    <nav className='print:hidden bg-green-400 text-white px-3 sm:px-6 md:px-12 lg:px-24 py-3 relative'>
       {/* Estilos para la animación de brillo */}
       <style jsx>{`
         @keyframes shimmer {
@@ -144,6 +165,20 @@ function Navbar() {
           {status === "authenticated" && statusSession !== false ? (
             <>
               {/* Botones principales - Desktop */}
+              {enForrajeria ? (
+                <div className='hidden lg:flex gap-3'>
+                  {linksForrajeria.map(([ruta, icono, texto]) => (
+                    <button
+                      key={ruta}
+                      onClick={() => irA(ruta)}
+                      className={`text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1 ${pathname === ruta ? "underline underline-offset-4" : ""}`}
+                    >
+                      <span className='text-base leading-none'>{icono}</span>
+                      {texto}
+                    </button>
+                  ))}
+                </div>
+              ) : (
               <div className='hidden lg:flex gap-3'>
                 <button
                   onClick={onclickIngreso}
@@ -199,6 +234,7 @@ function Navbar() {
                   Listados
                 </button>
               </div>
+              )}
 
               {/* Hamburger button - Mobile */}
               <button
@@ -232,7 +268,8 @@ function Navbar() {
           className='flex flex-1 items-center justify-center group cursor-pointer min-w-0'
           onClick={() => {
             if (status === "authenticated") {
-              if (pathname !== "/admin/dashboard") router.push("/admin/dashboard");
+              const inicio = enForrajeria ? "/forrajeria" : "/admin/dashboard";
+              if (pathname !== inicio) router.push(inicio);
             } else {
               router.push("/");
             }
@@ -388,6 +425,19 @@ function Navbar() {
       {isMobileMenuOpen && status === "authenticated" && (
         <div id='mobile-navigation-menu' className='lg:hidden absolute top-full left-0 right-0 bg-green-500 shadow-lg z-50 py-4 px-3'>
           <div className='flex flex-col gap-3'>
+            {enForrajeria ? (
+              linksForrajeria.map(([ruta, icono, texto]) => (
+                <button
+                  key={ruta}
+                  onClick={() => irA(ruta)}
+                  className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
+                >
+                  <span className='text-base leading-none'>{icono}</span>
+                  {texto}
+                </button>
+              ))
+            ) : (
+            <>
             <button
               onClick={onclickIngreso}
               className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
@@ -486,6 +536,8 @@ function Navbar() {
               </svg>
               Listados
             </button>
+            </>
+            )}
 
             <div className='border-t border-green-600 my-2'></div>
 

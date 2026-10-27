@@ -45,3 +45,42 @@ export const coincideCliente = (cliente, busqueda) => {
   if (!q) return true;
   return [cliente.nombre, cliente.documento, cliente.zona].some((campo) => normalizar(campo).includes(q));
 };
+
+// "hace 3 días", "hoy", "nunca" para mostrar antigüedad de un pago.
+export const haceCuanto = (fecha, ahora = new Date()) => {
+  if (!fecha) return "nunca";
+  const dias = Math.floor((new Date(ahora) - new Date(fecha)) / 86400000);
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "ayer";
+  if (dias < 60) return `hace ${dias} días`;
+  return `hace ${Math.floor(dias / 30)} meses`;
+};
+
+// Deudores: saldo > 0, primero los que más deben; a igual deuda, el que hace más que no paga.
+export const ordenarDeudores = (clientes, saldos) =>
+  clientes
+    .filter((c) => (saldos[c.id_contacto]?.saldo || 0) > 0)
+    .sort((a, b) => {
+      const sa = saldos[a.id_contacto];
+      const sb = saldos[b.id_contacto];
+      if (sb.saldo !== sa.saldo) return sb.saldo - sa.saldo;
+      return new Date(sa.ultimo_pago || 0) - new Date(sb.ultimo_pago || 0);
+    });
+
+// Texto del remito para mandar por WhatsApp.
+export const textoRemito = (pedido, negocio) => {
+  const lineas = [
+    `*${negocio}* - Pedido #${pedido.id_pedido}`,
+    `Cliente: ${pedido.cliente?.nombre || "-"}`,
+    "",
+    ...pedido.items.map(
+      (i) => `- ${Number(i.cantidad)} ${i.producto?.unidad_venta || ""} ${i.producto?.nombre || "producto"}: ${plata(i.subtotal)}`.replace(/\s+/g, " ")
+    ),
+    "",
+    `*Total: ${plata(pedido.total)}*`,
+    pedido.forma_pago === "credito" ? "Pago: cuenta corriente" : "Pago: contado",
+    pedido.forma_entrega === "reparto" ? `Entrega: reparto${pedido.direccion_entrega ? ` a ${pedido.direccion_entrega}` : ""}` : "Entrega: retira en el local",
+  ];
+  if (pedido.observaciones) lineas.push(`Nota: ${pedido.observaciones}`);
+  return lineas.join("\n");
+};

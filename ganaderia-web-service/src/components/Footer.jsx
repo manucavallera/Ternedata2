@@ -10,7 +10,7 @@ const Footer = () => {
 
   return (
     <div>
-      <footer className='bg-green-400 p-3 sm:p-4 md:p-6 text-center text-white text-xs sm:text-sm md:text-base'>
+      <footer className='print:hidden bg-green-400 p-3 sm:p-4 md:p-6 text-center text-white text-xs sm:text-sm md:text-base'>
         <p>
           &copy; {new Date().getFullYear()} Sistema de Gestión TerneData. Todos los derechos
           reservados.
