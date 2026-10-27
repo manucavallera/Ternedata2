@@ -63,6 +63,26 @@ describe('InventarioService', () => {
     });
   });
 
+  it('un ajuste deja el stock en lo contado, incluso en cero', async () => {
+    const producto = { id_producto: 4, id_establecimiento: 12, stock_actual: 7 };
+    productoTransactionalRepository.findOne.mockResolvedValue(producto);
+    movimientoTransactionalRepository.create.mockImplementation((v) => v);
+    movimientoTransactionalRepository.save.mockImplementation((v) => v);
+
+    const r = await service.registrarMovimiento(12, 4, { tipo: TipoMovimientoStock.AJUSTE, cantidad: 0, motivo: 'Conteo' });
+
+    expect(r.stock_nuevo).toBe(0);
+    expect(producto.stock_actual).toBe(0);
+  });
+
+  it('entrada o salida con cantidad cero se rechaza', async () => {
+    productoTransactionalRepository.findOne.mockResolvedValue({ id_producto: 4, id_establecimiento: 12, stock_actual: 7 });
+    for (const tipo of [TipoMovimientoStock.ENTRADA, TipoMovimientoStock.SALIDA]) {
+      await expect(service.registrarMovimiento(12, 4, { tipo, cantidad: 0 })).rejects.toBeInstanceOf(BadRequestException);
+    }
+    expect(productoTransactionalRepository.save).not.toHaveBeenCalled();
+  });
+
   it('rechaza una salida que dejaría stock negativo', async () => {
     productoTransactionalRepository.findOne.mockResolvedValue({
       id_producto: 4,

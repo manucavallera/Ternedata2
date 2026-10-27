@@ -165,5 +165,29 @@ test.describe('Forrajería desde la UI', () => {
       await expect(barra.getByRole('button', { name: /Rodeos/ })).toHaveCount(0);
       await foto('deudores');
     });
+
+    await test.step('ajuste de stock, historial y stock valorizado', async () => {
+      await page.goto('/forrajeria/productos');
+      const fila = page.locator('tr').filter({ hasText: producto.nombre });
+      await fila.locator('select').selectOption('ajuste');
+      await fila.getByPlaceholder('Contado').fill('15');
+      await fila.getByPlaceholder('Motivo').fill('Conteo E2E');
+      await fila.getByRole('button', { name: 'Aplicar' }).click();
+      await expect(page.getByText(`Stock actualizado: ${producto.nombre}.`)).toBeVisible();
+      await expect(fila).toContainText('15');
+
+      await page.getByRole('link', { name: 'Historial de stock' }).click();
+      await expect(page.getByRole('heading', { name: 'Historial de stock' })).toBeVisible();
+      const movimiento = page.locator('tr').filter({ hasText: 'Conteo E2E' });
+      await expect(movimiento).toContainText('Ajuste');
+      await expect(movimiento).toContainText('17 → 15');
+      await foto('historial');
+
+      await page.goto('/forrajeria/productos');
+      await page.getByRole('link', { name: 'Stock y ganancia' }).click();
+      await expect(page.getByRole('heading', { name: 'Stock y ganancia' })).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: producto.nombre })).toContainText('sin costo');
+      await foto('valorizado');
+    });
   });
 });
