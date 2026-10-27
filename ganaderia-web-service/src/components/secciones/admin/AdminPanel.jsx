@@ -601,6 +601,7 @@ const AdminPanel = () => {
       responsable: "",
       notas: "",
       estado: "activo",
+      tipo_organizacion: "ganaderia",
     });
     setShowModalEstablecimiento(true);
   };
@@ -2294,6 +2295,27 @@ const AdminPanel = () => {
                     placeholder='+54 379 4555666'
                   />
                 </div>
+
+                {modalModeEstablecimiento === "crear" && (
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      Tipo
+                    </label>
+                    <select
+                      value={formDataEstablecimiento.tipo_organizacion || "ganaderia"}
+                      onChange={(e) =>
+                        setFormDataEstablecimiento({
+                          ...formDataEstablecimiento,
+                          tipo_organizacion: e.target.value,
+                        })
+                      }
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
+                    >
+                      <option value='ganaderia'>🐄 Campo / tambo (terneros)</option>
+                      <option value='forrajeria'>🌾 Forrajería (pedidos y stock)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>

@@ -12,7 +12,7 @@ const SetupEstablecimiento = () => {
   const router = useRouter();
   const { crearEstablecimientoHook } = useBussinesMicroservicio();
 
-  const [form, setForm] = useState({ nombre: "", ubicacion: "", responsable: "" });
+  const [form, setForm] = useState({ nombre: "", ubicacion: "", responsable: "", tipo_organizacion: "ganaderia" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [exito, setExito] = useState(false);
@@ -49,7 +49,7 @@ const SetupEstablecimiento = () => {
           dispatch(setAuthPayload(data.token));
           dispatch(setUserData(userPayload));
         }
-        router.push("/admin/dashboard");
+        router.push(form.tipo_organizacion === "forrajeria" ? "/forrajeria" : "/admin/dashboard");
       } else {
         setError("Error al crear el establecimiento. Intentá de nuevo.");
       }
@@ -81,6 +81,33 @@ const SetupEstablecimiento = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-1">¿Qué querés administrar?</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["ganaderia", "🐄", "Campo o tambo", "Terneros, madres y salud"],
+                ["forrajeria", "🌾", "Forrajería", "Pedidos, clientes y stock"],
+              ].map(([valor, icono, titulo, detalle]) => (
+                <label
+                  key={valor}
+                  className={`cursor-pointer rounded-lg border p-3 text-sm ${form.tipo_organizacion === valor ? "border-green-600 bg-green-50 ring-1 ring-green-600" : "border-gray-300"}`}
+                >
+                  <input
+                    type="radio"
+                    name="tipo_organizacion"
+                    value={valor}
+                    checked={form.tipo_organizacion === valor}
+                    onChange={() => setForm({ ...form, tipo_organizacion: valor })}
+                    className="sr-only"
+                  />
+                  <span className="block text-2xl">{icono}</span>
+                  <span className="block font-semibold text-gray-800">{titulo}</span>
+                  <span className="block text-xs text-gray-500">{detalle}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre del campo <span className="text-red-500">*</span>

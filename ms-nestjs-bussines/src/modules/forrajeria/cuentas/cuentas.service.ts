@@ -38,6 +38,27 @@ export class CuentasService {
     return { contacto, movimientos, saldo };
   }
 
+  // Saldo de cada contacto con movimientos (debe - haber; positivo = el cliente debe),
+  // con la fecha de su último pago y de su última compra a crédito (para ver deudores viejos).
+  async getSaldos(idEstablecimiento: number) {
+    const movimientos = await this.movimientoRepository.find({ where: { id_establecimiento: idEstablecimiento } });
+    const porContacto = new Map<number, { saldo: number; ultimo_pago: Date | null; ultima_compra: Date | null }>();
+    const masNueva = (a: Date | null, b: Date) => (!a || new Date(b) > new Date(a) ? b : a);
+    for (const m of movimientos) {
+      const c = porContacto.get(m.id_contacto) || { saldo: 0, ultimo_pago: null, ultima_compra: null };
+      c.saldo += Number(m.debe || 0) - Number(m.haber || 0);
+      if (Number(m.haber) > 0) c.ultimo_pago = masNueva(c.ultimo_pago, m.fecha_creacion);
+      if (Number(m.debe) > 0) c.ultima_compra = masNueva(c.ultima_compra, m.fecha_creacion);
+      porContacto.set(m.id_contacto, c);
+    }
+    return [...porContacto].map(([id_contacto, c]) => ({
+      id_contacto,
+      saldo: Math.round(c.saldo * 100) / 100,
+      ultimo_pago: c.ultimo_pago,
+      ultima_compra: c.ultima_compra,
+    }));
+  }
+
   async registrarPago(
     idEstablecimiento: number,
     idContacto: number,

@@ -200,6 +200,63 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     }
   });
 
+  test('pantallas: pedidos con cliente y productos, filtros y saldos', async () => {
+    const lista = await businessApi.get('/forrajeria/pedidos', en(state.forrajeriaA));
+    expect(lista.status).toBe(200);
+    const entregado = lista.data.find((p) => p.estado === 'entregado');
+    expect(entregado.cliente).toEqual({ id_contacto: f.cliente, nombre: `TEST Productor ${sufijo}` });
+    expect(entregado.items[0].producto.nombre).toBeTruthy();
+
+    const filtrado = await businessApi.get('/forrajeria/pedidos', { ...en(state.forrajeriaA), params: { id_establecimiento: state.forrajeriaA, estado: 'entregado', id_cliente: f.cliente } });
+    expect(filtrado.status).toBe(200);
+    expect(filtrado.data.length).toBeGreaterThan(0);
+    expect(filtrado.data.every((p) => p.estado === 'entregado' && p.id_cliente === f.cliente)).toBe(true);
+    const invalido = await businessApi.get('/forrajeria/pedidos', { ...en(state.forrajeriaA), params: { id_establecimiento: state.forrajeriaA, estado: 'volando' } });
+    expect(invalido.status).toBe(400);
+
+    const saldos = await businessApi.get('/forrajeria/cuentas/saldos', en(state.forrajeriaA));
+    expect(saldos.status).toBe(200);
+    expect(saldos.data).toContainEqual(expect.objectContaining({ id_contacto: f.cliente, saldo: 1800 }));
+    const saldosB = await businessApi.get('/forrajeria/cuentas/saldos', en(state.forrajeriaB));
+    expect(saldosB.data.map((x) => x.id_contacto)).not.toContain(f.cliente);
+  });
+
+  test('cualquier cliente activo compra; dado de baja no', async () => {
+    const comun = await businessApi.post('/forrajeria/contactos', { tipo: 'cliente', nombre: `TEST Cliente comun ${sufijo}` }, en(state.forrajeriaA));
+    expect([200, 201]).toContain(comun.status);
+    expect(comun.data.es_productor).toBe(false);
+    const id = comun.data.id_contacto;
+    const pedir = () => businessApi.post('/forrajeria/pedidos', { id_cliente: id, items: [{ id_producto: f.producto, cantidad: 1 }] }, en(state.forrajeriaA));
+
+    expect([200, 201]).toContain((await pedir()).status);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'inactivo' }, en(state.forrajeriaA))).status).toBe(200);
+    expect((await pedir()).status).toBe(400);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'borrado' }, en(state.forrajeriaA))).status).toBe(400);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'activo' }, en(state.forrajeriaA))).status).toBe(200);
+    expect([200, 201]).toContain((await pedir()).status);
+  });
+
+  test('límite de crédito: frena a crédito, el dueño puede pasarlo; contado no controla', async () => {
+    const c = await businessApi.post('/forrajeria/contactos', { tipo: 'cliente', nombre: `TEST Limite ${sufijo}`, limite_credito: 2000 }, en(state.forrajeriaA));
+    const pedido = (extra) => businessApi.post('/forrajeria/pedidos', { id_cliente: c.data.id_contacto, items: [{ id_producto: f.producto, cantidad: 3 }], ...extra }, en(state.forrajeriaA));
+
+    const frenado = await pedido({ forma_pago: 'credito' });
+    expect(frenado.status).toBe(400);
+    expect(frenado.data.message).toMatch(/Supera el límite de crédito/);
+    expect([200, 201]).toContain((await pedido({ forma_pago: 'contado' })).status);
+    const forzado = await pedido({ forma_pago: 'credito', superar_limite: true });
+    expect([200, 201]).toContain(forzado.status);
+    f.pedidoForzado = forzado.data.id_pedido;
+  });
+
+  test('un pedido para el remito trae los datos del cliente; otra forrajería no lo ve', async () => {
+    const uno = await businessApi.get(`/forrajeria/pedidos/${f.pedidoForzado}`, en(state.forrajeriaA));
+    expect(uno.status).toBe(200);
+    expect(uno.data.cliente.nombre).toBe(`TEST Limite ${sufijo}`);
+    expect(uno.data.items[0].producto.nombre).toBeTruthy();
+    expect((await businessApi.get(`/forrajeria/pedidos/${f.pedidoForzado}`, en(state.forrajeriaB))).status).toBe(404);
+  });
+
   test('cancelar un pedido confirmado devuelve el stock', async () => {
     const pedido = await businessApi.post('/forrajeria/pedidos', {
       id_cliente: f.cliente, items: [{ id_producto: f.producto, cantidad: 2 }],
@@ -280,6 +337,9 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
       }
       expect((await businessApi.patch(`/forrajeria/contactos/${f.cliente}`, { limite_credito: 9999999 }, comoOperario())).status).toBe(403);
       expect((await businessApi.post(`/forrajeria/cuentas/clientes/${f.cliente}/pagos`, { monto: 1 }, comoOperario())).status).toBe(403);
+      // Pasar el límite de crédito es decisión del dueño.
+      const forzar = await businessApi.post('/forrajeria/pedidos', { id_cliente: f.cliente, items: [{ id_producto: f.producto, cantidad: 1 }], forma_pago: 'credito', superar_limite: true }, comoOperario());
+      expect(forzar.status).toBe(403);
       // El precio sigue siendo el que puso el dueño.
       const productos = (await businessApi.get('/forrajeria/productos', en(state.forrajeriaA))).data;
       expect(Number(productos.find((p) => p.id_producto === f.producto).precio)).toBe(1200);
