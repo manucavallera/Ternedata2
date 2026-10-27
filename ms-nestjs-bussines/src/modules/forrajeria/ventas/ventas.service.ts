@@ -36,10 +36,12 @@ export class VentasService {
       const productoRepository = manager.getRepository(ProductoForrajeria);
       const pedidoRepository = manager.getRepository(PedidoForrajeria);
       const itemRepository = manager.getRepository(PedidoItemForrajeria);
+      // Cualquier cliente activo puede comprar; "productor" es solo un dato del cliente.
       const cliente = await contactoRepository.findOne({
-        where: { id_contacto: dto.id_cliente, id_establecimiento: idEstablecimiento, tipo: TipoContacto.CLIENTE, es_productor: true },
+        where: { id_contacto: dto.id_cliente, id_establecimiento: idEstablecimiento, tipo: TipoContacto.CLIENTE },
       });
       if (!cliente) throw new NotFoundException('Cliente no encontrado en la organización activa');
+      if (cliente.estado === 'inactivo') throw new BadRequestException(`El cliente "${cliente.nombre}" está dado de baja`);
       if (!dto.items?.length) throw new BadRequestException('El pedido debe tener al menos un producto');
 
       const productos = await productoRepository.find({
@@ -74,8 +76,40 @@ export class VentasService {
     });
   }
 
-  findPedidos(idEstablecimiento: number) {
-    return this.pedidoRepository.find({ where: { id_establecimiento: idEstablecimiento }, order: { fecha_creacion: 'DESC' } });
+  // Lista de pedidos con el nombre del cliente y los productos de cada uno (para mostrar en pantalla).
+  async findPedidos(idEstablecimiento: number, filtros: { estado?: PedidoEstado; id_cliente?: number } = {}) {
+    const where: Record<string, unknown> = { id_establecimiento: idEstablecimiento };
+    if (filtros.estado) where.estado = filtros.estado;
+    if (filtros.id_cliente) where.id_cliente = filtros.id_cliente;
+    const pedidos = await this.pedidoRepository.find({ where, order: { fecha_creacion: 'DESC' } });
+    if (!pedidos.length) return [];
+
+    const items = await this.itemRepository.find({ where: { id_pedido: In(pedidos.map((p) => p.id_pedido)) } });
+    const idsProducto = [...new Set(items.map((i) => i.id_producto))];
+    const idsCliente = [...new Set(pedidos.map((p) => p.id_cliente))];
+    const [productos, clientes] = await Promise.all([
+      idsProducto.length
+        ? this.productoRepository.find({ where: { id_establecimiento: idEstablecimiento, id_producto: In(idsProducto) } })
+        : Promise.resolve([] as ProductoForrajeria[]),
+      this.contactoRepository.find({ where: { id_establecimiento: idEstablecimiento, id_contacto: In(idsCliente) } }),
+    ]);
+    const producto = new Map(productos.map((p) => [p.id_producto, p]));
+    const cliente = new Map(clientes.map((c) => [c.id_contacto, c]));
+
+    return pedidos.map((pedido) => ({
+      ...pedido,
+      cliente: cliente.has(pedido.id_cliente)
+        ? { id_contacto: pedido.id_cliente, nombre: cliente.get(pedido.id_cliente)!.nombre }
+        : null,
+      items: items
+        .filter((item) => item.id_pedido === pedido.id_pedido)
+        .map((item) => ({
+          ...item,
+          producto: producto.has(item.id_producto)
+            ? { nombre: producto.get(item.id_producto)!.nombre, unidad_venta: producto.get(item.id_producto)!.unidad_venta }
+            : null,
+        })),
+    }));
   }
 
   async cambiarEstado(idEstablecimiento: number, idPedido: number, estado: PedidoEstado) {

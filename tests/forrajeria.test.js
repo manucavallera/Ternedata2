@@ -200,6 +200,42 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     }
   });
 
+  test('pantallas: pedidos con cliente y productos, filtros y saldos', async () => {
+    const lista = await businessApi.get('/forrajeria/pedidos', en(state.forrajeriaA));
+    expect(lista.status).toBe(200);
+    const entregado = lista.data.find((p) => p.estado === 'entregado');
+    expect(entregado.cliente).toEqual({ id_contacto: f.cliente, nombre: `TEST Productor ${sufijo}` });
+    expect(entregado.items[0].producto.nombre).toBeTruthy();
+
+    const filtrado = await businessApi.get('/forrajeria/pedidos', { ...en(state.forrajeriaA), params: { id_establecimiento: state.forrajeriaA, estado: 'entregado', id_cliente: f.cliente } });
+    expect(filtrado.status).toBe(200);
+    expect(filtrado.data.length).toBeGreaterThan(0);
+    expect(filtrado.data.every((p) => p.estado === 'entregado' && p.id_cliente === f.cliente)).toBe(true);
+    const invalido = await businessApi.get('/forrajeria/pedidos', { ...en(state.forrajeriaA), params: { id_establecimiento: state.forrajeriaA, estado: 'volando' } });
+    expect(invalido.status).toBe(400);
+
+    const saldos = await businessApi.get('/forrajeria/cuentas/saldos', en(state.forrajeriaA));
+    expect(saldos.status).toBe(200);
+    expect(saldos.data).toContainEqual({ id_contacto: f.cliente, saldo: 1800 });
+    const saldosB = await businessApi.get('/forrajeria/cuentas/saldos', en(state.forrajeriaB));
+    expect(saldosB.data.map((x) => x.id_contacto)).not.toContain(f.cliente);
+  });
+
+  test('cualquier cliente activo compra; dado de baja no', async () => {
+    const comun = await businessApi.post('/forrajeria/contactos', { tipo: 'cliente', nombre: `TEST Cliente comun ${sufijo}` }, en(state.forrajeriaA));
+    expect([200, 201]).toContain(comun.status);
+    expect(comun.data.es_productor).toBe(false);
+    const id = comun.data.id_contacto;
+    const pedir = () => businessApi.post('/forrajeria/pedidos', { id_cliente: id, items: [{ id_producto: f.producto, cantidad: 1 }] }, en(state.forrajeriaA));
+
+    expect([200, 201]).toContain((await pedir()).status);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'inactivo' }, en(state.forrajeriaA))).status).toBe(200);
+    expect((await pedir()).status).toBe(400);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'borrado' }, en(state.forrajeriaA))).status).toBe(400);
+    expect((await businessApi.patch(`/forrajeria/contactos/${id}`, { estado: 'activo' }, en(state.forrajeriaA))).status).toBe(200);
+    expect([200, 201]).toContain((await pedir()).status);
+  });
+
   test('cancelar un pedido confirmado devuelve el stock', async () => {
     const pedido = await businessApi.post('/forrajeria/pedidos', {
       id_cliente: f.cliente, items: [{ id_producto: f.producto, cantidad: 2 }],

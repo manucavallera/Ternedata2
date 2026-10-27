@@ -14,7 +14,7 @@ describe('VentasService', () => {
   const pedidoRepository = { create: jest.fn(), save: jest.fn(), find: jest.fn(), findOne: jest.fn() };
   const itemRepository = { create: jest.fn(), save: jest.fn(), find: jest.fn() };
   const productoRepository = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
-  const contactoRepository = { findOne: jest.fn() };
+  const contactoRepository = { findOne: jest.fn(), find: jest.fn() };
   const movimientoStockRepository = { create: jest.fn(), save: jest.fn() };
   const movimientoCuentaRepository = { create: jest.fn(), save: jest.fn() };
   let service: VentasService;
@@ -66,6 +66,51 @@ describe('VentasService', () => {
 
     await expect(service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 2, cantidad: 1 }] })).rejects.toThrow('dado de baja');
     expect(pedidoRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('acepta cualquier cliente activo, no solo productores', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 5, es_productor: false, estado: 'activo' });
+    productoRepository.find.mockResolvedValue([{ id_producto: 2, precio: '100' }]);
+    pedidoRepository.create.mockImplementation((value) => value);
+    pedidoRepository.save.mockResolvedValue({ id_pedido: 11, total: 100 });
+    itemRepository.create.mockImplementation((value) => value);
+    itemRepository.save.mockImplementation((value) => value);
+
+    await service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 2, cantidad: 1 }] });
+
+    const where = contactoRepository.findOne.mock.calls[0][0].where;
+    expect(where).not.toHaveProperty('es_productor');
+  });
+
+  it('no deja pedir a un cliente dado de baja', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 5, nombre: 'Juan', estado: 'inactivo' });
+
+    await expect(service.createPedido(12, { id_cliente: 5, items: [{ id_producto: 2, cantidad: 1 }] })).rejects.toThrow('dado de baja');
+    expect(pedidoRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('lista pedidos con nombre del cliente y productos', async () => {
+    pedidoRepository.find.mockResolvedValue([{ id_pedido: 10, id_cliente: 5 }, { id_pedido: 11, id_cliente: 6 }]);
+    itemRepository.find.mockResolvedValue([
+      { id_pedido: 10, id_producto: 2, cantidad: 3 },
+      { id_pedido: 11, id_producto: 2, cantidad: 1 },
+    ]);
+    productoRepository.find.mockResolvedValue([{ id_producto: 2, nombre: 'Fardo de alfalfa', unidad_venta: 'fardo' }]);
+    contactoRepository.find.mockResolvedValue([{ id_contacto: 5, nombre: 'Juan' }]);
+
+    const pedidos = await service.findPedidos(12, { estado: PedidoEstado.PENDIENTE });
+
+    expect(pedidoRepository.find.mock.calls[0][0].where).toEqual({ id_establecimiento: 12, estado: PedidoEstado.PENDIENTE });
+    expect(pedidos[0].cliente).toEqual({ id_contacto: 5, nombre: 'Juan' });
+    expect(pedidos[0].items[0].producto).toEqual({ nombre: 'Fardo de alfalfa', unidad_venta: 'fardo' });
+    expect(pedidos[1].cliente).toBeNull();
+    expect(pedidos[1].items).toHaveLength(1);
+  });
+
+  it('sin pedidos no consulta items', async () => {
+    pedidoRepository.find.mockResolvedValue([]);
+    expect(await service.findPedidos(12)).toEqual([]);
+    expect(itemRepository.find).not.toHaveBeenCalled();
   });
 
   it('rechaza confirmar si el stock es insuficiente', async () => {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EstablecimientoGuard } from '../../auth/establecimiento.guard';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -31,8 +31,13 @@ export class VentasController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.ventasService.findPedidos(req.id_establecimiento);
+  findAll(@Req() req: any, @Query('estado') estado?: string, @Query('id_cliente') idCliente?: string) {
+    if (estado && !Object.values(PedidoEstado).includes(estado as PedidoEstado)) {
+      throw new BadRequestException('Estado de pedido inválido');
+    }
+    const id_cliente = idCliente ? Number(idCliente) : undefined;
+    if (idCliente && !Number.isInteger(id_cliente)) throw new BadRequestException('id_cliente inválido');
+    return this.ventasService.findPedidos(req.id_establecimiento, { estado: estado as PedidoEstado, id_cliente });
   }
 
   @Patch(':id/estado')

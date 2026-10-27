@@ -38,6 +38,16 @@ export class CuentasService {
     return { contacto, movimientos, saldo };
   }
 
+  // Saldo de cada contacto con movimientos (debe - haber). Positivo = el cliente debe.
+  async getSaldos(idEstablecimiento: number) {
+    const movimientos = await this.movimientoRepository.find({ where: { id_establecimiento: idEstablecimiento } });
+    const saldos = new Map<number, number>();
+    for (const m of movimientos) {
+      saldos.set(m.id_contacto, (saldos.get(m.id_contacto) || 0) + Number(m.debe || 0) - Number(m.haber || 0));
+    }
+    return [...saldos].map(([id_contacto, saldo]) => ({ id_contacto, saldo: Math.round(saldo * 100) / 100 }));
+  }
+
   async registrarPago(
     idEstablecimiento: number,
     idContacto: number,

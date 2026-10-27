@@ -19,6 +19,11 @@ import { CuentasService } from './cuentas.service';
 export class CuentasController {
   constructor(private readonly cuentasService: CuentasService) {}
 
+  @Get('saldos')
+  getSaldos(@Req() req: any) {
+    return this.cuentasService.getSaldos(req.id_establecimiento);
+  }
+
   @Get('clientes/:idContacto')
   getCuenta(@Req() req: any, @Param('idContacto', ParseIntPipe) idContacto: number) {
     return this.cuentasService.getCuenta(req.id_establecimiento, idContacto);

@@ -25,6 +25,22 @@ describe('CuentasService', () => {
     );
   });
 
+  it('devuelve el saldo de cada contacto de la organización', async () => {
+    movimientoRepository.find.mockResolvedValue([
+      { id_contacto: 3, debe: '1000.10', haber: '0' },
+      { id_contacto: 3, debe: '0', haber: '400' },
+      { id_contacto: 4, debe: '0', haber: '50' },
+    ]);
+
+    const saldos = await service.getSaldos(12);
+
+    expect(movimientoRepository.find).toHaveBeenCalledWith({ where: { id_establecimiento: 12 } });
+    expect(saldos).toEqual([
+      { id_contacto: 3, saldo: 600.1 },
+      { id_contacto: 4, saldo: -50 },
+    ]);
+  });
+
   it('calcula saldo como debe menos haber dentro de la organización', async () => {
     const contacto = { id_contacto: 3, id_establecimiento: 12 };
     contactoRepository.findOne.mockResolvedValue(contacto);
