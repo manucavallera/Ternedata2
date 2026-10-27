@@ -99,6 +99,9 @@ function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
+  // La home tiene su propio encabezado (landing de venta).
+  if (pathname === "/") return null;
+
   return (
     <nav className='bg-green-400 text-white px-3 sm:px-6 md:px-12 lg:px-24 py-3 relative'>
       {/* Estilos para la animación de brillo */}
