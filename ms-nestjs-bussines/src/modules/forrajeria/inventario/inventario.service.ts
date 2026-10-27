@@ -33,6 +33,9 @@ export class InventarioService {
 
       const stockAnterior = Number(producto.stock_actual || 0);
       const cantidad = Number(dto.cantidad);
+      if (dto.tipo !== TipoMovimientoStock.AJUSTE && !(cantidad > 0)) {
+        throw new BadRequestException('La cantidad tiene que ser mayor a cero');
+      }
       const signo = dto.tipo === TipoMovimientoStock.SALIDA ? -1 : 1;
       const stockNuevo = dto.tipo === TipoMovimientoStock.AJUSTE
         ? cantidad
@@ -66,6 +69,7 @@ export class InventarioService {
         ? { id_establecimiento: idEstablecimiento, id_producto: idProducto }
         : { id_establecimiento: idEstablecimiento },
       order: { fecha_creacion: 'DESC' },
+      take: 300,
     });
   }
 

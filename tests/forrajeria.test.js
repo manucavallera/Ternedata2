@@ -128,6 +128,8 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     expect(bajo.status).toBe(200);
     expect(bajo.data.map((p) => p.id_producto)).toContain(f.producto);
 
+    // Ajuste = lo contado en el galpón, puede ser 0.
+    expect((await mover('ajuste', 0)).data.stock_nuevo).toBe(0);
     const ajuste = await mover('ajuste', 10);
     expect(ajuste.data.stock_nuevo).toBe(10);
     for (const invalido of [['entrada', -3], ['entrada', 0], ['robo', 1]]) {
@@ -136,7 +138,7 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
 
     const movimientos = await businessApi.get('/forrajeria/inventario/movimientos', en(state.forrajeriaA));
     expect(movimientos.status).toBe(200);
-    expect(movimientos.data.filter((m) => m.id_producto === f.producto)).toHaveLength(3);
+    expect(movimientos.data.filter((m) => m.id_producto === f.producto)).toHaveLength(4);
   });
 
   test('clientes: alta, documento duplicado, edición y aislamiento', async () => {
