@@ -8,6 +8,8 @@ ENV NEXT_PUBLIC_ENTORNO=produccion
 ENV NEXT_PUBLIC_ENV_MS_BUSINESS_API_URL_PRODUCCION=https://manu-bussines.gygo4l.easypanel.host
 ENV NEXT_PUBLIC_ENV_MS_SECURITY_API_URL_PRODUCCION=https://manu-security.gygo4l.easypanel.host
 ENV NEXT_PUBLIC_API_URL=https://manu-security.gygo4l.easypanel.host
+# WhatsApp de consultas de la landing (no el del bot)
+ENV NEXT_PUBLIC_WHATSAPP_CONTACTO=5493434807989
 
 RUN npm run build
 
