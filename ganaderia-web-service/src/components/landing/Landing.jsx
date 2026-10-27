@@ -128,8 +128,12 @@ function Chat() {
 
 const pasos = [
   {
-    titulo: "Escribí o mandá un audio",
-    texto: "Como le escribirías al encargado: nacimientos, pesadas, diarreas, tratamientos o litros.",
+    titulo: "Creá tu cuenta gratis",
+    texto: "Registrate, armá tu campo y cargá tu celular en el perfil. Así el bot sabe que sos vos.",
+  },
+  {
+    titulo: "Escribile al bot",
+    texto: "Desde la app abrís el chat. Mandá un mensaje o un audio: nacimientos, pesadas, diarreas, tratamientos o litros.",
   },
   {
     titulo: "El bot lo anota",
@@ -143,6 +147,10 @@ const pasos = [
 
 const preguntas = [
   {
+    p: "¿Puedo escribirle al bot sin registrarme?",
+    r: "No. El bot solo anota datos de números registrados, para que nadie cargue datos en tu campo. Registrarte es gratis y tarda un par de minutos.",
+  },
+  {
     p: "¿Tengo que instalar algo?",
     r: "No. El personal usa el WhatsApp que ya tiene. Vos entrás al panel desde el navegador o el celular.",
   },
@@ -152,7 +160,7 @@ const preguntas = [
   },
   {
     p: "¿Lo pueden usar los empleados?",
-    r: "Sí. Los invitás a tu campo como operarios: cargan datos, pero no borran ni cambian la configuración.",
+    r: "Sí. Los invitás a tu campo como operarios y cada uno carga su celular en el perfil. Cargan datos, pero no borran ni cambian la configuración.",
   },
   {
     p: "¿Cuánto cuesta?",
