@@ -353,9 +353,14 @@ export default function Landing() {
       <footer className='border-t border-zinc-200 dark:border-zinc-800'>
         <div className='mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-400'>
           <p>© {new Date().getFullYear()} TerneData. Gestión de crianza de terneros.</p>
-          <a href={`mailto:${EMAIL_CONTACTO}`} className='hover:text-zinc-900 dark:hover:text-zinc-100'>
-            {EMAIL_CONTACTO}
-          </a>
+          <div className='flex flex-col gap-2 sm:flex-row sm:gap-6'>
+            <Link href='/privacidad' className='hover:text-zinc-900 dark:hover:text-zinc-100'>
+              Política de privacidad
+            </Link>
+            <a href={`mailto:${EMAIL_CONTACTO}`} className='hover:text-zinc-900 dark:hover:text-zinc-100'>
+              {EMAIL_CONTACTO}
+            </a>
+          </div>
         </div>
       </footer>
     </div>

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const Footer = () => {
   const pathname = usePathname();
-  // La home tiene su propio pie (landing de venta).
-  if (pathname === "/") return null;
+  // Páginas públicas con pie propio (landing de venta y privacidad).
+  if (pathname === "/" || pathname === "/privacidad") return null;
 
   return (
     <div>
