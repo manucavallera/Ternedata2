@@ -61,6 +61,7 @@ export default function ForrajeriaDashboard() {
             <Link href="/forrajeria/pedidos" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Pedidos</Link>
             <Link href="/forrajeria/clientes" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Clientes</Link>
             <Link href="/forrajeria/productos" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Productos</Link>
+            {esDueno && <Link href="/forrajeria/compras" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Compras</Link>}
             {esDueno && <Link href="/forrajeria/reportes" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Reportes</Link>}
             <button onClick={cargarDatos} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Actualizar</button>
           </div>

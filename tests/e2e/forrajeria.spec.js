@@ -181,6 +181,42 @@ test.describe('Forrajería desde la UI', () => {
       await foto('reportes');
     });
 
+    await test.step('compra a proveedor a cuenta corriente y pago', async () => {
+      const proveedor = `TEST E2E Molino ${sufijo}`;
+      await page.goto('/forrajeria/compras');
+      await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible({ timeout: 15000 });
+      await page.getByRole('link', { name: 'Proveedores' }).click();
+      await expect(page.getByRole('heading', { name: 'Proveedores' })).toBeVisible({ timeout: 15000 });
+      await page.getByRole('button', { name: 'Nuevo proveedor' }).click();
+      await page.getByLabel('Nombre *').fill(proveedor);
+      await page.getByRole('button', { name: 'Guardar proveedor' }).click();
+      await page.getByRole('link', { name: new RegExp(proveedor) }).click();
+      await expect(page.getByRole('heading', { name: proveedor })).toBeVisible({ timeout: 15000 });
+      await page.getByRole('link', { name: /Nueva compra/ }).click();
+      await expect(page.getByRole('heading', { name: 'Nueva compra' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByLabel('Proveedor')).toHaveValue(/\d+/);
+      await page.getByLabel('Producto').first().selectOption(String(producto.id_producto));
+      await page.getByLabel('Cantidad').first().fill('5');
+      await page.getByLabel('Costo unitario').first().fill('600');
+      await page.getByLabel('A pagar (cuenta corriente)').check();
+      await page.getByPlaceholder('Ej. A-0001-00001234').fill('R-123');
+      await expect(page.getByText('$3.000').last()).toBeVisible();
+      await foto('nueva-compra');
+      await page.getByRole('button', { name: 'Registrar compra' }).click();
+      await expect(page).toHaveURL(/\/forrajeria\/proveedores\/\d+$/, { timeout: 15000 });
+      await expect(page.getByText('Le debés')).toBeVisible();
+      await expect(page.getByText('$3.000').first()).toBeVisible();
+      await expect(page.getByText(/Compra #\d+ \(R-123\)/)).toBeVisible();
+      await page.getByPlaceholder('Monto').fill('1000');
+      await page.getByRole('button', { name: 'Registrar pago' }).click();
+      await expect(page.getByText('Pago de $1.000 registrado.')).toBeVisible();
+      await expect(page.getByText('$2.000').first()).toBeVisible();
+      await foto('proveedor');
+
+      const stock = (await (await api.pedir('GET', '/forrajeria/productos')).json()).find((p) => p.id_producto === producto.id_producto);
+      expect(Number(stock.costo)).toBe(600);
+    });
+
     await test.step('ajuste de stock, historial y stock valorizado', async () => {
       await page.goto('/forrajeria/productos');
       const fila = page.locator('tr').filter({ hasText: producto.nombre });
@@ -195,13 +231,14 @@ test.describe('Forrajería desde la UI', () => {
       await expect(page.getByRole('heading', { name: 'Historial de stock' })).toBeVisible();
       const movimiento = page.locator('tr').filter({ hasText: 'Conteo E2E' });
       await expect(movimiento).toContainText('Ajuste');
-      await expect(movimiento).toContainText('17 → 15');
+      await expect(movimiento).toContainText(/\d+ → 15/);
       await foto('historial');
 
       await page.goto('/forrajeria/productos');
       await page.getByRole('link', { name: 'Stock y ganancia' }).click();
       await expect(page.getByRole('heading', { name: 'Stock y ganancia' })).toBeVisible();
-      await expect(page.locator('tr').filter({ hasText: producto.nombre })).toContainText('sin costo');
+      // La compra de más arriba dejó el costo en $600 (precio $1.000).
+      await expect(page.locator('tr').filter({ hasText: producto.nombre })).toContainText('$400 (40%)');
       await foto('valorizado');
     });
   });

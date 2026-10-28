@@ -39,4 +39,21 @@ export class CuentasController {
   ) {
     return this.cuentasService.registrarPago(req.id_establecimiento, idContacto, dto);
   }
+
+  // Cuenta de un proveedor (mismo cálculo; saldo negativo = le debemos). Solo el dueño.
+  @Get('proveedores/:idContacto')
+  @Roles('admin')
+  getCuentaProveedor(@Req() req: any, @Param('idContacto', ParseIntPipe) idContacto: number) {
+    return this.cuentasService.getCuenta(req.id_establecimiento, idContacto);
+  }
+
+  @Post('proveedores/:idContacto/pagos')
+  @Roles('admin')
+  registrarPagoProveedor(
+    @Req() req: any,
+    @Param('idContacto', ParseIntPipe) idContacto: number,
+    @Body() dto: CreatePagoForrajeriaDto,
+  ) {
+    return this.cuentasService.registrarPagoProveedor(req.id_establecimiento, idContacto, dto);
+  }
 }

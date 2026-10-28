@@ -288,6 +288,60 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
     expect(pedido.status).toBe(400);
   });
 
+  test('compra a proveedor: suma stock, actualiza costo y deja la deuda; el pago la baja', async () => {
+    const proveedor = await businessApi.post('/forrajeria/contactos', { tipo: 'proveedor', nombre: `TEST Molino ${sufijo}` }, en(state.forrajeriaA));
+    expect(proveedor.status).toBe(201);
+    f.proveedor = proveedor.data.id_contacto;
+    const antes = (await businessApi.get('/forrajeria/productos', en(state.forrajeriaA))).data.find((p) => p.id_producto === f.producto);
+
+    const compra = await businessApi.post('/forrajeria/compras', {
+      id_proveedor: f.proveedor, forma_pago: 'credito', comprobante: 'A-0001',
+      items: [{ id_producto: f.producto, cantidad: 10, costo_unitario: 700 }],
+    }, en(state.forrajeriaA));
+    expect(compra.status).toBe(201);
+    expect(Number(compra.data.total)).toBe(7000);
+
+    const despues = (await businessApi.get('/forrajeria/productos', en(state.forrajeriaA))).data.find((p) => p.id_producto === f.producto);
+    expect(Number(despues.stock_actual)).toBe(Number(antes.stock_actual) + 10);
+    expect(Number(despues.costo)).toBe(700);
+    const movimientos = (await businessApi.get(`/forrajeria/inventario/movimientos?id_producto=${f.producto}`, en(state.forrajeriaA))).data;
+    expect(movimientos[0].motivo).toBe(`Compra #${compra.data.id_compra} a TEST Molino ${sufijo}`);
+
+    const cuenta = await businessApi.get(`/forrajeria/cuentas/proveedores/${f.proveedor}`, en(state.forrajeriaA));
+    expect(cuenta.data.saldo).toBe(-7000);
+    // A un proveedor no se le registra un cobro de cliente.
+    expect((await businessApi.post(`/forrajeria/cuentas/clientes/${f.proveedor}/pagos`, { monto: 1 }, en(state.forrajeriaA))).status).toBe(400);
+    expect((await businessApi.post(`/forrajeria/cuentas/proveedores/${f.cliente}/pagos`, { monto: 1 }, en(state.forrajeriaA))).status).toBe(400);
+    const pago = await businessApi.post(`/forrajeria/cuentas/proveedores/${f.proveedor}/pagos`, { monto: 3000 }, en(state.forrajeriaA));
+    expect(pago.status).toBe(201);
+    expect((await businessApi.get(`/forrajeria/cuentas/proveedores/${f.proveedor}`, en(state.forrajeriaA))).data.saldo).toBe(-4000);
+
+    const lista = (await businessApi.get(`/forrajeria/compras?id_proveedor=${f.proveedor}`, en(state.forrajeriaA))).data;
+    expect(lista).toHaveLength(1);
+    expect(lista[0].proveedor.nombre).toBe(`TEST Molino ${sufijo}`);
+    expect(lista[0].items[0].producto.nombre).toBeTruthy();
+  });
+
+  test('compra: valida proveedor, productos y aislamiento entre forrajerías', async () => {
+    const item = [{ id_producto: f.producto, cantidad: 1, costo_unitario: 1 }];
+    // Un cliente no es proveedor.
+    expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.cliente, items: item }, en(state.forrajeriaA))).status).toBe(404);
+    // Otra forrajería no usa el proveedor ni ve las compras de la primera.
+    expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, items: item }, en(state.forrajeriaB))).status).toBe(404);
+    expect((await businessApi.get('/forrajeria/compras', en(state.forrajeriaB))).data).toEqual([]);
+    expect((await businessApi.get(`/forrajeria/cuentas/proveedores/${f.proveedor}`, en(state.forrajeriaB))).status).toBe(404);
+    // Sin productos, repetidos o cantidad inválida.
+    expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, items: [] }, en(state.forrajeriaA))).status).toBe(400);
+    expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, items: [...item, ...item] }, en(state.forrajeriaA))).status).toBe(400);
+    expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, items: [{ ...item[0], cantidad: 0 }] }, en(state.forrajeriaA))).status).toBe(400);
+    // Al contado no deja deuda y puede no tocar el costo.
+    const contado = await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, actualizar_costo: false, items: [{ id_producto: f.producto, cantidad: 1, costo_unitario: 1 }] }, en(state.forrajeriaA));
+    expect(contado.status).toBe(201);
+    const producto = (await businessApi.get('/forrajeria/productos', en(state.forrajeriaA))).data.find((p) => p.id_producto === f.producto);
+    expect(Number(producto.costo)).toBe(700);
+    expect((await businessApi.get(`/forrajeria/cuentas/proveedores/${f.proveedor}`, en(state.forrajeriaA))).data.saldo).toBe(-4000);
+  });
+
   // Un operario de la forrajería: carga pedidos, clientes y entradas, pero no toca precios ni plata.
   (process.env.TEST_DB_URL ? describe : describe.skip)('permisos del operario', () => {
     const operario = { email: `e2e_operario_forr_${sufijo}@ternedata.test`, password: 'ClaveOperario123' };
@@ -339,6 +393,11 @@ describe('🌾 FORRAJERÍA — catálogo, stock, clientes, pedidos y cuentas', (
       }
       expect((await businessApi.patch(`/forrajeria/contactos/${f.cliente}`, { limite_credito: 9999999 }, comoOperario())).status).toBe(403);
       expect((await businessApi.post(`/forrajeria/cuentas/clientes/${f.cliente}/pagos`, { monto: 1 }, comoOperario())).status).toBe(403);
+      // Compras y proveedores son del dueño.
+      expect((await businessApi.get('/forrajeria/compras', comoOperario())).status).toBe(403);
+      expect((await businessApi.post('/forrajeria/compras', { id_proveedor: f.proveedor, items: [{ id_producto: f.producto, cantidad: 1, costo_unitario: 1 }] }, comoOperario())).status).toBe(403);
+      expect((await businessApi.get(`/forrajeria/cuentas/proveedores/${f.proveedor}`, comoOperario())).status).toBe(403);
+      expect((await businessApi.post(`/forrajeria/cuentas/proveedores/${f.proveedor}/pagos`, { monto: 1 }, comoOperario())).status).toBe(403);
       // Pasar el límite de crédito es decisión del dueño.
       const forzar = await businessApi.post('/forrajeria/pedidos', { id_cliente: f.cliente, items: [{ id_producto: f.producto, cantidad: 1 }], forma_pago: 'credito', superar_limite: true }, comoOperario());
       expect(forzar.status).toBe(403);
