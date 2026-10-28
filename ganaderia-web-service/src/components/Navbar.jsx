@@ -114,6 +114,9 @@ function Navbar() {
     ["/forrajeria/pedidos", "🧾", "Pedidos"],
     ["/forrajeria/clientes", "👥", "Clientes"],
     ["/forrajeria/productos", "🌾", "Productos"],
+    ...(esAdminDelCampo(userPayload, establecimientoActual ?? userPayload?.id_establecimiento, misEstablecimientos)
+      ? [["/forrajeria/reportes", "📊", "Reportes"]]
+      : []),
   ];
   const irA = (ruta) => {
     router.push(ruta);

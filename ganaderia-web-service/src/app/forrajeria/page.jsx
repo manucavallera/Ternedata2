@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import businessApi from "@/api/bussines-api";
+import { useRolEnCampo } from "@/hooks/useRolEnCampo";
 import { plata } from "./ventas";
 
 export default function ForrajeriaDashboard() {
   const { establecimientoActual } = useSelector((state) => state.auth);
+  const esDueno = useRolEnCampo() === "admin";
   const [productos, setProductos] = useState([]);
   const [bajoStock, setBajoStock] = useState([]);
   const [pedidosEnCurso, setPedidosEnCurso] = useState(0);
@@ -54,11 +56,12 @@ export default function ForrajeriaDashboard() {
             <h1 className="text-3xl font-bold">Forrajería</h1>
             <p className="mt-1 text-slate-400">Pedidos, clientes y stock</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href="/forrajeria/pedidos/nuevo" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">Nuevo pedido</Link>
             <Link href="/forrajeria/pedidos" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Pedidos</Link>
             <Link href="/forrajeria/clientes" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Clientes</Link>
             <Link href="/forrajeria/productos" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Productos</Link>
+            {esDueno && <Link href="/forrajeria/reportes" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Reportes</Link>}
             <button onClick={cargarDatos} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Actualizar</button>
           </div>
         </div>

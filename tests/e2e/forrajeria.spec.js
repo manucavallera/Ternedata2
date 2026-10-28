@@ -166,6 +166,21 @@ test.describe('Forrajería desde la UI', () => {
       await foto('deudores');
     });
 
+    await test.step('reporte de ventas del mes', async () => {
+      await page.locator('nav').first().getByRole('button', { name: /Reportes/ }).click();
+      await expect(page).toHaveURL(/\/forrajeria\/reportes$/, { timeout: 15000 });
+      await expect(page.getByRole('heading', { name: 'Reportes de ventas' })).toBeVisible({ timeout: 15000 });
+      const vendido = page.locator('p', { hasText: /^Vendido$/ }).locator('..');
+      await expect(vendido).toContainText('$3.000');
+      await expect(vendido).toContainText('1 pedido');
+      await expect(page.locator('tr').filter({ hasText: producto.nombre })).toContainText('sin costo');
+      await expect(page.locator('tr').filter({ hasText: cliente })).toContainText('$3.000');
+      await page.getByRole('button', { name: 'Mes pasado' }).click();
+      await expect(page.getByText('No hay pedidos entregados en este período.')).toBeVisible();
+      await page.getByRole('button', { name: 'Este mes' }).click();
+      await foto('reportes');
+    });
+
     await test.step('ajuste de stock, historial y stock valorizado', async () => {
       await page.goto('/forrajeria/productos');
       const fila = page.locator('tr').filter({ hasText: producto.nombre });
