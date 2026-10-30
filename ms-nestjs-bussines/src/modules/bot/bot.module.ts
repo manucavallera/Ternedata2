@@ -9,6 +9,12 @@ import { MessagingService } from './webhook/messaging.service';
 import { DedupeService } from './webhook/dedupe.service';
 import { LimitePorTelefono } from './webhook/limite-telefono';
 import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
+import { BotForrajeriaService } from './forrajeria/bot-forrajeria.service';
+import { ContactosForrajeriaModule } from '../forrajeria/contactos/contactos.module';
+import { CuentasForrajeriaModule } from '../forrajeria/cuentas/cuentas.module';
+import { InventarioForrajeriaModule } from '../forrajeria/inventario/inventario.module';
+import { VentasForrajeriaModule } from '../forrajeria/ventas/ventas.module';
+import { ProductoForrajeria } from '../forrajeria/catalogo/entities/producto.entity';
 
 // TypeORM
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -55,7 +61,12 @@ import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero
       RodeoDietaEntity,
       PesajeTerneroEntity,
       CalostradoTerneroEntity,
+      ProductoForrajeria,
     ]),
+    ContactosForrajeriaModule,
+    CuentasForrajeriaModule,
+    InventarioForrajeriaModule,
+    VentasForrajeriaModule,
   ],
   controllers: [BotController],
   providers: [
@@ -66,6 +77,7 @@ import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero
     DedupeService,
     LimitePorTelefono,
     RolEstablecimientoService,
+    BotForrajeriaService,
     TernerosService,
     MadresService,
     EventosService,

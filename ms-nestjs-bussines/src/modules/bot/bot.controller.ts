@@ -20,6 +20,7 @@ import { LimitePorTelefono } from './webhook/limite-telefono';
 import { sanearParaLog } from './webhook/sanear-log';
 import { esTimeout } from './webhook/http';
 import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
+import { AYUDA_FORRAJERIA, BotForrajeriaService, ContextoForrajeria } from './forrajeria/bot-forrajeria.service';
 import { SkipThrottle } from '@nestjs/throttler';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
@@ -107,6 +108,7 @@ export class BotController {
     private readonly dedupeService: DedupeService,
     private readonly limitePorTelefono: LimitePorTelefono,
     private readonly rolEstablecimiento: RolEstablecimientoService,
+    private readonly botForrajeria: BotForrajeriaService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -356,12 +358,25 @@ export class BotController {
     const pendiente = this.leerPendiente(user);
     if (
       pendiente?.tipo !== 'alta_madre' &&
-      pendiente?.tipo !== 'confirmar_borrado'
+      pendiente?.tipo !== 'confirmar_borrado' &&
+      pendiente?.tipo !== 'confirmar_pago'
     )
       return null;
 
     const SI = ['si', 'sí', 'sip', 'sisi', 'si si', 'dale', 'ok', 'oka', 'obvio', 'claro', 'correcto', 'exacto', 'borra', 'borralo', 'borrala', 'eliminalo'];
     const NO = ['no', 'nop', 'nel', 'negativo', 'dejalo', 'no gracias', 'nada', 'cancelar', 'cancela'];
+
+    if (pendiente.tipo === 'confirmar_pago') {
+      await this.limpiarPendiente(user.id);
+      if (SI.includes(resp)) {
+        return this.botForrajeria.confirmarPago(pendiente, {
+          user,
+          idEstablecimiento: pendiente.idEstablecimiento,
+        });
+      }
+      if (NO.includes(resp)) return '👍 Listo, no anoté el pago.';
+      return null;
+    }
 
     if (pendiente.tipo === 'confirmar_borrado') {
       if (SI.includes(resp)) {
@@ -831,6 +846,10 @@ export class BotController {
       }
     }
 
+    // 2.c) Forrajería: otro prompt y otras acciones (pedidos, stock, cuentas).
+    const forrajeria = await this.contextoForrajeria(msg.phone);
+    if (forrajeria) return this.procesarForrajeria(msg, texto, forrajeria, esLive);
+
     // 3) Parsear con Claude.
     let parsed: any;
     try {
@@ -895,6 +914,68 @@ export class BotController {
     // 5) Responder al usuario.
     await this.messagingService.responder(msg._origen, msg.phone, mensaje);
     return { ok: true, modo: 'live', mensaje };
+  }
+
+  // Si el campo activo del usuario es una forrajería, devuelve con qué usuario y campo trabajar.
+  private async contextoForrajeria(phone: string): Promise<ContextoForrajeria | null> {
+    const auth = await this.autenticarPorTelefono(phone);
+    if (!auth || auth.requiere_seleccion || !auth.establecimientoId) return null;
+    const est = await this.establecimientoRepo.findOne({
+      where: { id_establecimiento: auth.establecimientoId },
+    });
+    if (est?.tipo_organizacion !== 'forrajeria') return null;
+    const user = await this.userRepo.findOne({ where: { id: auth.userId } });
+    return user ? { user, idEstablecimiento: auth.establecimientoId } : null;
+  }
+
+  private async procesarForrajeria(
+    msg: { _origen: any; phone: string },
+    texto: string,
+    ctx: ContextoForrajeria,
+    esLive: boolean,
+  ): Promise<any> {
+    const MODE = esLive ? 'live' : 'shadow';
+    const responder = async (mensaje: string) => {
+      if (esLive) await this.messagingService.responder(msg._origen, msg.phone, mensaje);
+    };
+
+    let parsed: Record<string, any>;
+    try {
+      parsed = await this.claudeService.parsearMensajeForrajeria(texto);
+      console.log('🧠 [webhook:forrajeria] Claude parseó:', JSON.stringify(sanearParaLog(parsed)));
+    } catch (err: any) {
+      console.error('❌ [webhook:forrajeria] error parseando:', err.message);
+      await responder(
+        esTimeout(err)
+          ? '⏳ Tardé demasiado en entenderte. Probá de nuevo en un rato.'
+          : '🤔 No te entendí bien. Probá de nuevo, más simple. Por ejemplo: "Juan quiere 10 fardos de alfalfa".',
+      );
+      return { ok: true, modo: MODE, forrajeria: true, error: 'parseo: ' + err.message };
+    }
+
+    if (parsed.accion === 'saludo' || parsed.accion === 'no_entendido') {
+      const mensaje = parsed.accion === 'saludo'
+        ? `👋 ¡Hola! ${AYUDA_FORRAJERIA}`
+        : `🤔 Eso no lo sé hacer todavía. ${AYUDA_FORRAJERIA}`;
+      await responder(mensaje);
+      return { ok: true, modo: MODE, forrajeria: true, [parsed.accion]: true, mensaje };
+    }
+
+    if (!esLive) return { ok: true, modo: 'shadow', forrajeria: true, parsed };
+
+    let mensaje: string;
+    try {
+      const resultado = await this.botForrajeria.ejecutar(parsed, ctx);
+      if (resultado.pendiente) await this.guardarPendiente(ctx.user.id, resultado.pendiente);
+      mensaje = resultado.mensaje;
+    } catch (err: any) {
+      console.error('❌ [webhook:forrajeria] error ejecutando:', err?.message || err);
+      mensaje = esTimeout(err)
+        ? '⏳ Tardé demasiado en responder. Probá de nuevo en un rato.'
+        : '😕 Uf, algo salió mal. Probá de nuevo y si sigue pasando hacelo desde la app.';
+    }
+    await responder(mensaje);
+    return { ok: true, modo: 'live', forrajeria: true, mensaje };
   }
 
   // ════════════════════════════════════════════

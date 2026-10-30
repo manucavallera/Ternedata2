@@ -109,3 +109,42 @@ describe('🤖 BOT — registrar por teléfono', () => {
     expect((await bot({ accion: 'eliminar_madre', rp_madre: rpMadre })).data.success).toBe(true);
   });
 });
+
+// Dueño de una forrajería: el bot le contesta con lo que sabe hacer en una forrajería, no con terneros.
+describe('🤖 BOT — forrajería', () => {
+  const { Client } = require('pg');
+  const sql = async (consulta, params) => {
+    const client = new Client({ connectionString: process.env.TEST_DB_URL });
+    await client.connect();
+    try { return await client.query(consulta, params); } finally { await client.end(); }
+  };
+  const telefono = `549343${String(7000000 + sufijo)}`;
+
+  beforeAll(async () => {
+    if (!process.env.TEST_DB_URL) return;
+    const email = `bot_forrajeria_${sufijo}@ternedata.test`;
+    const password = 'Test1234bot';
+    await securityApi.post('/auth/register', { name: 'TEST bot forrajería', email, password });
+    await sql('UPDATE users SET email_verificado = true, telefono = $2 WHERE email = $1', [email, telefono]);
+    const login = await securityApi.post('/auth/login', { email, password });
+    const alta = await businessApi.post('/establecimientos', {
+      nombre: `TEST Forrajería bot ${sufijo}`, ubicacion: 'TEST', responsable: 'TEST', tipo_organizacion: 'forrajeria',
+    }, { headers: { Authorization: `Bearer ${login.data.token}` } });
+    expect([200, 201]).toContain(alta.status);
+  }, 240000);
+
+  test('el saludo de un dueño de forrajería ofrece pedidos y stock, sin llamar a Claude', async () => {
+    if (!process.env.TEST_DB_URL) return;
+    const res = await businessApi.post('/bot/webhook', {
+      data: {
+        key: { remoteJid: `${telefono}@s.whatsapp.net`, fromMe: false, id: `F${Date.now()}` },
+        pushName: 'Prueba', messageType: 'conversation', message: { conversation: 'hola' },
+      },
+    }, { headers: { 'x-api-key': leerClaveBot() } });
+    expect([200, 201]).toContain(res.status);
+    if (res.data.modo !== 'shadow') return;
+    expect(res.data.forrajeria).toBe(true);
+    expect(res.data.mensaje).toMatch(/pedidos/);
+    expect(res.data.mensaje).not.toMatch(/ternero/);
+  });
+});

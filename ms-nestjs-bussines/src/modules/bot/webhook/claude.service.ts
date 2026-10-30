@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { fetchConTimeout } from './http';
+import { promptForrajeria, validarAccionForrajeria } from '../forrajeria/prompt';
 
 // ─────────────────────────────────────────────
 // Servicio que llama a Claude para parsear el mensaje del ganadero
@@ -129,7 +130,7 @@ export class ClaudeService {
   /**
    * Llama a Claude y devuelve el texto crudo de respuesta (JSON sin parsear).
    */
-  async llamarClaude(texto: string): Promise<string> {
+  async llamarClaude(texto: string, system: string = this.construirSystemPrompt()): Promise<string> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY no configurada');
 
@@ -143,7 +144,7 @@ export class ClaudeService {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 800,
-        system: this.construirSystemPrompt(),
+        system,
         messages: [
           { role: 'user', content: '<user_message>' + texto + '</user_message>' },
         ],
@@ -242,5 +243,19 @@ export class ClaudeService {
       return { _esLote: false, phone, accion: 'cambiar_establecimiento' };
     }
     return { _esLote: false, phone, ...parsed };
+  }
+
+  /**
+   * Igual que parsearMensaje, para cuando el campo activo es una forrajería:
+   * otro prompt y otras acciones (pedidos, stock, cuentas). Siempre una sola acción.
+   */
+  async parsearMensajeForrajeria(texto: string): Promise<Record<string, any>> {
+    if (esSaludo(texto)) return { accion: 'saludo' };
+    const respuesta = await this.llamarClaude(texto, promptForrajeria());
+    if (!respuesta) throw new Error('Claude sin respuesta');
+    let parsed = JSON.parse(respuesta.replace(/```json|```/g, '').trim());
+    // Si igual manda un array, vale la primera acción que sirva.
+    if (Array.isArray(parsed)) parsed = parsed.find((a) => a?.accion && !['saludo', 'no_entendido'].includes(a.accion)) || parsed[0];
+    return validarAccionForrajeria(parsed);
   }
 }
