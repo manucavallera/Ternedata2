@@ -115,7 +115,7 @@ function Navbar() {
     ["/forrajeria/clientes", "👥", "Clientes"],
     ["/forrajeria/productos", "🌾", "Productos"],
     ...(esAdminDelCampo(userPayload, establecimientoActual ?? userPayload?.id_establecimiento, misEstablecimientos)
-      ? [["/forrajeria/reportes", "📊", "Reportes"]]
+      ? [["/forrajeria/compras", "🚚", "Compras"], ["/forrajeria/reportes", "📊", "Reportes"]]
       : []),
   ];
   const irA = (ruta) => {
@@ -176,7 +176,8 @@ function Navbar() {
                       onClick={() => irA(ruta)}
                       className={`text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1 ${pathname === ruta ? "underline underline-offset-4" : ""}`}
                     >
-                      <span className='text-base leading-none'>{icono}</span>
+                      {/* Con muchos links (dueño) los íconos no entran al lado del logo: se ven solo en pantallas muy anchas. */}
+                      <span className={`text-base leading-none ${linksForrajeria.length > 5 ? "hidden 2xl:inline" : ""}`}>{icono}</span>
                       {texto}
                     </button>
                   ))}

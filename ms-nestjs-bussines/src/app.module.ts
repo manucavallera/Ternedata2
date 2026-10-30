@@ -29,6 +29,7 @@ import { InventarioForrajeriaModule } from './modules/forrajeria/inventario/inve
 import { ContactosForrajeriaModule } from './modules/forrajeria/contactos/contactos.module';
 import { CuentasForrajeriaModule } from './modules/forrajeria/cuentas/cuentas.module';
 import { VentasForrajeriaModule } from './modules/forrajeria/ventas/ventas.module';
+import { ComprasForrajeriaModule } from './modules/forrajeria/compras/compras.module';
 
 // 👇 1. AGREGAR ESTA IMPORTACIÓN
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -98,6 +99,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     ContactosForrajeriaModule,
     CuentasForrajeriaModule,
     VentasForrajeriaModule,
+    ComprasForrajeriaModule,
   ],
   controllers: [AppController],
   providers: [

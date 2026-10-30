@@ -1,9 +1,9 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CuentasService } from './cuentas.service';
 
 describe('CuentasService', () => {
   const contactoRepository = { findOne: jest.fn() };
-  const movimientoRepository = { find: jest.fn() };
+  const movimientoRepository = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const transactionalMovimientoRepository = {
     create: jest.fn(),
     save: jest.fn(),
@@ -89,5 +89,24 @@ describe('CuentasService', () => {
       debe: 0,
       haber: 250,
     });
+  });
+
+  it('no registra un cobro a un proveedor', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 3, tipo: 'proveedor' });
+    await expect(service.registrarPago(12, 3, { monto: 250 })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('el pago a un proveedor baja lo que le debemos (debe)', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 3, tipo: 'proveedor' });
+    movimientoRepository.create.mockImplementation((value) => value);
+    movimientoRepository.save.mockImplementation((value) => value);
+    await expect(service.registrarPagoProveedor(12, 3, { monto: 900 })).resolves.toEqual({
+      id_establecimiento: 12, id_contacto: 3, concepto: 'Pago a proveedor', debe: 900, haber: 0,
+    });
+  });
+
+  it('no paga como proveedor a un cliente', async () => {
+    contactoRepository.findOne.mockResolvedValue({ id_contacto: 3, tipo: 'cliente' });
+    await expect(service.registrarPagoProveedor(12, 3, { monto: 900 })).rejects.toBeInstanceOf(BadRequestException);
   });
 });

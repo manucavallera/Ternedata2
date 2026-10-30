@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreatePagoForrajeriaDto } from './dto/create-pago.dto';
 import { MovimientoCuentaForrajeria } from './entities/movimiento-cuenta.entity';
-import { ContactoForrajeria } from '../contactos/entities/contacto.entity';
+import { ContactoForrajeria, TipoContacto } from '../contactos/entities/contacto.entity';
 
 @Injectable()
 export class CuentasService {
@@ -64,7 +64,11 @@ export class CuentasService {
     idContacto: number,
     dto: CreatePagoForrajeriaDto,
   ): Promise<MovimientoCuentaForrajeria> {
-    await this.findContacto(idEstablecimiento, idContacto);
+    const contacto = await this.findContacto(idEstablecimiento, idContacto);
+    // A un proveedor se le paga (baja lo que le debemos): tiene su propio endpoint.
+    if (contacto.tipo === TipoContacto.PROVEEDOR) {
+      throw new BadRequestException('Es un proveedor: registrá el pago en su ficha de proveedor');
+    }
     return this.dataSource.transaction(async (manager) => {
       const movimientoRepository = manager.getRepository(MovimientoCuentaForrajeria);
       const movimiento = movimientoRepository.create({
@@ -76,5 +80,25 @@ export class CuentasService {
       });
       return movimientoRepository.save(movimiento);
     });
+  }
+
+  // Pago a un proveedor: baja lo que le debemos (debe; el saldo de un proveedor es negativo cuando le debemos).
+  async registrarPagoProveedor(
+    idEstablecimiento: number,
+    idContacto: number,
+    dto: CreatePagoForrajeriaDto,
+  ): Promise<MovimientoCuentaForrajeria> {
+    const contacto = await this.findContacto(idEstablecimiento, idContacto);
+    if (contacto.tipo !== TipoContacto.PROVEEDOR) {
+      throw new BadRequestException('El contacto no es un proveedor');
+    }
+    const movimiento = this.movimientoRepository.create({
+      id_establecimiento: idEstablecimiento,
+      id_contacto: idContacto,
+      concepto: dto.concepto ?? 'Pago a proveedor',
+      debe: dto.monto,
+      haber: 0,
+    });
+    return this.movimientoRepository.save(movimiento);
   }
 }
