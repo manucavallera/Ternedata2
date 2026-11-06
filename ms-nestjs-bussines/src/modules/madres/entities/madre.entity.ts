@@ -28,8 +28,8 @@ export class MadreEntity {
   @Column({ nullable: true, type: 'integer' })
   rp_madre: number;
 
-  // varchar (no enum): el sistema solo maneja 'Seca' y 'En Tambo'.
-  // (La preñez es un evento de tacto, NO un estado de madre.)
+  // Categoría de la vaca (varchar, no enum): 'En Tambo', 'Seca', 'Preparto' o 'Vaquillona'.
+  // La preñez va en estado_reproductivo, que sale de los eventos reproductivos.
   @Column({ type: 'varchar' })
   estado: string;
 
@@ -48,6 +48,25 @@ export class MadreEntity {
   @ManyToOne(() => Rodeos, { nullable: true, eager: false })
   @JoinColumn({ name: 'id_rodeo' })
   rodeo: Rodeos;
+
+  // Rodeo lechero: los calcula TamboService a partir de eventos_reproductivos.
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  estado_reproductivo: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  fecha_ultimo_parto: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  fecha_ultimo_servicio: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  fecha_ultimo_parche: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  fecha_parto_probable: string | null;
+
+  @Column({ type: 'int', default: 0 })
+  numero_servicios: number;
 
   @CreateDateColumn()
   creado_en: Date;

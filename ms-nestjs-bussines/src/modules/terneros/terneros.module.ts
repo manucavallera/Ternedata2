@@ -11,6 +11,7 @@ import { DiarreaTerneroEntity } from '../diarrea-terneros/entities/diarrea-terne
 import { Rodeos } from '../rodeos/entities/rodeos.entity';
 import { PesajeTerneroEntity } from './entities/pesaje-ternero.entity';
 import { CalostradoTerneroEntity } from './entities/calostrado-ternero.entity';
+import { TamboModule } from '../tambo/tambo.module';
 // ⬅️ ELIMINADO: import { PadreEntity } from '../padres/entities/padre.entity';
 
 @Module({
@@ -26,6 +27,7 @@ import { CalostradoTerneroEntity } from './entities/calostrado-ternero.entity';
       CalostradoTerneroEntity,
       // ⬅️ ELIMINADO: PadreEntity
     ]),
+    TamboModule,
   ],
   controllers: [TernerosController],
   providers: [TernerosService, JwtStrategy],

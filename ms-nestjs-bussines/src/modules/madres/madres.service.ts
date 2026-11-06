@@ -15,10 +15,11 @@ import { Repository } from 'typeorm';
 
 function calcularDiasEnLeche(madre: MadreEntity): number | null {
   if (madre.estado !== 'En Tambo') return null;
-  if (!madre.terneros || madre.terneros.length === 0) return null;
 
-  const fechaUltimoParto = madre.terneros
-    .map((t) => new Date(t.fecha_nacimiento))
+  // El parto registrado como evento manda; si no hay, el último ternero cargado.
+  const fechas = (madre.terneros || []).map((t) => new Date(t.fecha_nacimiento));
+  if (madre.fecha_ultimo_parto) fechas.push(new Date(madre.fecha_ultimo_parto));
+  const fechaUltimoParto = fechas
     .filter((fecha) => !isNaN(fecha.getTime()))
     .reduce((max, fecha) => (fecha > max ? fecha : max), new Date(0));
 

@@ -1,0 +1,161 @@
+require('dotenv').config({ path: __dirname + '/.env.test' });
+const axios = require('axios');
+const { retryOn429 } = require('./helpers/http');
+
+// Crea campos de prueba y los borra al final: corre solo contra el entorno local.
+const securityApi = axios.create({ baseURL: process.env.SECURITY_URL, timeout: 20000 });
+const businessApi = axios.create({ baseURL: process.env.BUSSINES_URL, timeout: 20000, validateStatus: (status) => status !== 429 });
+retryOn429(securityApi);
+retryOn429(businessApi);
+
+const state = { token: null, campo: null, otroCampo: null, forrajeria: null };
+const sufijo = Date.now() % 99999;
+const en = (idEstablecimiento) => ({
+  headers: { Authorization: `Bearer ${state.token}` },
+  params: { id_establecimiento: idEstablecimiento },
+});
+
+// Fecha de Argentina (UTC-3) corrida n días.
+const haceDias = (n) => new Date(Date.now() - 3 * 3600e3 - n * 86400e3).toISOString().slice(0, 10);
+
+const crearEstablecimiento = async (nombre, tipo) => {
+  const res = await businessApi.post('/establecimientos', {
+    nombre, ubicacion: 'TEST tambo', responsable: 'TEST QA', tipo_organizacion: tipo,
+  }, { headers: { Authorization: `Bearer ${state.token}` } });
+  expect([200, 201]).toContain(res.status);
+  const refresh = await securityApi.post('/auth/refresh', {}, { headers: { Authorization: `Bearer ${state.token}` } });
+  state.token = refresh.data.token;
+  return res.data.id_establecimiento;
+};
+
+const crearVaca = async (campo, rp, estado = 'En Tambo') => {
+  const res = await businessApi.post('/madres/crear-madre', { nombre: `TEST vaca ${rp}`, rp_madre: rp, estado }, en(campo));
+  expect([200, 201]).toContain(res.status);
+  return res.data.id_madre;
+};
+
+const evento = (campo, cuerpo) => businessApi.post('/tambo/eventos', cuerpo, en(campo));
+const vaca = async (campo, id) => (await businessApi.get('/tambo/rodeo', en(campo))).data.find((m) => m.id_madre === id);
+const pendientes = async (campo) => (await businessApi.get('/tambo/pendientes', en(campo))).data.pendientes;
+const ids = (lista) => lista.map((i) => i.id_madre);
+
+describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
+  const v = {};
+
+  beforeAll(async () => {
+    const login = await securityApi.post('/auth/login', { email: process.env.TEST_EMAIL, password: process.env.TEST_PASSWORD });
+    state.token = login.data.token;
+    state.campo = await crearEstablecimiento(`TEST_Tambo_${sufijo}`, 'ganaderia');
+    state.otroCampo = await crearEstablecimiento(`TEST_Tambo_B_${sufijo}`, 'ganaderia');
+    state.forrajeria = await crearEstablecimiento(`TEST_Tambo_F_${sufijo}`, 'forrajeria');
+    v.a = await crearVaca(state.campo, 9001);
+    v.b = await crearVaca(state.campo, 9002, 'Seca');
+    v.ajena = await crearVaca(state.otroCampo, 9003);
+  }, 240000);
+
+  afterAll(async () => {
+    const auth = { headers: { Authorization: `Bearer ${state.token}` } };
+    for (const [campo, id] of [[state.campo, v.a], [state.campo, v.b], [state.otroCampo, v.ajena]]) {
+      if (id) await businessApi.delete(`/madres/delete-madre-by-id/${id}`, en(campo));
+    }
+    for (const id of [state.campo, state.otroCampo, state.forrajeria]) {
+      if (id) await businessApi.delete(`/establecimientos/${id}`, auth);
+    }
+  });
+
+  test('una forrajería no usa el tambo y sin token da 401', async () => {
+    expect((await businessApi.get('/tambo/pendientes', en(state.forrajeria))).status).toBe(403);
+    expect((await businessApi.get('/tambo/pendientes', { params: { id_establecimiento: state.campo } })).status).toBe(401);
+  });
+
+  test('acepta las categorías nuevas de vaca', async () => {
+    const res = await businessApi.patch(`/madres/patch-madre-by-id/${v.b}`, { estado: 'Preparto' }, en(state.campo));
+    expect(res.status).toBe(200);
+    expect((await businessApi.patch(`/madres/patch-madre-by-id/${v.b}`, { estado: 'Seca' }, en(state.campo))).status).toBe(200);
+    expect((await businessApi.patch(`/madres/patch-madre-by-id/${v.b}`, { estado: 'Inventada' }, en(state.campo))).status).toBe(400);
+  });
+
+  test('valida el evento', async () => {
+    expect((await evento(state.campo, { id_madre: v.a, tipo: 'tacto', fecha: haceDias(1) })).status).toBe(400);
+    expect((await evento(state.campo, { id_madre: v.a, tipo: 'vacunacion', fecha: haceDias(1) })).status).toBe(400);
+    expect((await evento(state.campo, { id_madre: v.a, tipo: 'parto', fecha: haceDias(-3) })).status).toBe(400);
+    expect((await evento(state.campo, { id_madre: v.ajena, tipo: 'parto', fecha: haceDias(1) })).status).toBe(404);
+  });
+
+  test('parto: la vaca queda parida, en tambo y aparece sin inseminar y para parchar', async () => {
+    const res = await evento(state.campo, { id_madre: v.a, tipo: 'parto', fecha: haceDias(70) });
+    expect(res.status).toBe(201);
+    expect(res.data.madre).toMatchObject({ estado_reproductivo: 'parida', fecha_ultimo_parto: haceDias(70) });
+    const m = await vaca(state.campo, v.a);
+    expect(m).toMatchObject({ estado: 'En Tambo', dias_en_leche: 70 });
+    const p = await pendientes(state.campo);
+    expect(ids(p.sin_inseminar)).toContain(v.a);
+    expect(ids(p.reemparche)).toContain(v.a);
+  });
+
+  test('parche e inseminación: sale de sin inseminar y del reemparche, entra a tactar a los 35 días', async () => {
+    expect((await evento(state.campo, { id_madre: v.a, tipo: 'parche', fecha: haceDias(5) })).status).toBe(201);
+    const ins = await evento(state.campo, { id_madre: v.a, tipo: 'inseminacion', fecha: haceDias(40), toro: 'TEST Pajuela 1' });
+    expect(ins.status).toBe(201);
+    expect(ins.data.madre).toMatchObject({ estado_reproductivo: 'inseminada', numero_servicios: 1 });
+    const p = await pendientes(state.campo);
+    expect(ids(p.sin_inseminar)).not.toContain(v.a);
+    expect(ids(p.reemparche)).not.toContain(v.a);
+    expect(p.a_tactar.find((i) => i.id_madre === v.a)).toMatchObject({ dias: 40, rp_madre: 9001 });
+  });
+
+  test('tacto positivo deja preñada; borrar el tacto la vuelve a inseminada', async () => {
+    const tacto = await evento(state.campo, { id_madre: v.a, tipo: 'tacto', fecha: haceDias(1), resultado: 'preñada' });
+    expect(tacto.status).toBe(201);
+    expect(tacto.data.madre.estado_reproductivo).toBe('preñada');
+    expect(tacto.data.madre.fecha_parto_probable).toBeTruthy();
+    expect(ids((await pendientes(state.campo)).a_tactar)).not.toContain(v.a);
+
+    const borrar = await businessApi.delete(`/tambo/eventos/${tacto.data.evento.id_evento}`, en(state.campo));
+    expect(borrar.status).toBe(200);
+    expect(borrar.data.madre.estado_reproductivo).toBe('inseminada');
+
+    const otroCampo = await businessApi.delete(`/tambo/eventos/${tacto.data.evento.id_evento}`, en(state.otroCampo));
+    expect(otroCampo.status).toBe(404);
+  });
+
+  test('una vaca seca preñada con parto cerca aparece para preparto; el evento preparto la pasa', async () => {
+    // Ecografía de hace 1 día con 270 días de gestación: pare en unos 12 días.
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'tacto', fecha: haceDias(1), resultado: 'preñada', dias_gestacion: 270 })).status).toBe(201);
+    let p = await pendientes(state.campo);
+    expect(ids(p.a_preparto)).toContain(v.b);
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'preparto', fecha: haceDias(0) })).status).toBe(201);
+    expect((await vaca(state.campo, v.b)).estado).toBe('Preparto');
+    p = await pendientes(state.campo);
+    expect(ids(p.a_preparto)).not.toContain(v.b);
+  });
+
+  test('un evento viejo no cambia la categoría actual', async () => {
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'secado', fecha: haceDias(60) })).status).toBe(201);
+    expect((await vaca(state.campo, v.b)).estado).toBe('Preparto');
+  });
+
+  test('resumen e historial de la vaca', async () => {
+    const r = (await businessApi.get('/tambo/resumen', en(state.campo))).data;
+    expect(r.total).toBe(2);
+    expect(r.por_categoria).toMatchObject({ 'En Tambo': 1, Preparto: 1 });
+    expect(r.por_estado).toMatchObject({ inseminada: 1, preñada: 1 });
+    expect(r.promedio_dias_en_leche).toBe(70);
+
+    const historial = (await businessApi.get('/tambo/eventos', { ...en(state.campo), params: { id_establecimiento: state.campo, id_madre: v.a } })).data;
+    expect(historial.map((e) => e.tipo)).toEqual(['parche', 'inseminacion', 'parto']);
+    expect(historial[1].toro).toBe('TEST Pajuela 1');
+    expect((await businessApi.get('/tambo/eventos', en(state.otroCampo))).data).toEqual([]);
+  });
+
+  test('configuración por campo cambia los pendientes', async () => {
+    const leer = await businessApi.get('/tambo/configuracion', en(state.campo));
+    expect(leer.data).toMatchObject({ dias_espera: 50, dias_tacto: 35, dias_secado: 60, dias_preparto: 21 });
+    expect((await businessApi.patch('/tambo/configuracion', { dias_tacto: 10 }, en(state.campo))).status).toBe(400);
+    const cambiar = await businessApi.patch('/tambo/configuracion', { dias_tacto: 45 }, en(state.campo));
+    expect(cambiar.status).toBe(200);
+    expect(cambiar.data.dias_tacto).toBe(45);
+    expect(ids((await pendientes(state.campo)).a_tactar)).not.toContain(v.a);
+    expect((await businessApi.get('/tambo/configuracion', en(state.otroCampo))).data.dias_tacto).toBe(35);
+  });
+});

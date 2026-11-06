@@ -2534,9 +2534,8 @@ export class BotController {
           if (!rpMadre) return { success: false, mensaje: '👂 Me falta el RP de la madre.' };
 
           const estadoNuevo = String(body.estado || '').trim();
-          // El sistema solo maneja Seca / En Tambo para madres (la preñez es un
-          // evento de tacto, NO un estado de madre).
-          const ESTADOS_MADRE = ['Seca', 'En Tambo'];
+          // Categorías de la vaca. La preñez es un evento de tacto, no una categoría.
+          const ESTADOS_MADRE = ['Seca', 'En Tambo', 'Preparto', 'Vaquillona'];
           if (!ESTADOS_MADRE.includes(estadoNuevo)) {
             return { success: false, mensaje: `🤔 Ese estado no va para la madre. Solo puede ser *${ESTADOS_MADRE.join('* o *')}*.` };
           }

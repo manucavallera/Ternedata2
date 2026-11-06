@@ -102,7 +102,7 @@ function Navbar() {
 
   // En una forrajería se muestran sus secciones en vez de las de ganadería.
   // Manda la página que se está viendo; en páginas comunes (perfil, admin) decide el campo elegido.
-  const RUTAS_GANADERIA = ["/admin/dashboard", "/rodeos", "/litros", "/calendario", "/sustituto"];
+  const RUTAS_GANADERIA = ["/admin/dashboard", "/rodeos", "/tambo", "/litros", "/calendario", "/sustituto"];
   const campoElegido = (misEstablecimientos || []).find(
     (e) => Number(e.id_establecimiento) === Number(establecimientoActual)
   );
@@ -202,6 +202,14 @@ function Navbar() {
                     <path strokeLinecap='round' strokeLinejoin='round' d='M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z' />
                   </svg>
                   Rodeos
+                </button>
+
+                <button
+                  onClick={() => router.push("/tambo")}
+                  className={`text-sm font-bold flex items-center hover:text-green-200 transition-colors duration-200 gap-1 ${pathname === "/tambo" ? "underline underline-offset-4" : ""}`}
+                >
+                  <span className='text-base leading-none'>🐄</span>
+                  Tambo
                 </button>
 
                 <button
@@ -485,6 +493,17 @@ function Navbar() {
                 />
               </svg>
               Rodeos
+            </button>
+
+            <button
+              onClick={() => {
+                router.push("/tambo");
+                setIsMobileMenuOpen(false);
+              }}
+              className='flex items-center gap-2 px-3 py-2 hover:bg-green-600 rounded text-sm font-semibold'
+            >
+              <span className='text-lg leading-none'>🐄</span>
+              Tambo
             </button>
 
             <button

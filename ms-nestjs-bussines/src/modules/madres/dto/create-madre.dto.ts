@@ -23,10 +23,10 @@ export class CreateMadreDto {
   @ApiProperty({
     description: 'Estado de la madre',
     example: 'Seca',
-    enum: ['Seca', 'En Tambo'],
+    enum: ['Seca', 'En Tambo', 'Preparto', 'Vaquillona'],
   })
   @IsNotEmpty()
-  @IsEnum(['Seca', 'En Tambo'])
+  @IsEnum(['Seca', 'En Tambo', 'Preparto', 'Vaquillona'])
   estado: string;
 
   @ApiProperty({
