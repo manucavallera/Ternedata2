@@ -15,7 +15,7 @@ export class CreateLitrosDto {
   @IsDateString()
   fecha: string;
 
-  @ApiProperty({ description: 'Litros vendidos', example: 1835 })
+  @ApiProperty({ description: 'Litros a fábrica (vendidos)', example: 1835 })
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
@@ -40,6 +40,15 @@ export class CreateLitrosDto {
   @IsInt()
   @Min(0)
   cantidad_vacas?: number;
+
+  @ApiProperty({
+    description: 'Vacas en ordeñe con la leche descartada (tratamiento)',
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  vacas_en_tratamiento?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()

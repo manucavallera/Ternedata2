@@ -34,6 +34,10 @@ export class RegistroLitrosEntity {
   @Column({ type: 'int', nullable: true })
   cantidad_vacas: number;
 
+  // Vacas en ordeñe cuya leche no va a fábrica (tratamiento con antibiótico).
+  @Column({ type: 'int', nullable: true })
+  vacas_en_tratamiento: number | null;
+
   @CreateDateColumn()
   creado_en: Date;
 
