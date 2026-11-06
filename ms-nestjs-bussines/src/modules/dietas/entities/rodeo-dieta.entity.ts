@@ -30,9 +30,14 @@ export class RodeoDietaEntity {
   @Column({ type: 'numeric', nullable: true })
   kg_por_animal: number;
 
-  // modo 'mezcla': lista de { nombre, kg } — kg totales que van a la mezcla
+  // modo 'mezcla': lista de { nombre, kg, icono } — kg totales que van a la
+  // mezcla. El orden de la lista es el orden de carga del mixer.
   @Column({ type: 'jsonb', nullable: true })
-  ingredientes: { nombre: string; kg: number }[];
+  ingredientes: { nombre: string; kg: number; icono?: string | null }[];
+
+  // modo 'mezcla': en cuántas cargas del mixer se divide la ración.
+  @Column({ type: 'int', default: 1 })
+  cargas: number;
 
   @Column({ type: 'varchar', nullable: true })
   nombre: string;

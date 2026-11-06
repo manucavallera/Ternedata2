@@ -167,3 +167,33 @@ export const planillaACuerpo = (filas) => {
     resumen: { vacas: conDato, litros, promedio: conDato ? Math.round((litros / conDato) * 10) / 10 : null },
   };
 };
+
+// ---------- mixers ----------
+
+export const ICONOS_INGREDIENTE = ["🌽", "🌾", "🌱", "🫘", "🥜", "🧂", "💧", "🟤", "🟢", "🟡"];
+
+// Mueve el elemento i una posición arriba (-1) o abajo (+1). Fuera de rango no cambia.
+export const mover = (lista, i, delta) => {
+  const j = i + delta;
+  if (i < 0 || i >= lista.length || j < 0 || j >= lista.length) return lista;
+  const copia = [...lista];
+  [copia[i], copia[j]] = [copia[j], copia[i]];
+  return copia;
+};
+
+// Ingredientes del formulario -> cuerpo del PATCH/POST. Saltea filas vacías.
+export const ingredientesACuerpo = (filas) => {
+  const errores = [];
+  const ingredientes = [];
+  for (const f of filas) {
+    const nombre = (f.nombre || "").trim();
+    const textoKg = String(f.kg ?? "").trim().replace(",", ".");
+    if (!nombre && !textoKg) continue;
+    const kg = Number(textoKg);
+    if (!nombre) errores.push("Falta el nombre de un ingrediente");
+    else if (textoKg === "" || !Number.isFinite(kg) || kg < 0) errores.push(`${nombre}: kg inválidos`);
+    else ingredientes.push({ nombre, kg, ...(f.icono ? { icono: f.icono } : {}) });
+  }
+  if (!errores.length && !ingredientes.length) errores.push("Cargá al menos un ingrediente");
+  return { errores, ingredientes };
+};
