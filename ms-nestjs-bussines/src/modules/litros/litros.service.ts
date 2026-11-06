@@ -50,6 +50,7 @@ export class LitrosService {
         litros_terneros: dto.litros_terneros,
         observaciones: dto.observaciones,
         cantidad_vacas: cantidadVacas,
+        vacas_en_tratamiento: dto.vacas_en_tratamiento ?? null,
         id_establecimiento: idEstablecimiento,
       });
       const guardado = await this.litrosRepository.save(registro);
@@ -95,6 +96,7 @@ export class LitrosService {
           litros_terneros: 0,
           total: 0,
           cantidad_vacas: cantidadRodeo,
+          vacas_rodeo: cantidadRodeo,
           promedio: null,
         };
       }
@@ -115,6 +117,8 @@ export class LitrosService {
         litros_terneros: conjunto.litros_terneros,
         total: conjunto.total,
         cantidad_vacas: cantidadVacas,
+        vacas_en_tratamiento: ultimo.vacas_en_tratamiento ?? null,
+        vacas_rodeo: cantidadRodeo,
         promedio,
       };
     } catch (error) {
@@ -146,6 +150,8 @@ export class LitrosService {
       registro.observaciones = dto.observaciones;
     if (dto.cantidad_vacas !== undefined)
       registro.cantidad_vacas = dto.cantidad_vacas;
+    if (dto.vacas_en_tratamiento !== undefined)
+      registro.vacas_en_tratamiento = dto.vacas_en_tratamiento;
     const guardado = await this.litrosRepository.save(registro);
     return conTotal(guardado);
   }

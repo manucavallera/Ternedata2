@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useBussinesMicroservicio } from "@/hooks/bussines";
 import { esAdminGlobal } from "@/utils/roles";
+import GraficosProduccion from "./GraficosProduccion";
+import { advertencias, fechaLarga, hoyAR, litrosPorVaca, porDia } from "./produccion";
 
-const hoyISO = () => new Date().toISOString().slice(0, 10);
+const FORM_VACIO = () => ({
+  fecha: hoyAR(),
+  litros_vendido: "",
+  litros_terneros: "",
+  cantidad_vacas: "",
+  vacas_en_tratamiento: "",
+  observaciones: "",
+});
 
 const ListadoLitros = () => {
   const { userPayload, establecimientoActual } = useSelector(
@@ -27,13 +36,15 @@ const ListadoLitros = () => {
 
   const [ajustandoVacas, setAjustandoVacas] = useState(false);
 
-  const [form, setForm] = useState({
-    fecha: hoyISO(),
-    litros_vendido: "",
-    litros_terneros: "",
-    cantidad_vacas: "",
-    observaciones: "",
-  });
+  const [form, setFormEstado] = useState(FORM_VACIO);
+  // Avisos mostrados para la carga actual: un segundo click guarda igual.
+  const [avisos, setAvisos] = useState([]);
+  const setForm = (nuevo) => {
+    setAvisos([]);
+    setFormEstado(nuevo);
+  };
+
+  const dias = useMemo(() => porDia(registros), [registros]);
 
   const idEstab =
     esAdminGlobal(userPayload) && establecimientoActual
@@ -64,7 +75,6 @@ const ListadoLitros = () => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    setGuardando(true);
     setError(null);
     const payload = {
       fecha: form.fecha,
@@ -74,17 +84,33 @@ const ListadoLitros = () => {
     };
     if (form.cantidad_vacas !== "")
       payload.cantidad_vacas = parseInt(form.cantidad_vacas, 10);
+    if (form.vacas_en_tratamiento !== "")
+      payload.vacas_en_tratamiento = parseInt(form.vacas_en_tratamiento, 10);
     if (idEstab) payload.id_establecimiento = idEstab;
+
+    if (avisos.length === 0) {
+      const nuevos = advertencias(
+        {
+          fecha: form.fecha,
+          total: payload.litros_vendido + payload.litros_terneros,
+          // Sin vacas cargadas el backend usa el conteo del rodeo.
+          vacas: payload.cantidad_vacas ?? stats?.vacas_rodeo ?? null,
+          tratamiento: payload.vacas_en_tratamiento ?? null,
+        },
+        dias,
+        stats?.vacas_rodeo
+      );
+      if (nuevos.length > 0) {
+        setAvisos(nuevos);
+        return;
+      }
+    }
+
+    setGuardando(true);
 
     const res = await registrarLitrosHook(payload);
     if (res?.status === 201 || res?.status === 200) {
-      setForm({
-        fecha: hoyISO(),
-        litros_vendido: "",
-        litros_terneros: "",
-        cantidad_vacas: "",
-        observaciones: "",
-      });
+      setForm(FORM_VACIO());
       await cargar();
     } else {
       setError(res?.data?.message || "No se pudo registrar.");
@@ -143,15 +169,13 @@ const ListadoLitros = () => {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5 mb-6">
             <div className="text-sm text-gray-500 mb-3">
               {stats.fecha
-                ? `Último registro: ${new Date(
-                    stats.fecha
-                  ).toLocaleDateString("es-AR")}`
+                ? `Último registro: ${fechaLarga(stats.fecha)}`
                 : "Sin registros aún"}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="text-xs text-blue-600 font-semibold">
-                  Vendido
+                  A fábrica
                 </div>
                 <div className="text-xl font-bold text-blue-700">
                   {stats.litros_vendido} lts
@@ -175,7 +199,7 @@ const ListadoLitros = () => {
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-xs text-gray-500 font-semibold">
-                  Vacas (tambo)
+                  Vacas en ordeñe
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <button
@@ -237,7 +261,7 @@ const ListadoLitros = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
-              Litros vendidos
+              Litros a fábrica
             </label>
             <input
               type="number"
@@ -283,10 +307,26 @@ const ListadoLitros = () => {
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder={
-                stats?.cantidad_vacas != null
-                  ? `Rodeo: ${stats.cantidad_vacas}`
+                stats?.vacas_rodeo != null
+                  ? `Rodeo: ${stats.vacas_rodeo}`
                   : "Ej: 71"
               }
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">
+              Vacas en tratamiento (opcional)
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={form.vacas_en_tratamiento}
+              onChange={(e) =>
+                setForm({ ...form, vacas_en_tratamiento: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="Leche que no va a fábrica"
             />
           </div>
           <div>
@@ -303,14 +343,26 @@ const ListadoLitros = () => {
             />
           </div>
         </div>
+        {avisos.length > 0 && (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+            <p className="font-semibold">⚠️ Revisá la carga antes de guardar:</p>
+            <ul className="mt-1 list-disc pl-5">
+              {avisos.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <button
           type="submit"
           disabled={guardando}
           className="mt-4 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-medium transition-colors"
         >
-          {guardando ? "Guardando..." : "Registrar"}
+          {guardando ? "Guardando..." : avisos.length > 0 ? "Guardar igual" : "Registrar"}
         </button>
       </form>
+
+      <GraficosProduccion dias={dias} />
 
       {/* Historial */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
@@ -327,9 +379,11 @@ const ListadoLitros = () => {
               <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                 <tr>
                   <th className="px-4 py-2 text-left">Fecha</th>
-                  <th className="px-4 py-2 text-right">Vendido</th>
+                  <th className="px-4 py-2 text-right">A fábrica</th>
                   <th className="px-4 py-2 text-right">Terneros</th>
                   <th className="px-4 py-2 text-right">Total</th>
+                  <th className="px-4 py-2 text-right">Vacas</th>
+                  <th className="px-4 py-2 text-right">L/vaca</th>
                   <th className="px-4 py-2 text-left">Obs.</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -338,12 +392,21 @@ const ListadoLitros = () => {
                 {registros.map((r) => (
                   <tr key={r.id_registro} className="border-t border-gray-100">
                     <td className="px-4 py-2">
-                      {new Date(r.fecha).toLocaleDateString("es-AR")}
+                      {fechaLarga(r.fecha)}
                     </td>
                     <td className="px-4 py-2 text-right">{r.litros_vendido}</td>
                     <td className="px-4 py-2 text-right">{r.litros_terneros}</td>
                     <td className="px-4 py-2 text-right font-semibold text-emerald-700">
                       {r.total}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.cantidad_vacas ?? "—"}
+                      {r.vacas_en_tratamiento ? (
+                        <span className="text-xs text-gray-500"> ({r.vacas_en_tratamiento} trat.)</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {litrosPorVaca(r.total, r.cantidad_vacas) ?? "—"}
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {r.observaciones || "—"}

@@ -210,4 +210,23 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
       expect((await businessApi.get('/tambo/controles', en(state.campo))).data).toHaveLength(1);
     });
   });
+
+  describe('producción diaria', () => {
+    test('guarda vacas en tratamiento y stats trae el conteo del rodeo', async () => {
+      const alta = await businessApi.post('/litros/registrar', {
+        fecha: haceDias(1), litros_vendido: 1800, litros_terneros: 60, cantidad_vacas: 80, vacas_en_tratamiento: 3,
+      }, en(state.campo));
+      expect(alta.status).toBe(201);
+      expect(alta.data).toMatchObject({ cantidad_vacas: 80, vacas_en_tratamiento: 3, total: 1860 });
+
+      const stats = (await businessApi.get('/litros/stats', en(state.campo))).data;
+      expect(stats).toMatchObject({ cantidad_vacas: 80, vacas_en_tratamiento: 3, vacas_rodeo: 1, promedio: 23.25 });
+
+      expect((await businessApi.post('/litros/registrar', { fecha: haceDias(1), litros_vendido: 1, litros_terneros: 0, vacas_en_tratamiento: -1 }, en(state.campo))).status).toBe(400);
+
+      const editar = await businessApi.patch(`/litros/${alta.data.id_registro}`, { vacas_en_tratamiento: 0 }, en(state.campo));
+      expect(editar.data.vacas_en_tratamiento).toBe(0);
+      expect((await businessApi.delete(`/litros/${alta.data.id_registro}`, en(state.campo))).status).toBe(200);
+    });
+  });
 });
