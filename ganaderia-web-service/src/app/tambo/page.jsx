@@ -230,6 +230,9 @@ export default function RodeoLechero() {
           <Link href="/tambo/control" className="rounded-lg border border-green-600 px-4 py-2 font-semibold text-green-700 hover:bg-green-50">
             🥛 Control lechero
           </Link>
+          <Link href="/tambo/mixer" className="rounded-lg border border-green-600 px-4 py-2 font-semibold text-green-700 hover:bg-green-50">
+            🚜 Mixers
+          </Link>
           {puedeCargar && !form && (
             <button onClick={() => setForm({})} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">
               + Cargar evento

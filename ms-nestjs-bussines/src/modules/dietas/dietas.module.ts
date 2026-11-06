@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DietasService } from './dietas.service';
 import { DietasController } from './dietas.controller';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 import { RodeoDietaEntity } from './entities/rodeo-dieta.entity';
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
 import { MadreEntity } from '../madres/entities/madre.entity';
@@ -11,6 +12,7 @@ import { JwtStrategy } from '../auth/jwt.strategy';
   imports: [
     TypeOrmModule.forFeature([
       RodeoDietaEntity,
+      Rodeos,
       TerneroEntity,
       MadreEntity,
     ]),

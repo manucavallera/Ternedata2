@@ -229,4 +229,47 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
       expect((await businessApi.delete(`/litros/${alta.data.id_registro}`, en(state.campo))).status).toBe(200);
     });
   });
+
+  describe('mixers', () => {
+    test('calcula kg por cabeza, por carga y parcial; valida rodeo y cargas', async () => {
+      const rodeo = await businessApi.post('/rodeos', { nombre: `TEST mixer ${sufijo}`, tipo: 'otro', id_establecimiento: state.campo }, en(state.campo));
+      expect([200, 201]).toContain(rodeo.status);
+      const idRodeo = rodeo.data.id_rodeo;
+      const rodeoAjeno = await businessApi.post('/rodeos', { nombre: `TEST mixer B ${sufijo}`, tipo: 'otro', id_establecimiento: state.otroCampo }, en(state.otroCampo));
+      // Las dos vacas del campo pasan al rodeo del mixer.
+      for (const id of [v.a, v.b]) {
+        expect((await businessApi.patch(`/madres/patch-madre-by-id/${id}`, { id_rodeo: idRodeo }, en(state.campo))).status).toBe(200);
+      }
+
+      const cuerpo = {
+        id_rodeo: idRodeo, modo: 'mezcla', nombre: 'TEST ración', cargas: 2,
+        ingredientes: [{ nombre: 'Silo', kg: 100, icono: '🌽' }, { nombre: 'Expeller', kg: 30 }],
+      };
+      expect((await businessApi.post('/dietas/crear', { ...cuerpo, id_rodeo: rodeoAjeno.data.id_rodeo }, en(state.campo))).status).toBe(404);
+      expect((await businessApi.post('/dietas/crear', { ...cuerpo, cargas: 0 }, en(state.campo))).status).toBe(400);
+
+      const alta = await businessApi.post('/dietas/crear', cuerpo, en(state.campo));
+      expect(alta.status).toBe(201);
+      expect(alta.data).toMatchObject({ cargas: 2, cantidad_animales: 2, kg_por_carga: 65, total_rodeo: 130, kg_por_animal: 65 });
+      expect(alta.data.ingredientes).toEqual([
+        { nombre: 'Silo', icono: '🌽', kg: 100, kg_por_cabeza: 50, kg_por_carga: 50, parcial_carga: 50 },
+        { nombre: 'Expeller', icono: null, kg: 30, kg_por_cabeza: 15, kg_por_carga: 15, parcial_carga: 65 },
+      ]);
+
+      // Cambiar el orden de carga y las cargas.
+      const editar = await businessApi.patch(`/dietas/${alta.data.id_dieta}`, { cargas: 3, ingredientes: [cuerpo.ingredientes[1], cuerpo.ingredientes[0]] }, en(state.campo));
+      expect(editar.status).toBe(200);
+      expect(editar.data.ingredientes.map((i) => [i.nombre, i.kg_por_carga, i.parcial_carga])).toEqual([['Expeller', 10, 10], ['Silo', 33.33, 43.33]]);
+      expect((await businessApi.patch(`/dietas/${alta.data.id_dieta}`, { id_rodeo: rodeoAjeno.data.id_rodeo }, en(state.campo))).status).toBe(404);
+
+      const lista = (await businessApi.get('/dietas', { ...en(state.campo), params: { id_establecimiento: state.campo, modo: 'mezcla' } })).data;
+      expect(lista).toEqual([expect.objectContaining({ id_dieta: alta.data.id_dieta, rodeo: { id_rodeo: idRodeo, nombre: `TEST mixer ${sufijo}` } })]);
+      expect((await businessApi.get('/dietas', en(state.otroCampo))).data).toEqual([]);
+
+      expect((await businessApi.delete(`/dietas/${alta.data.id_dieta}`, en(state.campo))).status).toBe(200);
+      for (const id of [v.a, v.b]) await businessApi.patch(`/madres/patch-madre-by-id/${id}`, { id_rodeo: null }, en(state.campo));
+      await businessApi.delete(`/rodeos/${idRodeo}`, en(state.campo));
+      await businessApi.delete(`/rodeos/${rodeoAjeno.data.id_rodeo}`, en(state.otroCampo));
+    });
+  });
 });
