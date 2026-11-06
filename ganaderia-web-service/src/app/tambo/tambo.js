@@ -100,3 +100,70 @@ export const detalleVaca = (v) => {
   }
   return partes.join(" · ");
 };
+
+// ---------- control lechero ----------
+
+const litrosTexto = (n) => (n == null ? "-" : String(n).replace(".", ","));
+
+// "Control 26/09: 14,5 + 12 = 26,5 L"
+export const textoControl = (c) =>
+  c ? `Control ${fechaCorta(c.fecha)}: ${litrosTexto(c.litros_manana)} + ${litrosTexto(c.litros_tarde)} = ${litrosTexto(c.total)} L` : "";
+
+// Lo que se escribe en la planilla: vacío es null, acepta coma decimal.
+export const leerLitros = (texto) => {
+  const t = String(texto ?? "").trim().replace(",", ".");
+  if (t === "") return { valor: null };
+  if (!/^\d+(\.\d)?$/.test(t)) return { error: "Usá números con un decimal como máximo" };
+  const valor = Number(t);
+  if (valor > 80) return { error: "Más de 80 litros en un ordeñe" };
+  return { valor };
+};
+
+// Filas de la planilla: vacas en tambo más las que ya tienen control ese día.
+export const armarPlanilla = (vacas, controles = [], { todas = false } = {}) => {
+  const porVaca = new Map(controles.map((c) => [c.id_madre, c]));
+  return vacas
+    .filter((v) => todas || v.estado === "En Tambo" || porVaca.has(v.id_madre))
+    .sort((a, b) => (a.rp_madre ?? Infinity) - (b.rp_madre ?? Infinity))
+    .map((v) => {
+      const c = porVaca.get(v.id_madre);
+      return {
+        id_madre: v.id_madre,
+        rp_madre: v.rp_madre,
+        nombre: v.nombre,
+        manana: c?.litros_manana != null ? litrosTexto(c.litros_manana) : "",
+        tarde: c?.litros_tarde != null ? litrosTexto(c.litros_tarde) : "",
+        guardada: Boolean(c),
+      };
+    });
+};
+
+// Revisa la planilla y arma el cuerpo del POST. Solo manda las vacas con
+// litros o las que ya tenían control (vaciarlas lo borra).
+export const planillaACuerpo = (filas) => {
+  const errores = [];
+  const vacas = [];
+  let litros = 0;
+  let conDato = 0;
+  for (const f of filas) {
+    const m = leerLitros(f.manana);
+    const t = leerLitros(f.tarde);
+    if (m.error || t.error) {
+      errores.push(`${f.rp_madre ?? f.nombre}: ${m.error || t.error}`);
+      continue;
+    }
+    if (m.valor == null && t.valor == null) {
+      if (f.guardada) vacas.push({ id_madre: f.id_madre, litros_manana: null, litros_tarde: null });
+      continue;
+    }
+    vacas.push({ id_madre: f.id_madre, litros_manana: m.valor, litros_tarde: t.valor });
+    litros += (m.valor ?? 0) + (t.valor ?? 0);
+    conDato += 1;
+  }
+  litros = Math.round(litros * 10) / 10;
+  return {
+    errores,
+    vacas,
+    resumen: { vacas: conDato, litros, promedio: conDato ? Math.round((litros / conDato) * 10) / 10 : null },
+  };
+};

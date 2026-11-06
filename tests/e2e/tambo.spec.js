@@ -63,7 +63,7 @@ test.describe('Rodeo lechero desde la UI', () => {
     await test.step('historial y borrado del tacto', async () => {
       await page.getByPlaceholder('Buscar por caravana o nombre').fill(String(rp.a));
       await fila(rp.a).getByRole('button', { name: 'Historial' }).click();
-      const historial = fila(rp.a).locator('ul');
+      const historial = fila(rp.a).locator('[data-historial="eventos"]');
       await expect(historial).toContainText('Tacto / ecografía · preñada');
       await expect(historial).toContainText('Inseminación');
       const baja = esperarEscritura(page, '/tambo/eventos/');
@@ -71,5 +71,43 @@ test.describe('Rodeo lechero desde la UI', () => {
       expect((await baja).status()).toBe(200);
       await expect(fila(rp.a)).toContainText('Inseminada');
     });
+  });
+
+  test('planilla de control lechero y último control en el rodeo', async ({ page, api }) => {
+    await page.goto('/tambo/control');
+    const sufijo = Date.now() % 9999;
+    const rp = { a: 860000 + sufijo, b: 850000 + sufijo };
+    const id = {};
+    for (const [clave, numero] of Object.entries(rp)) {
+      const vaca = await api.crear('/madres/crear-madre', { nombre: `TEST E2E Control ${clave}`, rp_madre: numero, estado: 'En Tambo' });
+      id[clave] = vaca.id_madre;
+      api.borrarAlFinal(`/madres/delete-madre-by-id/${vaca.id_madre}`);
+    }
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Control lechero/ })).toBeVisible();
+    await page.getByPlaceholder('Buscar por caravana o nombre').fill(String(rp.a));
+    await page.getByLabel(`Mañana ${rp.a}`).fill('14,5');
+    await page.getByLabel(`Tarde ${rp.a}`).fill('12');
+    await page.getByPlaceholder('Buscar por caravana o nombre').fill(String(rp.b));
+    await page.getByLabel(`Mañana ${rp.b}`).fill('9,99');
+    await expect(page.getByText(`${rp.b}: Usá números con un decimal como máximo`)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Guardar control' })).toBeDisabled();
+    await page.getByLabel(`Mañana ${rp.b}`).fill('10');
+
+    const alta = esperarEscritura(page, '/tambo/controles');
+    await page.getByRole('button', { name: 'Guardar control' }).click();
+    expect((await alta).status()).toBe(201);
+    await expect(page.getByText(/^Guardado:/)).toBeVisible();
+
+    const dia = await (await api.pedir('GET', `/tambo/controles?fecha=${haceDias(0)}`)).json();
+    expect(dia.controles.filter((c) => [id.a, id.b].includes(c.id_madre)).map((c) => c.total).sort()).toEqual([10, 26.5]);
+
+    await page.getByRole('link', { name: 'Volver al rodeo' }).click();
+    await page.getByPlaceholder('Buscar por caravana o nombre').fill(String(rp.a));
+    const fila = page.locator('li').filter({ hasText: String(rp.a) }).first();
+    await expect(fila).toContainText('14,5 + 12 = 26,5 L');
+    await fila.getByRole('button', { name: 'Historial' }).click();
+    await expect(fila.locator('[data-historial="controles"]')).toContainText('26,5 L');
   });
 });
