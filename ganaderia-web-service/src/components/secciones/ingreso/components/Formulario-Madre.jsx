@@ -200,6 +200,8 @@ const FormularioMadre = ({ setStep }) => {
               >
                 <option value='Seca'>🌾 Seca</option>
                 <option value='En Tambo'>🥛 En Tambo</option>
+                <option value='Preparto'>🤰 Preparto</option>
+                <option value='Vaquillona'>🐄 Vaquillona</option>
               </select>
             </div>
 

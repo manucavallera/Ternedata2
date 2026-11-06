@@ -219,6 +219,8 @@ const ListadoMadre = () => {
             <option value=''>Todos los estados</option>
             <option value='Seca'>Seca</option>
             <option value='En Tambo'>En Tambo</option>
+            <option value='Preparto'>Preparto</option>
+            <option value='Vaquillona'>Vaquillona</option>
           </select>
           <button
             onClick={handleBuscar}
@@ -380,7 +382,7 @@ const ListadoMadre = () => {
                               : "bg-blue-500 text-blue-900"
                           }`}
                         >
-                          {madre.estado === "Seca" ? "Seca" : "En Tambo"}
+                          {madre.estado}
                         </span>
                         {madre.dias_en_leche != null && (
                           <p className='text-xs text-cyan-400 mt-1'>
@@ -603,6 +605,8 @@ const ListadoMadre = () => {
                     className='w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500'>
                     <option value='Seca'>Seca</option>
                     <option value='En Tambo'>En Tambo</option>
+                    <option value='Preparto'>Preparto</option>
+                    <option value='Vaquillona'>Vaquillona</option>
                   </select>
                 </div>
                 <div>

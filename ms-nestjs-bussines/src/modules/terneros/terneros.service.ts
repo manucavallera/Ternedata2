@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   CreateTerneroDto,
@@ -18,6 +19,7 @@ import { TerneroEntity } from './entities/ternero.entity';
 import { Repository } from 'typeorm';
 import { MadreEntity } from '../madres/entities/madre.entity';
 import { Rodeos } from '../rodeos/entities/rodeos.entity';
+import { TamboService } from '../tambo/tambo.service';
 import { PesajeTerneroEntity } from './entities/pesaje-ternero.entity';
 import { CalostradoTerneroEntity } from './entities/calostrado-ternero.entity';
 import {
@@ -52,6 +54,7 @@ export class TernerosService {
     private readonly pesajeRepository: Repository<PesajeTerneroEntity>,
     @InjectRepository(CalostradoTerneroEntity)
     private readonly calostradoRepository: Repository<CalostradoTerneroEntity>,
+    @Optional() private readonly tamboService?: TamboService,
   ) {}
 
   private async obtenerTerneroParaSeguimiento(
@@ -474,6 +477,11 @@ export class TernerosService {
         madre.estado = 'En Tambo';
         madre.id_rodeo = rodeoTambo.id_rodeo;
         await this.madreRepository.save(madre);
+      }
+
+      // El nacimiento es un parto: actualiza días en leche y estado reproductivo.
+      if (madre) {
+        await this.tamboService?.recalcularMadre(madre.id_madre);
       }
 
       try {

@@ -21,6 +21,7 @@ import { InvitacionesModule } from './modules/invitaciones/invitaciones.module';
 import { BotModule } from './modules/bot/bot.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { LitrosModule } from './modules/litros/litros.module';
+import { TamboModule } from './modules/tambo/tambo.module';
 import { DietasModule } from './modules/dietas/dietas.module';
 import { HistorialModule } from './modules/historial/historial.module';
 import { SustitutoModule } from './modules/sustituto/sustituto.module';
@@ -91,6 +92,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     BotModule,
     AlertsModule,
     LitrosModule,
+    TamboModule,
     DietasModule,
     HistorialModule,
     SustitutoModule,
