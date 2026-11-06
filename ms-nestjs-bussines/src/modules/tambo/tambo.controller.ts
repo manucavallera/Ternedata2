@@ -20,6 +20,7 @@ import { OrganizacionTipoGuard } from '../auth/organizacion-tipo.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { OrganizacionTipo } from '../establecimientos/organizacion-tipo.enum';
+import { GuardarControlDto } from './dto/guardar-control.dto';
 import { CreateEventoReproductivoDto } from './dto/create-evento-reproductivo.dto';
 import { UpdateConfigTamboDto } from './dto/update-config-tambo.dto';
 import { TamboService } from './tambo.service';
@@ -91,6 +92,41 @@ export class TamboController {
   @Roles('admin', 'veterinario')
   eliminarEvento(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
     return this.tamboService.eliminarEvento(req.id_establecimiento, id);
+  }
+
+  // Sin parámetros: fechas con control. Con fecha: la planilla de ese día.
+  // Con id_madre: los controles de esa vaca.
+  @Get('controles')
+  controles(
+    @Req() req: any,
+    @Query('fecha') fecha?: string,
+    @Query('id_madre') idMadre?: string,
+  ) {
+    const id = idOpcional(idMadre, 'id_madre');
+    if (id)
+      return this.tamboService.controlesDeVaca(req.id_establecimiento, id);
+    if (fecha) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || isNaN(Date.parse(fecha)))
+        throw new BadRequestException('fecha inválida');
+      return this.tamboService.controlDelDia(req.id_establecimiento, fecha);
+    }
+    return this.tamboService.fechasDeControl(req.id_establecimiento);
+  }
+
+  @Post('controles')
+  @Roles('admin', 'veterinario', 'operario')
+  guardarControl(@Req() req: any, @Body() dto: GuardarControlDto) {
+    return this.tamboService.guardarControl(
+      req.id_establecimiento,
+      dto,
+      req.user?.userId,
+    );
+  }
+
+  @Delete('controles/:id')
+  @Roles('admin', 'veterinario')
+  eliminarControl(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    return this.tamboService.eliminarControl(req.id_establecimiento, id);
   }
 
   @Get('configuracion')

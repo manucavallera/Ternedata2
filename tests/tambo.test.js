@@ -158,4 +158,56 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
     expect(ids((await pendientes(state.campo)).a_tactar)).not.toContain(v.a);
     expect((await businessApi.get('/tambo/configuracion', en(state.otroCampo))).data.dias_tacto).toBe(35);
   });
+
+  describe('control lechero', () => {
+    const control = (campo, cuerpo) => businessApi.post('/tambo/controles', cuerpo, en(campo));
+    const delDia = async (campo, fecha) =>
+      (await businessApi.get('/tambo/controles', { ...en(campo), params: { id_establecimiento: campo, fecha } })).data;
+
+    test('valida la planilla', async () => {
+      expect((await control(state.campo, { fecha: haceDias(0), vacas: [] })).status).toBe(400);
+      expect((await control(state.campo, { fecha: haceDias(-1), vacas: [{ id_madre: v.a, litros_manana: 10 }] })).status).toBe(400);
+      expect((await control(state.campo, { fecha: haceDias(0), vacas: [{ id_madre: v.a, litros_manana: 90 }] })).status).toBe(400);
+      expect((await control(state.campo, { fecha: haceDias(0), vacas: [{ id_madre: v.a, litros_manana: 10.25 }] })).status).toBe(400);
+      expect((await control(state.campo, { fecha: haceDias(0), vacas: [{ id_madre: v.a, litros_manana: 1 }, { id_madre: v.a, litros_manana: 2 }] })).status).toBe(400);
+      expect((await control(state.campo, { fecha: haceDias(0), vacas: [{ id_madre: v.ajena, litros_manana: 10 }] })).status).toBe(404);
+      expect((await control(state.forrajeria, { fecha: haceDias(0), vacas: [{ id_madre: v.a, litros_manana: 10 }] })).status).toBe(403);
+      expect((await businessApi.get('/tambo/controles', { ...en(state.campo), params: { id_establecimiento: state.campo, fecha: 'ayer' } })).status).toBe(400);
+    });
+
+    test('guarda, reemplaza y borra el control del día', async () => {
+      const fecha = haceDias(2);
+      const res = await control(state.campo, { fecha, vacas: [{ id_madre: v.a, litros_manana: 14.5, litros_tarde: 12 }, { id_madre: v.b, litros_manana: 3 }] });
+      expect(res.status).toBe(201);
+      expect(res.data).toMatchObject({ fecha, vacas: 2, litros: 29.5, promedio: 14.8 });
+
+      const otra = await control(state.campo, { fecha, vacas: [{ id_madre: v.a, litros_manana: 15, litros_tarde: 13 }, { id_madre: v.b, litros_manana: null, litros_tarde: null }] });
+      expect(otra.status).toBe(201);
+      expect(otra.data).toMatchObject({ vacas: 1, litros: 28 });
+      expect(otra.data.controles).toEqual([expect.objectContaining({ id_madre: v.a, litros_manana: 15, litros_tarde: 13, total: 28 })]);
+
+      expect((await delDia(state.otroCampo, fecha)).vacas).toBe(0);
+    });
+
+    test('el rodeo muestra el último control y la vaca tiene su historial', async () => {
+      expect((await control(state.campo, { fecha: haceDias(9), vacas: [{ id_madre: v.a, litros_manana: 20, litros_tarde: 18.5 }] })).status).toBe(201);
+      expect((await vaca(state.campo, v.a)).ultimo_control).toEqual({ fecha: haceDias(2), litros_manana: 15, litros_tarde: 13, total: 28 });
+      expect((await vaca(state.campo, v.b)).ultimo_control).toBeNull();
+
+      const historial = (await businessApi.get('/tambo/controles', { ...en(state.campo), params: { id_establecimiento: state.campo, id_madre: v.a } })).data;
+      expect(historial.map((c) => c.fecha)).toEqual([haceDias(2), haceDias(9)]);
+      expect((await businessApi.get('/tambo/controles', { ...en(state.otroCampo), params: { id_establecimiento: state.otroCampo, id_madre: v.a } })).status).toBe(404);
+
+      const fechas = (await businessApi.get('/tambo/controles', en(state.campo))).data;
+      expect(fechas).toEqual([
+        { fecha: haceDias(2), vacas: 1, litros: 28, promedio: 28 },
+        { fecha: haceDias(9), vacas: 1, litros: 38.5, promedio: 38.5 },
+      ]);
+
+      const viejo = historial[1].id_control;
+      expect((await businessApi.delete(`/tambo/controles/${viejo}`, en(state.otroCampo))).status).toBe(404);
+      expect((await businessApi.delete(`/tambo/controles/${viejo}`, en(state.campo))).status).toBe(200);
+      expect((await businessApi.get('/tambo/controles', en(state.campo))).data).toHaveLength(1);
+    });
+  });
 });

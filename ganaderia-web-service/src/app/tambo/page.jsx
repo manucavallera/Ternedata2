@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import businessApi from "@/api/bussines-api";
@@ -14,6 +15,7 @@ import {
   fechaCorta,
   filtrarVacas,
   porcentaje,
+  textoControl,
   textoTipo,
 } from "./tambo";
 
@@ -24,21 +26,25 @@ const mensaje = (err, porDefecto) => {
 
 function Historial({ vaca, puedeBorrar, onCambio }) {
   const [eventos, setEventos] = useState(null);
+  const [controles, setControles] = useState(null);
   const [error, setError] = useState("");
 
   const cargar = useCallback(() => {
-    businessApi
-      .get("/tambo/eventos", { params: { id_madre: vaca.id_madre } })
-      .then((r) => setEventos(r.data || []))
+    const params = { id_madre: vaca.id_madre };
+    Promise.all([businessApi.get("/tambo/eventos", { params }), businessApi.get("/tambo/controles", { params })])
+      .then(([ev, ct]) => {
+        setEventos(ev.data || []);
+        setControles(ct.data || []);
+      })
       .catch((err) => setError(mensaje(err, "No se pudo cargar el historial.")));
   }, [vaca.id_madre]);
 
   useEffect(cargar, [cargar]);
 
-  const borrar = async (ev) => {
-    if (!window.confirm(`¿Borrar ${textoTipo(ev.tipo).toLowerCase()} del ${fechaCorta(ev.fecha)}?`)) return;
+  const borrar = async (texto, url) => {
+    if (!window.confirm(`¿Borrar ${texto}?`)) return;
     try {
-      await businessApi.delete(`/tambo/eventos/${ev.id_evento}`);
+      await businessApi.delete(url);
       cargar();
       onCambio();
     } catch (err) {
@@ -46,28 +52,54 @@ function Historial({ vaca, puedeBorrar, onCambio }) {
     }
   };
 
+  const botonBorrar = (texto, url) =>
+    puedeBorrar && (
+      <button onClick={() => borrar(texto, url)} className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800">
+        Borrar
+      </button>
+    );
+
   if (error) return <p className="mt-3 text-sm text-red-600">{error}</p>;
-  if (!eventos) return <p className="mt-3 text-sm text-gray-500">Cargando...</p>;
-  if (eventos.length === 0) return <p className="mt-3 text-sm text-gray-500">Sin eventos reproductivos cargados.</p>;
+  if (!eventos || !controles) return <p className="mt-3 text-sm text-gray-500">Cargando...</p>;
   return (
-    <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200">
-      {eventos.map((ev) => (
-        <li key={ev.id_evento} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-          <div className="text-gray-700">
-            <span className="font-semibold">{fechaCorta(ev.fecha)}</span> · {textoTipo(ev.tipo)}
-            {ev.resultado && ` · ${ev.resultado}`}
-            {ev.dias_gestacion && ` (${ev.dias_gestacion} días)`}
-            {ev.toro && ` · ${ev.toro}`}
-            {ev.observacion && <span className="text-gray-500"> · {ev.observacion}</span>}
-          </div>
-          {puedeBorrar && (
-            <button onClick={() => borrar(ev)} className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800">
-              Borrar
-            </button>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div>
+        <h3 className="mb-1 text-xs font-bold uppercase text-gray-500">Eventos reproductivos</h3>
+        {eventos.length === 0 ? (
+          <p className="text-sm text-gray-500">Sin eventos reproductivos cargados.</p>
+        ) : (
+          <ul data-historial="eventos" className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+            {eventos.map((ev) => (
+              <li key={ev.id_evento} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                <div className="text-gray-700">
+                  <span className="font-semibold">{fechaCorta(ev.fecha)}</span> · {textoTipo(ev.tipo)}
+                  {ev.resultado && ` · ${ev.resultado}`}
+                  {ev.dias_gestacion && ` (${ev.dias_gestacion} días)`}
+                  {ev.toro && ` · ${ev.toro}`}
+                  {ev.observacion && <span className="text-gray-500"> · {ev.observacion}</span>}
+                </div>
+                {botonBorrar(`${textoTipo(ev.tipo).toLowerCase()} del ${fechaCorta(ev.fecha)}`, `/tambo/eventos/${ev.id_evento}`)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div>
+        <h3 className="mb-1 text-xs font-bold uppercase text-gray-500">Controles lecheros</h3>
+        {controles.length === 0 ? (
+          <p className="text-sm text-gray-500">Sin controles lecheros cargados.</p>
+        ) : (
+          <ul data-historial="controles" className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+            {controles.map((c) => (
+              <li key={c.id_control} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-gray-700">
+                <span>{textoControl(c)}</span>
+                {botonBorrar(`el control del ${fechaCorta(c.fecha)}`, `/tambo/controles/${c.id_control}`)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -194,11 +226,16 @@ export default function RodeoLechero() {
     <div className="mx-auto max-w-5xl px-3 py-6 sm:px-4">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-800">🐄 Rodeo lechero</h1>
-        {puedeCargar && !form && (
-          <button onClick={() => setForm({})} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">
-            + Cargar evento
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Link href="/tambo/control" className="rounded-lg border border-green-600 px-4 py-2 font-semibold text-green-700 hover:bg-green-50">
+            🥛 Control lechero
+          </Link>
+          {puedeCargar && !form && (
+            <button onClick={() => setForm({})} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">
+              + Cargar evento
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -333,6 +370,7 @@ export default function RodeoLechero() {
                       {v.nombre && <span className="truncate text-sm text-gray-500">{v.nombre}</span>}
                     </div>
                     <p className="mt-1 text-sm text-gray-600">{detalleVaca(v)}</p>
+                    {v.ultimo_control && <p className="text-sm text-sky-700">{textoControl(v.ultimo_control)}</p>}
                     {dias != null && <p className="text-xs font-semibold text-green-700">{infoPendiente.detalle(dias)}</p>}
                   </div>
                   <div className="flex shrink-0 gap-2">
