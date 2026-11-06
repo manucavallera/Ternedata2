@@ -125,3 +125,12 @@ export const advertencias = ({ fecha, total, vacas, tratamiento }, dias = [], va
   }
   return avisos;
 };
+
+// Litros de los últimos 30 días (hoy incluido) para el panel del tambo.
+export const ultimos30 = (dias, hoy = hoyAR()) => {
+  const [a, m, d] = hoy.split("-").map(Number);
+  const desde = new Date(Date.UTC(a, m - 1, d - 29)).toISOString().slice(0, 10);
+  const enRango = dias.filter((x) => x.fecha >= desde && x.fecha <= hoy);
+  const suma = (clave) => r1(enRango.reduce((s, x) => s + x[clave], 0));
+  return { desde, dias: enRango.length, litros: suma("total"), fabrica: suma("fabrica") };
+};
