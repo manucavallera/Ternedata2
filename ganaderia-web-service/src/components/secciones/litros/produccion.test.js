@@ -45,3 +45,10 @@ test("avisos de carga", () => {
   // Con pocos días no hay referencia.
   assert.deepEqual(advertencias({ fecha: "2026-10-20", total: 5, vacas: 100 }, dias.slice(0, 3)), []);
 });
+
+test("litros de los últimos 30 días", async () => {
+  const { ultimos30 } = await import("./produccion.js");
+  const dias = porDia([reg("2026-10-07", 999, 0, 10), reg("2026-10-08", 100, 10, 10), reg("2026-11-06", 200, 5.5, 10), reg("2026-11-07", 7, 0, 1)]);
+  assert.deepEqual(ultimos30(dias, "2026-11-06"), { desde: "2026-10-08", dias: 2, litros: 315.5, fabrica: 300 });
+  assert.deepEqual(ultimos30([], "2026-11-06"), { desde: "2026-10-08", dias: 0, litros: 0, fabrica: 0 });
+});
