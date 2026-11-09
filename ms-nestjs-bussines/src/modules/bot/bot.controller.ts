@@ -21,6 +21,7 @@ import { sanearParaLog } from './webhook/sanear-log';
 import { esTimeout } from './webhook/http';
 import { RolEstablecimientoService } from '../auth/rol-establecimiento.service';
 import { AYUDA_FORRAJERIA, BotForrajeriaService, ContextoForrajeria } from './forrajeria/bot-forrajeria.service';
+import { BotTamboService } from './tambo/bot-tambo.service';
 import { SkipThrottle } from '@nestjs/throttler';
 import { TernerosService } from '../terneros/terneros.service';
 import { MadresService } from '../madres/madres.service';
@@ -86,7 +87,9 @@ interface BotRequestBody {
     | 'eliminar_evento'
     | 'eliminar_tratamiento'
     | 'eliminar_diarrea'
-    | 'eliminar_litros';
+    | 'eliminar_litros'
+    | 'evento_tambo'
+    | 'consultar_tambo';
   phone?: string;
   seleccion?: string | number; // para selección de establecimiento
   [key: string]: any;
@@ -109,6 +112,7 @@ export class BotController {
     private readonly limitePorTelefono: LimitePorTelefono,
     private readonly rolEstablecimiento: RolEstablecimientoService,
     private readonly botForrajeria: BotForrajeriaService,
+    private readonly botTambo: BotTamboService,
     private readonly ternerosService: TernerosService,
     private readonly madresService: MadresService,
     private readonly eventosService: EventosService,
@@ -873,7 +877,7 @@ export class BotController {
     // claro, en vez de contestar con el saludo como si no hubiera escrito nada.
     if (parsed.accion === 'no_entendido') {
       const respuesta =
-        '🤔 Eso no lo sé registrar todavía. Puedo anotar nacimientos, madres, pesadas, calostrado, diarreas, tratamientos, eventos, rodeos y litros. Por ejemplo: "el 500 pesó 38 kilos".';
+        '🤔 Eso no lo sé registrar todavía. Puedo anotar nacimientos, madres, pesadas, calostrado, diarreas, tratamientos, eventos, rodeos, litros y eventos del tambo (inseminación, tacto, parto, secado). Por ejemplo: "el 500 pesó 38 kilos".';
       if (esLive) {
         await this.messagingService.responder(msg._origen, msg.phone, respuesta);
       }
@@ -1282,6 +1286,20 @@ export class BotController {
         }
 
         // ──────────────────────────────────────
+        case 'evento_tambo':
+        case 'consultar_tambo': {
+          const ctx = {
+            idEstablecimiento,
+            idUsuario: userEntity?.id,
+            nombreEstablecimiento,
+            fecha: parsearFecha(body.fecha),
+          };
+          return accion === 'evento_tambo'
+            ? this.botTambo.registrarEvento(body, ctx)
+            : this.botTambo.consultarPendientes(body, ctx);
+        }
+
+        // ──────────────────────────────────────
         case 'registrar_litros': {
           const litrosVendido = parseFloat(body.litros_vendido) || 0;
           const litrosTerneros = parseFloat(body.litros_terneros) || 0;
@@ -1305,6 +1323,8 @@ export class BotController {
               body.observaciones || `Registrado por bot (${userName})`,
           };
           if (!isNaN(vacas) && vacas > 0) dto.cantidad_vacas = vacas;
+          const enTratamiento = parseInt(body.vacas_en_tratamiento);
+          if (!isNaN(enTratamiento) && enTratamiento > 0) dto.vacas_en_tratamiento = enTratamiento;
 
           console.log('🥛 Registrando litros:', dto);
           const registro = await this.litrosService.registrar(
@@ -1321,6 +1341,8 @@ export class BotController {
           let mensaje = `✅ Litros anotados\n🥛 Vendidos: ${registro.litros_vendido} L\n🐮 Terneros: ${registro.litros_terneros} L\n📊 Total: ${registro.total} L`;
           if (registro.cantidad_vacas)
             mensaje += `\n🐄 Vacas: ${registro.cantidad_vacas}`;
+          if (registro.vacas_en_tratamiento)
+            mensaje += `\n💊 En tratamiento: ${registro.vacas_en_tratamiento}`;
           if (promedio != null) mensaje += `\n📈 Promedio: ${promedio} L/vaca`;
           if (nombreEstablecimiento)
             mensaje += `\n🏠 Campo: ${nombreEstablecimiento}`;
@@ -2808,6 +2830,7 @@ export class BotController {
       crear_tratamiento: 'tratamiento',
       crear_diarrea: 'diarrea',
       crear_evento: 'evento',
+      evento_tambo: 'evento de la vaca',
       registrar_peso: 'registro de peso',
       actualizar_estado_ternero: 'cambio de estado',
       asignar_rodeo: 'asignación de rodeo',
