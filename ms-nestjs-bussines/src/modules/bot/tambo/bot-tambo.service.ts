@@ -25,7 +25,8 @@ const NOMBRE_EVENTO: Record<TipoEvento, string> = {
 };
 
 const NOMBRE_PENDIENTE: Record<keyof Pendientes, string> = {
-  sin_inseminar: 'Sin inseminar',
+  sin_inseminar: 'OK para inseminar',
+  a_reconfirmar: 'Para reconfirmar preñez',
   a_tactar: 'Para tactar',
   reemparche: 'Para reemparchar',
   a_secar: 'Para secar',
@@ -205,7 +206,7 @@ export class BotTamboService {
     if (resultado)
       mensaje += `\n🔎 Resultado: ${resultado === 'preñada' ? 'preñada' : 'vacía'}`;
     if (dto.dias_gestacion) mensaje += ` (${dto.dias_gestacion} días)`;
-    if (dto.toro) mensaje += `\n🧬 Toro: ${dto.toro}`;
+    if (dto.toro) mensaje += `\n🧬 Pajuela: ${dto.toro}`;
     if (
       estado?.fecha_parto_probable &&
       ['tacto', 'inseminacion'].includes(tipo)

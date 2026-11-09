@@ -23,6 +23,7 @@ import {
   calcularResumen,
   categoriaPorEvento,
   diasEnLeche,
+  estaOk,
   hoyArgentina,
 } from './reproduccion.logic';
 
@@ -201,6 +202,7 @@ export class TamboService {
         'fecha_ultimo_parto',
         'fecha_ultimo_servicio',
         'fecha_ultimo_parche',
+        'fecha_ultimo_tacto',
         'fecha_parto_probable',
         'numero_servicios',
       ],
@@ -233,6 +235,7 @@ export class TamboService {
       order: { rp_madre: 'ASC' },
     });
     const hoy = hoyArgentina();
+    const config = await this.obtenerConfig(idEstablecimiento);
     const ultimos = await this.ultimosControles(madres.map((m) => m.id_madre));
     return madres.map((m) => ({
       id_madre: m.id_madre,
@@ -247,8 +250,10 @@ export class TamboService {
       fecha_ultimo_parto: aFecha(m.fecha_ultimo_parto),
       fecha_ultimo_servicio: aFecha(m.fecha_ultimo_servicio),
       fecha_ultimo_parche: aFecha(m.fecha_ultimo_parche),
+      fecha_ultimo_tacto: aFecha(m.fecha_ultimo_tacto),
       fecha_parto_probable: aFecha(m.fecha_parto_probable),
       numero_servicios: m.numero_servicios,
+      ok: estaOk(m as any, config, hoy),
       dias_en_leche: diasEnLeche(m as any, hoy),
       ultimo_control: ultimos.get(m.id_madre) ?? null,
     }));

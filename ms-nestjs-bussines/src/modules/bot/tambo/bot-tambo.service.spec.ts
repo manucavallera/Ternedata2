@@ -97,7 +97,7 @@ describe('BotTamboService.registrarEvento', () => {
     const dto = tamboService.crearEvento.mock.calls[0][1];
     expect(dto.toro).toBe('Faraón');
     expect(dto.resultado).toBeUndefined();
-    expect(r.mensaje).toContain('Toro: Faraón');
+    expect(r.mensaje).toContain('Pajuela: Faraón');
   });
 
   it('tacto sin resultado pregunta y no escribe', async () => {
@@ -153,6 +153,7 @@ describe('pendientes', () => {
     reemparche: [],
     a_tactar: [],
     sin_inseminar: [],
+    a_reconfirmar: [],
     a_secar: [],
     a_preparto: [],
     parto_proximo: [],
@@ -167,7 +168,7 @@ describe('pendientes', () => {
       ],
     });
     expect(txt).toContain('*Para tactar* (2): RP 20, RP 10');
-    expect(txt).not.toContain('Sin inseminar');
+    expect(txt).not.toContain('OK para inseminar');
   });
 
   it('sin pendientes', () => {

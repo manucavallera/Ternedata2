@@ -212,22 +212,64 @@ describe('calcularPendientes', () => {
     expect(p.a_tactar[0].dias).toBe(40);
   });
 
-  it('reemparche vuelve cuando el parche venció', () => {
-    const p = calcularPendientes(
-      [
-        {
-          id_madre: 1,
-          estado: 'En Tambo',
-          estado_reproductivo: 'inseminada',
-          fecha_ultimo_parto: '2026-06-01',
-          fecha_ultimo_servicio: '2026-10-30',
-          fecha_ultimo_parche: '2026-10-20',
-        },
-      ],
-      C,
-      HOY,
+  it('reemparche: 14 días después de la inseminación o del último parche', () => {
+    const vaca = (servicio: string, parche: string | null) => ({
+      id_madre: 1,
+      estado: 'En Tambo',
+      estado_reproductivo: 'inseminada' as const,
+      fecha_ultimo_parto: '2026-06-01',
+      fecha_ultimo_servicio: servicio,
+      fecha_ultimo_parche: parche,
+    });
+    const dias = (servicio: string, parche: string | null) =>
+      calcularPendientes([vaca(servicio, parche)], C, HOY).reemparche.map(
+        (i) => i.dias,
+      );
+    // Inseminada hace 7 días: el parche viejo no cuenta, todavía no toca.
+    expect(dias('2026-10-30', '2026-10-20')).toEqual([]);
+    // Inseminada hace 14 días y sin parche nuevo: toca.
+    expect(dias('2026-10-23', '2026-10-10')).toEqual([14]);
+    // Parche puesto después de la inseminación, hace 5 días: no toca.
+    expect(dias('2026-10-10', '2026-11-01')).toEqual([]);
+  });
+
+  it('reconfirmación de preñez desde el mes 6 si no hubo tacto después', () => {
+    // Pare en 90 días: 193 días de preñez.
+    const vaca = (tacto: string | null) => ({
+      id_madre: 1,
+      estado: 'Seca',
+      estado_reproductivo: 'preñada' as const,
+      fecha_parto_probable: sumarDias(HOY, 90),
+      fecha_ultimo_tacto: tacto,
+    });
+    const r = (tacto: string | null) =>
+      calcularPendientes([vaca(tacto)], C, HOY).a_reconfirmar;
+    expect(r('2026-06-01').map((i) => i.dias)).toEqual([193]);
+    expect(r(null)).toHaveLength(1);
+    expect(r(sumarDias(HOY, -3))).toHaveLength(0); // ya reconfirmada
+    // Con menos de 180 días de preñez no aparece.
+    expect(
+      calcularPendientes(
+        [{ ...vaca(null), fecha_parto_probable: sumarDias(HOY, 120) }],
+        C,
+        HOY,
+      ).a_reconfirmar,
+    ).toHaveLength(0);
+  });
+
+  it('el tacto queda guardado y un parto lo borra', () => {
+    const tacto = {
+      tipo: 'tacto' as const,
+      fecha: '2026-09-15',
+      resultado: 'preñada',
+    };
+    expect(calcularEstadoRepro([tacto], C).fecha_ultimo_tacto).toBe(
+      '2026-09-15',
     );
-    expect(p.reemparche.map((i) => i.dias)).toEqual([17]);
+    expect(
+      calcularEstadoRepro([tacto, { tipo: 'parto', fecha: '2026-10-01' }], C)
+        .fecha_ultimo_tacto,
+    ).toBeNull();
   });
 
   it('respeta la configuración del campo', () => {
@@ -239,10 +281,10 @@ describe('calcularPendientes', () => {
         fecha_ultimo_parto: '2026-09-20',
       },
     ];
-    expect(calcularPendientes(m, C, HOY).sin_inseminar).toHaveLength(0); // 47 días, espera 50
+    expect(calcularPendientes(m, C, HOY).sin_inseminar).toHaveLength(1); // 47 días, espera 45
     expect(
-      calcularPendientes(m, { ...C, dias_espera: 45 }, HOY).sin_inseminar,
-    ).toHaveLength(1);
+      calcularPendientes(m, { ...C, dias_espera: 60 }, HOY).sin_inseminar,
+    ).toHaveLength(0);
   });
 });
 
