@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Query,
   Delete,
   Body,
   Param,
@@ -32,8 +33,19 @@ export class DietasController {
     return this.dietasService.crear(dto, req.id_establecimiento);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'Dietas del campo con el nombre del rodeo' })
+  async listarDelCampo(@Req() req: any, @Query('modo') modo?: string) {
+    return this.dietasService.listarDelCampo(
+      req.id_establecimiento,
+      modo && ['nota', 'formula', 'mezcla'].includes(modo) ? modo : undefined,
+    );
+  }
+
   @Get('rodeo/:idRodeo')
-  @ApiOperation({ summary: 'Listar dietas de un rodeo (con cálculo de totales)' })
+  @ApiOperation({
+    summary: 'Listar dietas de un rodeo (con cálculo de totales)',
+  })
   async listarPorRodeo(@Param('idRodeo') idRodeo: string, @Req() req: any) {
     return this.dietasService.listarPorRodeo(+idRodeo, req.id_establecimiento);
   }

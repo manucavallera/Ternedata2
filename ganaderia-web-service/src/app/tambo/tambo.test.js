@@ -96,3 +96,27 @@ test("planilla a cuerpo: errores, vacías que se borran y resumen", async () => 
   assert.deepEqual(resumen, { vacas: 2, litros: 36.5, promedio: 18.3 });
   assert.equal(planillaACuerpo([{ id_madre: 1, rp_madre: 325, manana: "x", tarde: "" }]).errores[0], "325: Usá números con un decimal como máximo");
 });
+
+test("mover ingredientes en el orden de carga", async () => {
+  const { mover } = await import("./tambo.js");
+  assert.deepEqual(mover(["a", "b", "c"], 2, -1), ["a", "c", "b"]);
+  assert.deepEqual(mover(["a", "b", "c"], 0, 1), ["b", "a", "c"]);
+  const lista = ["a", "b"];
+  assert.equal(mover(lista, 0, -1), lista);
+  assert.equal(mover(lista, 1, 1), lista);
+});
+
+test("ingredientes del formulario a cuerpo", async () => {
+  const { ingredientesACuerpo } = await import("./tambo.js");
+  assert.deepEqual(
+    ingredientesACuerpo([
+      { nombre: " Silo de maíz ", kg: "1200,5", icono: "🌽" },
+      { nombre: "", kg: "" },
+      { nombre: "Expeller", kg: "300" },
+    ]),
+    { errores: [], ingredientes: [{ nombre: "Silo de maíz", kg: 1200.5, icono: "🌽" }, { nombre: "Expeller", kg: 300 }] }
+  );
+  assert.deepEqual(ingredientesACuerpo([{ nombre: "Sal", kg: "x" }]).errores, ["Sal: kg inválidos"]);
+  assert.deepEqual(ingredientesACuerpo([{ nombre: "", kg: "3" }]).errores, ["Falta el nombre de un ingrediente"]);
+  assert.deepEqual(ingredientesACuerpo([]).errores, ["Cargá al menos un ingrediente"]);
+});

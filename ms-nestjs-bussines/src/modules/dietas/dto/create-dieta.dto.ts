@@ -8,12 +8,17 @@ import {
   IsOptional,
   IsString,
   IsInt,
+  Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
 
 export class IngredienteDto {
-  @ApiProperty({ description: 'Nombre del ingrediente', example: 'Silo de maíz' })
+  @ApiProperty({
+    description: 'Nombre del ingrediente',
+    example: 'Silo de maíz',
+  })
   @IsNotEmpty()
   @IsString()
   nombre: string;
@@ -22,6 +27,16 @@ export class IngredienteDto {
   @IsNumber()
   @Min(0)
   kg: number;
+
+  @ApiProperty({
+    description: 'Emoji del ingrediente',
+    required: false,
+    example: '🌽',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  icono?: string;
 }
 
 export class CreateDietaDto {
@@ -64,6 +79,17 @@ export class CreateDietaDto {
   @ValidateNested({ each: true })
   @Type(() => IngredienteDto)
   ingredientes?: IngredienteDto[];
+
+  @ApiProperty({
+    description: 'Cargas del mixer (modo mezcla)',
+    required: false,
+    example: 2,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  cargas?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()

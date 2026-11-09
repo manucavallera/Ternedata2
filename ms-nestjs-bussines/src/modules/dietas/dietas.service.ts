@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RodeoDietaEntity } from './entities/rodeo-dieta.entity';
+import { Rodeos } from '../rodeos/entities/rodeos.entity';
 import { TerneroEntity } from '../terneros/entities/ternero.entity';
 import { MadreEntity } from '../madres/entities/madre.entity';
 import { CreateDietaDto } from './dto/create-dieta.dto';
@@ -18,7 +19,22 @@ export class DietasService {
     private readonly terneroRepository: Repository<TerneroEntity>,
     @InjectRepository(MadreEntity)
     private readonly madreRepository: Repository<MadreEntity>,
+    @InjectRepository(Rodeos)
+    private readonly rodeoRepository: Repository<Rodeos>,
   ) {}
+
+  private async rodeoDelCampo(idRodeo: number, idEstablecimiento: number) {
+    const rodeo = await this.rodeoRepository.findOne({
+      where: { id_rodeo: idRodeo, id_establecimiento: idEstablecimiento },
+    });
+    if (!rodeo) {
+      throw new HttpException(
+        'Rodeo no encontrado en este establecimiento',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return rodeo;
+  }
 
   private async contarAnimales(idRodeo: number): Promise<number> {
     const [terneros, madres] = await Promise.all([
@@ -43,14 +59,29 @@ export class DietasService {
 
     if (dieta.modo === 'mezcla' && Array.isArray(dieta.ingredientes)) {
       const cantidad = await this.contarAnimales(dieta.id_rodeo);
-      const ingredientes = dieta.ingredientes.map((i) => ({
-        nombre: i.nombre,
-        kg: Number(i.kg) || 0,
-      }));
+      const cargas = dieta.cargas > 0 ? dieta.cargas : 1;
+      // Tabla del mixero: por cabeza, por carga y el parcial que marca la
+      // balanza al terminar de cargar cada ingrediente.
+      let parcial = 0;
+      const ingredientes = dieta.ingredientes.map((i) => {
+        const kg = Number(i.kg) || 0;
+        const porCarga = redondear(kg / cargas);
+        parcial = redondear(parcial + porCarga);
+        return {
+          nombre: i.nombre,
+          icono: i.icono ?? null,
+          kg,
+          kg_por_cabeza: cantidad > 0 ? redondear(kg / cantidad) : null,
+          kg_por_carga: porCarga,
+          parcial_carga: parcial,
+        };
+      });
       const total = ingredientes.reduce((acc, i) => acc + i.kg, 0);
       const totalRodeo = Math.round(total * 100) / 100;
       return {
         ...dieta,
+        cargas,
+        kg_por_carga: redondear(total / cargas),
         ingredientes,
         cantidad_animales: cantidad,
         // kg/animal derivado (informativo)
@@ -70,6 +101,7 @@ export class DietasService {
   }
 
   async crear(dto: CreateDietaDto, idEstablecimiento: number) {
+    await this.rodeoDelCampo(dto.id_rodeo, idEstablecimiento);
     try {
       const dieta = this.dietaRepository.create({
         id_rodeo: dto.id_rodeo,
@@ -78,7 +110,8 @@ export class DietasService {
         nombre: dto.nombre,
         nota: dto.modo === 'nota' ? dto.nota : null,
         kg_por_animal: dto.modo === 'formula' ? dto.kg_por_animal : null,
-        ingredientes: dto.modo === 'mezcla' ? dto.ingredientes ?? [] : null,
+        ingredientes: dto.modo === 'mezcla' ? (dto.ingredientes ?? []) : null,
+        cargas: dto.cargas ?? 1,
       });
       const guardada = await this.dietaRepository.save(dieta);
       return this.conCalculo(guardada);
@@ -89,6 +122,25 @@ export class DietasService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  // Todas las dietas del campo con el nombre del rodeo (pantalla de mixers).
+  async listarDelCampo(idEstablecimiento: number, modo?: string) {
+    const where: any = { id_establecimiento: idEstablecimiento };
+    if (modo) where.modo = modo;
+    const [dietas, rodeos] = await Promise.all([
+      this.dietaRepository.find({ where, order: { creado_en: 'DESC' } }),
+      this.rodeoRepository.find({
+        where: { id_establecimiento: idEstablecimiento },
+        select: ['id_rodeo', 'nombre'],
+      }),
+    ]);
+    const nombres = new Map(rodeos.map((r) => [r.id_rodeo, r.nombre]));
+    const calculadas = await Promise.all(dietas.map((d) => this.conCalculo(d)));
+    return calculadas.map((d) => ({
+      ...d,
+      rodeo: { id_rodeo: d.id_rodeo, nombre: nombres.get(d.id_rodeo) ?? null },
+    }));
   }
 
   async listarPorRodeo(idRodeo: number, idEstablecimiento: number) {
@@ -107,11 +159,7 @@ export class DietasService {
     }
   }
 
-  async actualizar(
-    id: number,
-    dto: UpdateDietaDto,
-    idEstablecimiento: number,
-  ) {
+  async actualizar(id: number, dto: UpdateDietaDto, idEstablecimiento: number) {
     const dieta = await this.dietaRepository.findOne({
       where: { id_dieta: id, id_establecimiento: idEstablecimiento },
     });
@@ -124,6 +172,11 @@ export class DietasService {
     if (dto.kg_por_animal !== undefined)
       dieta.kg_por_animal = dto.kg_por_animal;
     if (dto.ingredientes !== undefined) dieta.ingredientes = dto.ingredientes;
+    if (dto.cargas !== undefined) dieta.cargas = dto.cargas;
+    if (dto.id_rodeo !== undefined && dto.id_rodeo !== dieta.id_rodeo) {
+      await this.rodeoDelCampo(dto.id_rodeo, idEstablecimiento);
+      dieta.id_rodeo = dto.id_rodeo;
+    }
     // coherencia según modo
     if (dieta.modo === 'nota') {
       dieta.kg_por_animal = null;
@@ -151,4 +204,8 @@ export class DietasService {
     await this.dietaRepository.remove(dieta);
     return { message: 'Dieta eliminada', id_dieta: id };
   }
+}
+
+function redondear(n: number) {
+  return Math.round(n * 100) / 100;
 }
