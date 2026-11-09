@@ -1,5 +1,7 @@
 // src/modules/bot/bot.module.ts
 import { Module } from '@nestjs/common';
+import { TamboModule } from '../tambo/tambo.module';
+import { BotTamboService } from './tambo/bot-tambo.service';
 import { ConfigModule } from '@nestjs/config';
 import { BotController } from './bot.controller';
 import { BotApiKeyGuard } from './api-key.guard';
@@ -67,6 +69,7 @@ import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero
     CuentasForrajeriaModule,
     InventarioForrajeriaModule,
     VentasForrajeriaModule,
+    TamboModule,
   ],
   controllers: [BotController],
   providers: [
@@ -78,6 +81,7 @@ import { CalostradoTerneroEntity } from '../terneros/entities/calostrado-ternero
     LimitePorTelefono,
     RolEstablecimientoService,
     BotForrajeriaService,
+    BotTamboService,
     TernerosService,
     MadresService,
     EventosService,
