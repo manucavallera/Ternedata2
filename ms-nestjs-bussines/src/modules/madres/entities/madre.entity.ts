@@ -63,6 +63,9 @@ export class MadreEntity {
   fecha_ultimo_parche: string | null;
 
   @Column({ type: 'date', nullable: true })
+  fecha_ultimo_tacto: string | null;
+
+  @Column({ type: 'date', nullable: true })
   fecha_parto_probable: string | null;
 
   @Column({ type: 'int', default: 0 })

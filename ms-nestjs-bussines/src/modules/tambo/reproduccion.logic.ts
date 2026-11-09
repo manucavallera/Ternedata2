@@ -25,21 +25,24 @@ export type EstadoReproductivo =
 export interface ConfigTambo {
   dias_espera: number; // desde el parto hasta poder inseminar
   dias_tacto: number; // desde la inseminación hasta confirmar preñez
-  dias_reparche: number; // vida útil del parche de celo
+  dias_reparche: number; // vida útil del parche de celo; también días desde la inseminación
   dias_secado: number; // antes del parto probable
   dias_preparto: number; // antes del parto probable
   dias_parto_proximo: number;
   dias_gestacion: number;
+  dias_reconfirmacion: number; // días de preñez para reconfirmar (mes 6)
 }
 
+// Valores que dio el tambero (2026-11-09). Cada campo los puede cambiar.
 export const CONFIG_TAMBO_DEFAULT: ConfigTambo = {
-  dias_espera: 50,
+  dias_espera: 45, // desde el día 45 ya se puede inseminar (a los 60 es seguro)
   dias_tacto: 35,
-  dias_reparche: 15,
+  dias_reparche: 14, // el parche se renueva 14 días después de la inseminación
   dias_secado: 60,
-  dias_preparto: 21,
+  dias_preparto: 30,
   dias_parto_proximo: 7,
   dias_gestacion: 283,
+  dias_reconfirmacion: 180,
 };
 
 export interface EventoRepro {
@@ -55,6 +58,7 @@ export interface EstadoRepro {
   fecha_ultimo_parto: string | null;
   fecha_ultimo_servicio: string | null;
   fecha_ultimo_parche: string | null;
+  fecha_ultimo_tacto: string | null;
   fecha_parto_probable: string | null;
   numero_servicios: number;
 }
@@ -109,6 +113,7 @@ export function calcularEstadoRepro(
     fecha_ultimo_parto: null,
     fecha_ultimo_servicio: null,
     fecha_ultimo_parche: null,
+    fecha_ultimo_tacto: null,
     fecha_parto_probable: null,
     numero_servicios: 0,
   };
@@ -120,6 +125,7 @@ export function calcularEstadoRepro(
         e.fecha_ultimo_parto = ev.fecha;
         e.fecha_ultimo_servicio = null;
         e.fecha_ultimo_parche = null;
+        e.fecha_ultimo_tacto = null;
         e.fecha_parto_probable = null;
         e.numero_servicios = 0;
         break;
@@ -130,6 +136,7 @@ export function calcularEstadoRepro(
         e.numero_servicios += 1;
         break;
       case 'tacto':
+        e.fecha_ultimo_tacto = ev.fecha;
         if (ev.resultado === 'preñada') {
           e.estado_reproductivo = 'preñada';
           // Una ecografía puede dar los días de gestación: manda sobre la inseminación.
@@ -186,6 +193,7 @@ export interface ItemPendiente {
 export interface Pendientes {
   reemparche: ItemPendiente[];
   a_tactar: ItemPendiente[];
+  a_reconfirmar: ItemPendiente[];
   sin_inseminar: ItemPendiente[];
   a_secar: ItemPendiente[];
   a_preparto: ItemPendiente[];
@@ -200,6 +208,7 @@ export function calcularPendientes(
   const p: Pendientes = {
     reemparche: [],
     a_tactar: [],
+    a_reconfirmar: [],
     sin_inseminar: [],
     a_secar: [],
     a_preparto: [],
@@ -224,7 +233,8 @@ export function calcularPendientes(
     const pasoEspera =
       diasPosParto !== null && diasPosParto >= config.dias_espera;
 
-    if (enTambo && pasoEspera && (repro === 'parida' || repro === 'vacia')) {
+    // "OK": apta para inseminar y sin inseminación registrada.
+    if (estaOk(m, config, hoy)) {
       p.sin_inseminar.push(item(m, diasPosParto));
     }
 
@@ -234,20 +244,40 @@ export function calcularPendientes(
     }
 
     // Parche de celo: vacas en servicio que todavía no se confirmaron preñadas.
+    // A una inseminada se le renueva a los `dias_reparche` de la inseminación
+    // (o del último parche, si se puso después).
     if (
       enTambo &&
       pasoEspera &&
       ['parida', 'vacia', 'inseminada'].includes(repro)
     ) {
-      if (!parche) p.reemparche.push(item(m, diasPosParto));
+      const desde =
+        repro === 'inseminada' && servicio && (!parche || servicio > parche)
+          ? servicio
+          : parche;
+      if (!desde) p.reemparche.push(item(m, diasPosParto));
       else {
-        const dias = diasEntre(parche, hoy);
+        const dias = diasEntre(desde, hoy);
         if (dias >= config.dias_reparche) p.reemparche.push(item(m, dias));
       }
     }
 
     if (repro === 'preñada' && partoProbable) {
       const faltan = diasEntre(hoy, partoProbable);
+      // Reconfirmación de preñez desde el mes 6, si no hubo tacto después.
+      const gestacion = config.dias_gestacion - faltan;
+      const cumplio = sumarDias(
+        partoProbable,
+        config.dias_reconfirmacion - config.dias_gestacion,
+      );
+      const tacto = aFecha(m.fecha_ultimo_tacto);
+      if (
+        gestacion >= config.dias_reconfirmacion &&
+        faltan > 0 &&
+        (!tacto || tacto < cumplio)
+      ) {
+        p.a_reconfirmar.push(item(m, gestacion));
+      }
       if (enTambo && faltan <= config.dias_secado)
         p.a_secar.push(item(m, faltan));
       if (m.estado === 'Seca' && faltan <= config.dias_preparto) {
@@ -267,6 +297,19 @@ export function calcularPendientes(
     p[k].sort((a, b) => a.dias - b.dias);
   }
   return p;
+}
+
+// "OK" del tambero: en tambo, pasó la espera desde el parto y no tiene inseminación registrada.
+export function estaOk(
+  m: MadreTambo,
+  config: ConfigTambo,
+  hoy: string,
+): boolean {
+  const repro = m.estado_reproductivo ?? null;
+  if (m.estado !== 'En Tambo') return false;
+  if (repro !== 'parida' && repro !== 'vacia') return false;
+  const parto = aFecha(m.fecha_ultimo_parto);
+  return !!parto && diasEntre(parto, hoy) >= config.dias_espera;
 }
 
 export function diasEnLeche(m: MadreTambo, hoy: string): number | null {

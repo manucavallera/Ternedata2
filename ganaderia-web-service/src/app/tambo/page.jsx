@@ -11,6 +11,7 @@ import {
   CONFIG_CAMPOS,
   ESTADOS,
   PENDIENTES,
+  estadoVaca,
   detalleVaca,
   fechaCorta,
   filtrarVacas,
@@ -214,7 +215,7 @@ export default function RodeoLechero() {
 
   // Abre el formulario con todas las vacas del pendiente elegido (ej: día de tacto).
   const cargarParaPendiente = () => {
-    const tipo = { reemparche: "parche", a_tactar: "tacto", sin_inseminar: "inseminacion", a_secar: "secado", a_preparto: "preparto", parto_proximo: "parto" }[pendiente];
+    const tipo = { reemparche: "parche", a_tactar: "tacto", a_reconfirmar: "tacto", sin_inseminar: "inseminacion", a_secar: "secado", a_preparto: "preparto", parto_proximo: "parto" }[pendiente];
     const caravanas = lista.map((v) => v.rp_madre).filter((rp) => rp != null).join(", ");
     setForm({ caravanas, tipo });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -361,7 +362,7 @@ export default function RodeoLechero() {
 
         <ul className="divide-y divide-gray-100">
           {lista.map((v) => {
-            const estado = ESTADOS[v.estado_reproductivo ?? "sin_dato"] ?? ESTADOS.sin_dato;
+            const estado = estadoVaca(v);
             const dias = diasPorVaca?.get(v.id_madre);
             return (
               <li key={v.id_madre} className="py-3">

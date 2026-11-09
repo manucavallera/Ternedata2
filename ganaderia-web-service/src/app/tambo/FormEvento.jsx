@@ -119,7 +119,7 @@ export default function FormEvento({ vacas, inicial, onListo, onCerrar }) {
 
         {form.tipo === "inseminacion" && (
           <label className="block text-sm font-semibold text-gray-600">
-            Toro o pajuela (opcional)
+            Pajuela (opcional)
             <input className={input} value={form.toro} onChange={cambiar("toro")} maxLength={100} />
           </label>
         )}

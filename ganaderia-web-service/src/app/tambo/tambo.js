@@ -4,6 +4,7 @@ export const CATEGORIAS = ["En Tambo", "Seca", "Preparto", "Vaquillona"];
 
 export const ESTADOS = {
   parida: { texto: "Parida", clase: "bg-teal-100 text-teal-800" },
+  ok: { texto: "OK", clase: "bg-lime-100 text-lime-800" },
   inseminada: { texto: "Inseminada", clase: "bg-sky-100 text-sky-800" },
   preñada: { texto: "Preñada", clase: "bg-green-100 text-green-800" },
   vacia: { texto: "Vacía", clase: "bg-red-100 text-red-800" },
@@ -22,13 +23,17 @@ export const TIPOS_EVENTO = [
   { valor: "rechazo", texto: "Rechazo (para vender)" },
 ];
 
+// Estado que se muestra en la tarjeta: "OK" si ya está apta para inseminar (lo calcula el backend).
+export const estadoVaca = (v) => ESTADOS[v.ok ? "ok" : v.estado_reproductivo ?? "sin_dato"] ?? ESTADOS.sin_dato;
+
 export const textoTipo = (tipo) => TIPOS_EVENTO.find((t) => t.valor === tipo)?.texto ?? tipo;
 
 // Orden y texto de las tarjetas de pendientes. `futuro`: los días son los que faltan.
 export const PENDIENTES = [
   { clave: "reemparche", texto: "Reemparche", detalle: (d) => `parche hace ${d} días` },
   { clave: "a_tactar", texto: "A tactar", detalle: (d) => `inseminada hace ${d} días` },
-  { clave: "sin_inseminar", texto: "Sin inseminar", detalle: (d) => `parió hace ${d} días` },
+  { clave: "a_reconfirmar", texto: "A reconfirmar preñez", detalle: (d) => `${d} días de preñez` },
+  { clave: "sin_inseminar", texto: "OK para inseminar", detalle: (d) => `parió hace ${d} días` },
   { clave: "a_secar", texto: "A secar", detalle: (d) => faltan(d) },
   { clave: "a_preparto", texto: "A pasar a preparto", detalle: (d) => faltan(d) },
   { clave: "parto_proximo", texto: "Parto próximo", detalle: (d) => faltan(d) },
@@ -43,11 +48,12 @@ function faltan(d) {
 export const CONFIG_CAMPOS = [
   { clave: "dias_espera", texto: "Días después del parto para empezar a inseminar" },
   { clave: "dias_tacto", texto: "Días después de la inseminación para tactar" },
-  { clave: "dias_reparche", texto: "Días que dura el parche de celo" },
+  { clave: "dias_reparche", texto: "Días para renovar el parche (desde la inseminación o el último parche)" },
   { clave: "dias_secado", texto: "Días antes del parto para secar" },
   { clave: "dias_preparto", texto: "Días antes del parto para pasar a preparto" },
   { clave: "dias_parto_proximo", texto: "Días antes del parto para avisar" },
   { clave: "dias_gestacion", texto: "Días de gestación" },
+  { clave: "dias_reconfirmacion", texto: "Días de preñez para reconfirmar" },
 ];
 
 export const hoyISO = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);

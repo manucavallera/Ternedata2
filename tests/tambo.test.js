@@ -87,7 +87,7 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
     expect(res.status).toBe(201);
     expect(res.data.madre).toMatchObject({ estado_reproductivo: 'parida', fecha_ultimo_parto: haceDias(70) });
     const m = await vaca(state.campo, v.a);
-    expect(m).toMatchObject({ estado: 'En Tambo', dias_en_leche: 70 });
+    expect(m).toMatchObject({ estado: 'En Tambo', dias_en_leche: 70, ok: true });
     const p = await pendientes(state.campo);
     expect(ids(p.sin_inseminar)).toContain(v.a);
     expect(ids(p.reemparche)).toContain(v.a);
@@ -102,6 +102,16 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
     expect(ids(p.sin_inseminar)).not.toContain(v.a);
     expect(ids(p.reemparche)).not.toContain(v.a);
     expect(p.a_tactar.find((i) => i.id_madre === v.a)).toMatchObject({ dias: 40, rp_madre: 9001 });
+  });
+
+  test('reconfirmación: preñada de más de 180 días sin tacto reciente', async () => {
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'inseminacion', fecha: haceDias(200) })).status).toBe(201);
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'tacto', fecha: haceDias(160), resultado: 'preñada' })).status).toBe(201);
+    const p = await pendientes(state.campo);
+    expect(p.a_reconfirmar.find((i) => i.id_madre === v.b)).toMatchObject({ dias: 200 });
+    expect((await evento(state.campo, { id_madre: v.b, tipo: 'tacto', fecha: haceDias(1), resultado: 'preñada' })).status).toBe(201);
+    expect(ids((await pendientes(state.campo)).a_reconfirmar)).not.toContain(v.b);
+    expect((await vaca(state.campo, v.b)).fecha_ultimo_tacto).toBe(haceDias(1));
   });
 
   test('tacto positivo deja preñada; borrar el tacto la vuelve a inseminada', async () => {
@@ -150,7 +160,7 @@ describe('🥛 TAMBO — eventos reproductivos, pendientes y resumen', () => {
 
   test('configuración por campo cambia los pendientes', async () => {
     const leer = await businessApi.get('/tambo/configuracion', en(state.campo));
-    expect(leer.data).toMatchObject({ dias_espera: 50, dias_tacto: 35, dias_secado: 60, dias_preparto: 21 });
+    expect(leer.data).toMatchObject({ dias_espera: 45, dias_tacto: 35, dias_reparche: 14, dias_secado: 60, dias_preparto: 30, dias_reconfirmacion: 180 });
     expect((await businessApi.patch('/tambo/configuracion', { dias_tacto: 10 }, en(state.campo))).status).toBe(400);
     const cambiar = await businessApi.patch('/tambo/configuracion', { dias_tacto: 45 }, en(state.campo));
     expect(cambiar.status).toBe(200);
