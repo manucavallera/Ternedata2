@@ -5,7 +5,10 @@
   "scripts": {
     "test": "jest --runInBand --forceExit ternedata.test.js ternedata.second-batch.test.js",
     "test:local": "jest --runInBand --forceExit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "capturas": "playwright test -c playwright.capturas.config.js",
+    "capturas:web": "playwright test -c playwright.capturas.config.js --project=setup --project=web",
+    "capturas:app": "playwright test -c playwright.capturas.config.js --project=app"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
@@ -22,7 +25,8 @@
     "verbose": true,
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/e2e/"
+      "/e2e/",
+      "/capturas/"
     ]
   }
 }

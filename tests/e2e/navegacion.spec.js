@@ -32,6 +32,24 @@ test.describe('Navegación con sesión', () => {
     });
   }
 
+  // El selector de establecimiento llegó a tapar "Listados" en notebooks: cada botón tiene que recibir su clic.
+  for (const ancho of [1024, 1280, 1440, 1600, 1920]) {
+    test(`a ${ancho}px ningún botón del menú queda tapado`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await page.goto('/admin/dashboard');
+      await page.getByRole('button', { name: 'Ingresos', exact: true }).waitFor();
+      const tapados = [];
+      for (const nombre of ['Ingresos', 'Rodeos', 'Tambo', 'Litros', 'Calendario', 'Sustituto', 'Listados']) {
+        const recibeElClic = await page.locator('nav button', { hasText: nombre }).first().evaluate((boton) => {
+          const r = boton.getBoundingClientRect();
+          return boton.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        });
+        if (!recibeElClic) tapados.push(nombre);
+      }
+      expect(tapados).toEqual([]);
+    });
+  }
+
   test('el perfil muestra el email del usuario', async ({ page }) => {
     await page.goto('/perfil');
     await expect(page.locator('input[type="email"]')).toHaveValue(process.env.TEST_EMAIL);

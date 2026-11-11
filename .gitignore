@@ -2,3 +2,6 @@ n8n-workflows/
 .claude/
 node_modules/
 .worktrees/
+
+# Capturas de pantalla generadas por tests/playwright.capturas.config.js
+/capturas/
