@@ -43,8 +43,8 @@ test.describe('Panel de administración — usuarios globales (super_admin)', ()
 
   test('ve a todos los usuarios, filtra, cambia un rol y desactiva', async ({ page }) => {
     const rolEnBase = async () => (await db.query('SELECT rol, estado FROM users WHERE email = $1', [objetivo.email])).rows[0];
-    // "Cambiar rol" pide el rol con un prompt y después confirma.
-    page.on('dialog', (dialog) => dialog.accept(dialog.type() === 'prompt' ? 'veterinario' : undefined));
+    // Cambiar rol y desactivar piden confirmación.
+    page.on('dialog', (dialog) => dialog.accept());
 
     await test.step('entrar como super_admin', async () => {
       await page.goto('/auth/login');
@@ -60,12 +60,14 @@ test.describe('Panel de administración — usuarios globales (super_admin)', ()
     });
 
     const fila = page.locator('tr', { hasText: objetivo.email });
+    // El rol se ve y se cambia en un desplegable por usuario.
+    const rolDe = (email) => page.getByLabel(`Rol de ${email}`);
 
     await test.step('la pestaña global lista usuarios de toda la plataforma', async () => {
       await page.getByRole('button', { name: '🌐 Usuarios globales' }).click();
       await expect(page.getByRole('heading', { name: 'Usuarios globales' })).toBeVisible();
-      await expect(fila).toContainText('operario');
-      await expect(page.locator('tr', { hasText: process.env.TEST_EMAIL })).toContainText('admin');
+      await expect(rolDe(objetivo.email)).toHaveValue('operario');
+      await expect(rolDe(process.env.TEST_EMAIL)).toHaveValue('admin');
     });
 
     await test.step('filtra por rol', async () => {
@@ -79,9 +81,9 @@ test.describe('Panel de administración — usuarios globales (super_admin)', ()
 
     await test.step('cambia el rol', async () => {
       const guardado = page.waitForResponse((r) => r.url().includes('/change-role') && r.request().method() === 'PUT');
-      await fila.getByRole('button', { name: 'Cambiar rol' }).click();
+      await rolDe(objetivo.email).selectOption('veterinario');
       expect((await guardado).status()).toBe(200);
-      await expect(fila).toContainText('veterinario');
+      await expect(rolDe(objetivo.email)).toHaveValue('veterinario');
       expect((await rolEnBase()).rol).toBe('veterinario');
     });
 

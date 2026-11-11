@@ -142,7 +142,7 @@ export default function EstablecimientoSelector() {
       <select
         value={establecimientoActual || ""}
         onChange={handleChange}
-        className='bg-green-500 text-white border border-white rounded px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white cursor-pointer'
+        className='max-w-[11rem] xl:max-w-[15rem] truncate bg-green-500 text-white border border-white rounded px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white cursor-pointer'
       >
         <option value=''>📊 Seleccionar Establecimiento</option>
         {establecimientos.map((est) => (
